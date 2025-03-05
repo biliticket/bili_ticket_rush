@@ -1,5 +1,5 @@
 [package]
-name = "bili_ticket_gui"
+name = "frontend"
 version = "0.1.0"
 edition = "2021"
 
@@ -18,5 +18,5 @@ image = "0.25.5"
 #时间
 chrono = "0.4"
 
-common = {path = " ../common"}
+common = {path = "../common"}
 backend = {path = "../backend"}
