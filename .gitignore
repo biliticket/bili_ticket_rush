@@ -1,0 +1,14 @@
+/target
+/.vscode/
+/.idea/
+*.sublime-*
+*.swp
+*~
+/target/
+**/*.rs.bk
+Cargo.lock
+*.pdb
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
