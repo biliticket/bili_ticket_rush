@@ -1,3 +1,4 @@
+
 use eframe::egui;
 use crate::app::Myapp;
 
@@ -21,6 +22,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                     if ui.button("❌").clicked() {
+                        //window_open = false;
                         app.show_log_window = false;
                     }
                 });
@@ -32,6 +34,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .stick_to_bottom(true)
+                .max_height(300.0)
                 .show(ui, |ui| {
                     // 显示当前状态
                     ui.label(format!("当前状态: {}", 
@@ -42,6 +45,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                     // 显示所有日志
                     if app.logs.is_empty() {
                         ui.label("暂无日志记录");
+                        
                     } else {
                         for log in &app.logs {
                             ui.label(log);
