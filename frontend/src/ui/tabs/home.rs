@@ -15,7 +15,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         egui::RichText::new("开始抢票").size(40.0).color(egui::Color32::WHITE)
                     )
                     .min_size(egui::vec2(300.0, 150.0))
-                    .fill(egui::Color32::from_rgb(131, 175, 155))
+                    .fill(egui::Color32::from_rgb(66, 150, 250))
                     .rounding(20.0);
                     
                     // 只有点击按钮时才触发
