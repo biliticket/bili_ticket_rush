@@ -14,14 +14,27 @@ pub struct Myapp{
     //日志记录
     pub logs: Vec<String>,
     pub show_log_window: bool,
+    //用户信息
+    pub user_info: UserInfo,
+    pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
+   
 
 
 
 
 }
 
+pub struct UserInfo{
+    pub username: String,
+    pub show_info: String,
+    pub is_logged: bool,
+    pub avatar_texture: Option<egui::TextureHandle>, // 用户头像（如果已登录）
+    pub avatar_path: Option<String>,
+}
+
 impl Myapp{
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self{
+        
         //中文字体
         ui::fonts::configure_fonts(&cc.egui_ctx);
         
@@ -33,6 +46,9 @@ impl Myapp{
             background_texture: None,
             show_log_window: false,
             logs: Vec::new(),
+            user_info: UserInfo { username: String::from("未登录"), show_info: String::from("LV6 | 哔哩哔哩大会员"), is_logged: false, avatar_texture: None , avatar_path: None},
+            default_avatar_texture: None,
+           
         }
     }
 
