@@ -1,6 +1,6 @@
 use eframe::egui;
 use crate::app::Myapp;
-
+use common::taskmanager::{TaskStatus, TicketRequest};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("预留抢票界面公告栏1");
                 ui.separator();
@@ -25,6 +25,11 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         app.add_log("开始抢票流程");
                         
                         //待完善鉴权账号及有效信息
+                        if let Err(error) = start_grab_ticket(app,"123456","85939"){
+                            app.add_log(&format!("抢票失败: {}", error));
+                            app.is_loading = false;
+                            app.running_status = String::from("抢票失败");
+                        }
                         
                     }
                     
@@ -32,14 +37,14 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 
 }
 
-pub fn start_grab_ticket(app: &mut Myapp,ui:&mut egui::Ui) -> bool{
-    if !check_setting_info(ui, app){
+/* pub fn start_grab_ticket(app: &mut Myapp) -> bool{
+    if !check_setting_info(app){
         app.add_log("请先登录账号");
         return false
         
     }
     app.add_log("设置检测通过");
-    if !check_input_ticket(ui, app){
+    if !check_input_ticket(app){
         app.add_log("请输入项目ID：");
         return false
 
@@ -47,7 +52,7 @@ pub fn start_grab_ticket(app: &mut Myapp,ui:&mut egui::Ui) -> bool{
     true
 
 }
-pub fn check_setting_info(ui: &mut egui::Ui, app: &mut Myapp) -> bool{
+pub fn check_setting_info( app: &mut Myapp) -> bool{
     if !app.user_info.is_logged {
             app.is_loading = false;
             app.add_log("请先登录账号");
@@ -57,11 +62,65 @@ pub fn check_setting_info(ui: &mut egui::Ui, app: &mut Myapp) -> bool{
     true
 }
 
-pub fn check_input_ticket(ui: &mut egui::Ui, app: &mut Myapp)  -> bool{
+pub fn check_input_ticket( app: &mut Myapp)  -> bool{
     if app.ticket_id.is_empty(){
         return false
 
     }
     return true
 
+}
+
+ */
+
+ pub fn start_grab_ticket(app: &mut Myapp, account_id: &str, ticket_id: &str) -> Result<(), String> {
+    // 验证输入
+    if ticket_id.is_empty() {
+        return Err("请输入票务ID".to_string());
+    }
+    
+    // 验证账号状态
+    let account = app.account_manager.accounts.iter()
+        .find(|a| a.uid == account_id)
+        .ok_or("未找到账号")?;
+    
+    if !account.is_logged {
+        return Err("账号未登录".to_string());
+    }
+    
+    // 创建请求
+    let request = TicketRequest {
+        ticket_id: ticket_id.to_string(),
+        account_id: account_id.to_string(),
+    };
+    
+    // 提交任务
+    match app.task_manager.submit_task(request) {
+        Ok(task_id) => {
+            // 创建任务记录
+            let task = common::taskmanager::TicketTask {
+                task_id: task_id.clone(),
+                account_id: account_id.to_string(),
+                ticket_id: ticket_id.to_string(),
+                status: TaskStatus::Pending,
+                start_time: Some(std::time::Instant::now()),
+                result: None,
+            };
+            
+            // 保存任务
+            app.account_manager.active_tasks.insert(task_id, task);
+            
+            // 更新账号状态
+            if let Some(account) = app.account_manager.accounts.iter_mut()
+                .find(|a| a.uid == account_id) {
+                account.AccountStatus = "忙碌".to_string();
+            }
+            
+            app.add_log(&format!("为账号 {} 创建抢票任务: {}", account_id, ticket_id));
+            app.running_status = "抢票中...".to_string();
+            
+            Ok(())
+        },
+        Err(e) => Err(e),
+    }
 }
