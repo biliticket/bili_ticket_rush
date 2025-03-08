@@ -38,7 +38,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                 .show(ui, |ui| {
                     // 显示当前状态
                     ui.label(format!("当前状态: {}", 
-                        if app.is_loading {"正在抢票中..."} else {"空闲"}));
+                        if app.running_status.is_empty() { "未知状态" } else { &app.running_status }));
                     
                     ui.separator();
                     
