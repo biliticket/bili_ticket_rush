@@ -4,6 +4,7 @@ use crate::windows;
 use std::collections::HashMap;
 use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,TicketTask};
 use backend::taskmanager::TaskManagerImpl;
+use common::LOG_COLLECTOR;
 
 
 //UI
@@ -153,7 +154,7 @@ impl Myapp{
             background_texture: None,
             show_log_window: false,
             logs: Vec::new(),
-            user_info: UserInfo { username: String::from("未登录"), show_info: String::from(" LV6 | 哔哩哔哩大会员"), is_logged: true, avatar_texture: None , avatar_path: None},
+            user_info: UserInfo { username: String::from("未登录"), show_info: String::from(" LV6 | 哔哩哔哩大会员"), is_logged: false, avatar_texture: None , avatar_path: None},
             default_avatar_texture: None,
             push_settings: Some(PushSettings::default()),
             running_status: String::from("空闲ing"),
@@ -169,8 +170,7 @@ impl Myapp{
     }
 
     pub fn add_log(&mut self, message: &str){
-        let timestamp = chrono::Local::now().format("%H:%M:%S").to_string();
-        self.logs.push(format!("[{}] {}",timestamp,message));
+        self.logs.push(format!("{}",message));
     }
     // 处理任务结果的方法
     fn process_task_results(&mut self) {
@@ -231,6 +231,14 @@ impl Myapp{
             self.add_log(&message);
         }
     }
+
+    pub fn add_log_windows(&mut self) { //从env_log添加日志进窗口
+        if let Some(logs) = LOG_COLLECTOR.lock().unwrap().get_logs() {
+            for log in logs {
+                self.add_log(&log);
+            }
+        }
+    }
 }
 
 
@@ -259,8 +267,13 @@ impl eframe::App for Myapp{
         //处理异步任务结果
         self.process_task_results();
 
+        //从env_log添加日志进窗口
+        self.add_log_windows();
+
         
     }
+
+    
 }
 
 

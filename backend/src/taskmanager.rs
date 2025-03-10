@@ -4,6 +4,8 @@ use std::thread;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use common::taskmanager::{TaskManager, TaskResult, TaskStatus, TicketRequest, TicketTask, TicketResult};
+use crate::api::{*};
+
 
 pub struct TaskManagerImpl {
     task_sender: mpsc::Sender<TaskMessage>,
@@ -46,7 +48,11 @@ impl TaskManager for TaskManagerImpl {
                                     Ok(ticket_result) => Ok(ticket_result),
                                     Err(e) => Err(e.to_string()),
                                 };
-                                
+                                log::info! (" 任务完成 ID: {}, 结果: {}", 
+             
+             task_id, 
+             
+             if let Ok(ref r) = result { "成功" } else { "失败" });
                                 // 发送结果
                                 let _ = result_tx.send(TaskResult {
                                     task_id,
@@ -78,6 +84,7 @@ impl TaskManager for TaskManagerImpl {
         // 生成任务ID
         let task_id = uuid::Uuid::new_v4().to_string();
         
+        log::info!("提交任务 ID: {}, 票ID: {}", task_id, request.ticket_id);
         // 创建任务对象
         let task = TicketTask {
             task_id: task_id.clone(),
@@ -134,27 +141,3 @@ impl TaskManager for TaskManagerImpl {
     }
 }
 
-// 实际抢票逻辑
-async fn perform_ticket_grab(request: &TicketRequest) -> Result<TicketResult, Box<dyn std::error::Error + Send + Sync>> {
-    // 这里实现实际的抢票逻辑，包括:
-    // 1. 登录验证
-    // 2. 检查票务可用性
-    // 3. 提交抢票请求
-    // 4. 处理响应
-    
-    // 模拟抢票过程
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    
-    // 返回结果
-    Ok(TicketResult {
-        success: true,
-        order_id: Some("ORDER12345".to_string()),
-        message: Some("抢票成功".to_string()),
-        ticket_info: common::TicketInfo {
-            id: request.ticket_id.clone(),
-            name: "测试演出".to_string(),
-            price: 280.0,
-        },
-        timestamp: std::time::Instant::now(),
-    })
-}

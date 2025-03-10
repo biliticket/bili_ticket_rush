@@ -18,5 +18,10 @@ image = "0.25.5"
 #时间
 chrono = "0.4"
 
+#日志
+log = "0.4"
+env_logger = "0.9"
+
+
 common = {path = "../common"}
 backend = {path = "../backend"}

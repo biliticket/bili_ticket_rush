@@ -1,5 +1,5 @@
 use eframe::egui;
-use crate::app::Myapp;
+use crate::app::{Myapp, UserAccount};
 use common::taskmanager::{TaskStatus, TicketRequest};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("预留抢票界面公告栏1");
@@ -23,7 +23,13 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         app.is_loading = true;
                         app.running_status = String::from("抢票初始化...");
                         app.add_log("开始抢票流程");
-                        
+                        let test_accout = UserAccount{
+                            uid: "123456".to_string(),
+                            username: String::from("test"),
+                            is_logged: true,
+                            AccountStatus: String::from("空闲"),
+                        };
+                        app.account_manager.accounts.push(test_accout);
                         //待完善鉴权账号及有效信息
                         if let Err(error) = start_grab_ticket(app,"123456","85939"){
                             app.add_log(&format!("抢票失败: {}", error));
@@ -93,7 +99,7 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
         ticket_id: ticket_id.to_string(),
         account_id: account_id.to_string(),
     };
-    
+    println!("请求创建成功");
     // 提交任务
     match app.task_manager.submit_task(request) {
         Ok(task_id) => {
@@ -106,7 +112,7 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
                 start_time: Some(std::time::Instant::now()),
                 result: None,
             };
-            
+            log::error!("任务创建成功");
             // 保存任务
             app.account_manager.active_tasks.insert(task_id, task);
             
@@ -116,7 +122,7 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
                 account.AccountStatus = "忙碌".to_string();
             }
             
-            app.add_log(&format!("为账号 {} 创建抢票任务: {}", account_id, ticket_id));
+            log::info!("为账号 {} 创建抢票任务: {}", account_id, ticket_id);
             app.running_status = "抢票中...".to_string();
             
             Ok(())

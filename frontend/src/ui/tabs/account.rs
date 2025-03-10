@@ -41,126 +41,12 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         
     }
     }
+    else{
+        
+    }
 }
 
-    /* // 账号信息卡片
-    egui::Frame::none()
-        .fill(egui::Color32::from_rgb(240, 240, 250)) // 浅蓝色背景
-        .rounding(15.0) // 圆角效果
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 230))) // 边框
-        .inner_margin(egui::style::Margin::same(16.0)) // 内边距
-        .show(ui, |ui| {
-            ui.horizontal_centered(|ui| {
-                // 头像容器（圆形）
-let avatar_size = 80.0;
-let (rect, _) = ui.allocate_exact_size(
-    egui::Vec2::new(avatar_size, avatar_size),
-    egui::Sense::hover()
-);
 
-// 获取头像纹理
-let avatar_texture = if app.user_info.is_logged && app.user_info.avatar_texture.is_some() {
-    &app.user_info.avatar_texture
-} else {
-    &app.default_avatar_texture
-};
-
-if let Some(texture) = avatar_texture {
-    // 创建圆形裁剪区域
-    ui.painter().rect_filled(
-        rect,
-        avatar_size / 2.0, // 完全圆形的圆角
-        egui::Color32::from_rgb(220, 220, 240) // 背景色
-    );
-    
-    // 在裁剪区域内绘制图像
-    let clip_rect = ui.painter().clip_rect();
-    let clip_shape = egui::Shape::circle_filled(
-        rect.center(), 
-        avatar_size / 2.0 - 1.0, // 微小边距
-        egui::Color32::WHITE
-    );
-    let new_clip_rect = clip_rect.intersect(rect); // 创建交集
-    
-    ui.painter().with_clip_rect(new_clip_rect).add(clip_shape);
-    ui.painter().with_clip_rect(new_clip_rect).image(
-        texture.id(),
-        rect,
-        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-        egui::Color32::WHITE
-    );
-} else {
-    // 如果没有纹理，只绘制背景圆形
-    ui.painter().circle_filled(
-        rect.center(),
-        avatar_size / 2.0,
-        egui::Color32::from_rgb(220, 220, 240)
-    );
-}
-                
-                ui.add_space(16.0);
-                
-                // 用户信息
-                ui.vertical(|ui| {
-                    let username = if app.user_info.is_logged { 
-                        &app.user_info.username 
-                    } else { 
-                        "未登录" 
-                    };
-                    
-                    ui.heading(username);
-                    
-                    if app.user_info.is_logged {
-                        // 已登录用户信息
-                        ui.horizontal(|ui| {
-                            ui.label("LV");
-                            ui.add(egui::widgets::Label::new(
-                                egui::RichText::new(format!("{}", app.user_info.level))
-                                    .color(egui::Color32::from_rgb(66, 150, 250))
-                                    .strong()
-                            ));
-                        });
-                        
-                        // 会员标签
-                        egui::Frame::none()
-                            .rounding(4.0)
-                            .fill(egui::Color32::from_rgb(249, 204, 40)) // 金色
-                            .inner_margin(egui::style::Margin::symmetric(6.0, 2.0))
-                            .show(ui, |ui| {
-                                ui.label(egui::RichText::new("哔哩大会员").color(egui::Color32::BLACK).small());
-                            });
-                    } else {
-                        // 未登录提示
-                        ui.label(egui::RichText::new("请登录以使用完整功能").color(egui::Color32::GRAY));
-                        
-                        if ui.button(egui::RichText::new("立即登录").strong()).clicked() {
-                            // TODO: 实现登录功能
-                            show_login_dialog(app);
-                        }
-                    }
-                });
-            });
-        });
-        
-    // 用户卡片下方的其他信息
-    if app.user_info.is_logged {
-        ui.add_space(16.0);
-        
-        egui::CollapsingHeader::new("账号详情")
-            .default_open(false)
-            .show(ui, |ui| {
-                ui.label("UID: 10086123");
-                ui.label("注册时间: 2021-05-01");
-                ui.label("绑定手机: 138****8888");
-                ui.label("安全等级: 高");
-            });
-        
-        ui.add_space(8.0);
-        
-        if ui.button("退出登录").clicked() {
-            app.user_info.is_logged = false;
-        }
-    } */
 }
 /// 将任意图片显示为圆形
 /// - texture: 要显示的图像纹理
