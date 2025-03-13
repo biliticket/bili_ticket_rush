@@ -1,0 +1,12 @@
+use eframe::egui;
+
+pub struct Account{
+    pub uid: i64,  //UID
+    pub name: String,   //昵称
+    pub level: String,
+    pub cookie: String, //cookie
+    pub csrf : String,  //csrf
+    pub avatar_texture: Option<egui::TextureHandle>, //头像
+    pub is_logged: bool,    //是否登录
+    pub account_status: String,  //账号状态
+}

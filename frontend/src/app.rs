@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,TicketTask};
 use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
+use common::account::{Account};
 
 
 //UI
@@ -23,9 +24,9 @@ pub struct Myapp{
     pub logs: Vec<String>,
     pub show_log_window: bool,
     //用户信息
-    pub user_info: UserInfo,
+    pub user_info: Account,
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
-    
+        
 
     pub push_settings: Option<PushSettings>,
     pub ticket_id: String,
@@ -41,17 +42,10 @@ pub struct Myapp{
 
 //账号管理
 pub struct AccountManager{
-    pub accounts: Vec<UserAccount>,
+    pub accounts: Vec<Account>,
     pub active_tasks: HashMap<String, TicketTask>,
 }
 
-//账号
-pub struct UserAccount{
-    pub uid : String,        // UID
-    pub username: String,   // 用户名
-    pub is_logged: bool,    // 是否已登录
-    pub AccountStatus: String,     // 状态
-}
 
 
 
@@ -66,13 +60,7 @@ pub enum AccountStatus{
 
 
 
-pub struct UserInfo{
-    pub username: String,
-    pub show_info: String,
-    pub is_logged: bool,
-    pub avatar_texture: Option<egui::TextureHandle>, // 用户头像（如果已登录）
-    pub avatar_path: Option<String>,
-}
+
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum PushType {
@@ -154,7 +142,16 @@ impl Myapp{
             background_texture: None,
             show_log_window: false,
             logs: Vec::new(),
-            user_info: UserInfo { username: String::from("未登录"), show_info: String::from(" LV6 | 哔哩哔哩大会员"), is_logged: false, avatar_texture: None , avatar_path: None},
+            user_info: Account{
+                uid: 123456,
+                name: String::from("test"),
+                is_logged: true,
+                account_status: String::from("空闲"),
+                cookie: String::from("123456"),
+                csrf: String::from("123456"),
+                avatar_texture : None,
+                level: String::from("LV6"),
+            },
             default_avatar_texture: None,
             push_settings: Some(PushSettings::default()),
             running_status: String::from("空闲ing"),
@@ -221,8 +218,8 @@ impl Myapp{
         // 更新账号状态
         for account_id in account_updates {
             if let Some(account) = self.account_manager.accounts.iter_mut()
-                .find(|a| a.uid == account_id) {
-                account.AccountStatus = "空闲".to_string();
+                .find(|a| a.uid == account_id.parse::<i64>().unwrap_or(-1)) {
+                account.account_status = "空闲".to_string();
             }
         }
         

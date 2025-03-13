@@ -43,7 +43,7 @@ impl TaskManager for TaskManagerImpl {
                             
                             // 为每个请求创建异步任务
                             tokio::spawn(async move {
-                                // 这里是实际抢票逻辑
+                                // 这里是实际业务逻辑
                                 let result = match perform_ticket_grab(&request).await {
                                     Ok(ticket_result) => Ok(ticket_result),
                                     Err(e) => Err(e.to_string()),

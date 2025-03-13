@@ -1,5 +1,6 @@
 use eframe::egui;
-use crate::app::{Myapp, UserAccount};
+use crate::app::Myapp;
+use common::account::{Account};
 use common::taskmanager::{TaskStatus, TicketRequest};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("预留抢票界面公告栏1");
@@ -23,11 +24,15 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         app.is_loading = true;
                         app.running_status = String::from("抢票初始化...");
                         app.add_log("开始抢票流程");
-                        let test_accout = UserAccount{
-                            uid: "123456".to_string(),
-                            username: String::from("test"),
+                        let test_accout = Account{
+                            uid: 123456,
+                            name: String::from("test"),
                             is_logged: true,
-                            AccountStatus: String::from("空闲"),
+                            account_status: String::from("空闲"),
+                            cookie: String::from("123456"),
+                            csrf: String::from("123456"),
+                            avatar_texture : None,
+                            level: String::from("LV6"),
                         };
                         app.account_manager.accounts.push(test_accout);
                         //待完善鉴权账号及有效信息
@@ -87,7 +92,7 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
     
     // 验证账号状态
     let account = app.account_manager.accounts.iter()
-        .find(|a| a.uid == account_id)
+        .find(|a| a.uid ==  account_id.parse::<i64>().unwrap_or(-1))
         .ok_or("未找到账号")?;
     
     if !account.is_logged {
@@ -118,8 +123,8 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
             
             // 更新账号状态
             if let Some(account) = app.account_manager.accounts.iter_mut()
-                .find(|a| a.uid == account_id) {
-                account.AccountStatus = "忙碌".to_string();
+                .find(|a| a.uid ==  account_id.parse::<i64>().unwrap_or(-1)) {
+                account.account_status = "忙碌".to_string();
             }
             
             log::info!("为账号 {} 创建抢票任务: {}", account_id, ticket_id);

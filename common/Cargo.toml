@@ -7,6 +7,9 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
 
+eframe = { version = "0.23.0", features = ["default"] }
+egui = "0.31.0"
+
 # log
 log = "0.4"
 env_logger = "0.9"

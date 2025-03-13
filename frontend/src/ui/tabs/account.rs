@@ -18,9 +18,9 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     rounded_rect_with_image_and_text(
         ui,
         texture,
-        if app.user_info.is_logged { &app.user_info.username } else { "未登录" },
+        if app.user_info.is_logged { &app.user_info.name } else { "未登录" },
         if app.user_info.is_logged { 
-             app.user_info.show_info.as_str()
+             app.user_info.level.as_str()
         } else { 
             "点击登录以使用完整功能" 
             
@@ -41,10 +41,42 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         
     }
     }
-    else{
+    
+
+}
+ui.separator();
+if let Some(texture) = &app.default_avatar_texture {
+    rounded_rect_with_image_and_text(
+        ui,
+        texture,
+        if app.user_info.is_logged { &app.user_info.name } else { "未登录" },
+        if app.user_info.is_logged { 
+             app.user_info.level.as_str()
+        } else { 
+            "点击登录以使用完整功能" 
+            
+        }
+        
+        
+    );
+    if !app.user_info.is_logged {
+        
+        let button = egui::Button::new(
+            egui::RichText::new("登录").size(20.0).color(egui::Color32::WHITE)
+        )
+        .min_size(egui::vec2(30.0, 15.0))
+        .fill(egui::Color32::from_rgb(66, 150, 250))
+        .rounding(20.0);
+         if ui.add(button).clicked() {
+        app.is_loading = true;
         
     }
+    }
+    
+
 }
+ui.separator();
+ui.button("测试测试");
 
 
 }
@@ -145,7 +177,7 @@ fn load_user_avatar(ctx: &egui::Context, app: &mut Myapp) {
     }
     
     // 如果用户已登录且提供了头像路径，尝试加载
-    if app.user_info.is_logged && app.user_info.avatar_texture.is_none() {
+    /* if app.user_info.is_logged && app.user_info.avatar_texture.is_none() {
         if let Some(avatar_path) = &app.user_info.avatar_path {
             // 尝试加载用户头像
             app.user_info.avatar_texture = load_texture_from_path(ctx, avatar_path, "user_avatar");
@@ -157,7 +189,7 @@ fn load_user_avatar(ctx: &egui::Context, app: &mut Myapp) {
                 app.add_log(&format!("无法加载头像: {}", avatar_path));
             }
         }
-    }
+    } */
 }
 // 加载默认头像
 fn load_default_avatar(ctx: &egui::Context, app: &mut Myapp) {
@@ -220,12 +252,12 @@ fn rounded_rect_with_image_and_text(
         .fill(egui::Color32::from_rgb(245, 245, 250))  // 背景色
         .rounding(12.0)  // 圆角半径
         .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 220)))  // 边框
-        .inner_margin(egui::style::Margin::symmetric(16.0, 12.0))  // 内边距
+        .inner_margin(egui::style::Margin::symmetric(200.0, 50.0))  // 内边距
         .show(ui, |ui| {
             // 水平布局放置图片和文字
             ui.horizontal(|ui| {
                 // 左侧图片区域，这里使用小尺寸的圆形图片
-                let image_size = 64.0;
+                let image_size = 84.0;
                 draw_circular_image(ui, texture, image_size);
                 
                 ui.add_space(12.0);  // 图片和文字之间的间距
@@ -235,7 +267,7 @@ fn rounded_rect_with_image_and_text(
                     // 标题文字
                     ui.add(egui::widgets::Label::new(
                         egui::RichText::new(title)
-                            .size(18.0)
+                            .size(38.0)
                             .strong()
                             .color(egui::Color32::from_rgb(60, 60, 80))
                     ));
