@@ -33,6 +33,8 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                             csrf: String::from("123456"),
                             avatar_texture : None,
                             level: String::from("LV6"),
+                            vip_label: String::from("月度大会员"),
+                            is_active: true,
                         };
                         app.account_manager.accounts.push(test_accout);
                         //待完善鉴权账号及有效信息

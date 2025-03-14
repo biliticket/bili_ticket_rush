@@ -1,6 +1,6 @@
 use eframe::egui;
 use crate::app::Myapp;
-
+use common::account::Account;
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
     ui.separator();
@@ -15,17 +15,10 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         draw_circular_image(ui, default_texture, 180.0);
     } */
     if let Some(texture) = &app.default_avatar_texture {
-    rounded_rect_with_image_and_text(
+    show_user(
         ui,
         texture,
-        if app.user_info.is_logged { &app.user_info.name } else { "未登录" },
-        if app.user_info.is_logged { 
-             app.user_info.level.as_str()
-        } else { 
-            "点击登录以使用完整功能" 
-            
-        }
-        
+        &app.user_info,
         
     );
     if !app.user_info.is_logged {
@@ -44,20 +37,14 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     
 
 }
+//show_user_control(ui,&app.user_info);
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
-    rounded_rect_with_image_and_text(
+    show_user(
         ui,
         texture,
-        if app.user_info.is_logged { &app.user_info.name } else { "未登录" },
-        if app.user_info.is_logged { 
-             app.user_info.level.as_str()
-        } else { 
-            "点击登录以使用完整功能" 
-            
-        }
         
-        
+        &app.user_info,
     );
     if !app.user_info.is_logged {
         
@@ -76,14 +63,14 @@ if let Some(texture) = &app.default_avatar_texture {
 
 }
 ui.separator();
-ui.button("测试测试");
+
 
 
 }
 /// 将任意图片显示为圆形
 /// - texture: 要显示的图像纹理
 /// - size: 圆形图片的直径大小
-fn draw_circular_image(ui: &mut egui::Ui, texture: &egui::TextureHandle, size: f32) -> egui::Response {
+fn draw_user_avatar(ui: &mut egui::Ui, texture: &egui::TextureHandle, size: f32) -> egui::Response {
     // 分配正方形区域
     let (rect, response) = ui.allocate_exact_size(
         egui::Vec2::new(size, size),
@@ -93,7 +80,7 @@ fn draw_circular_image(ui: &mut egui::Ui, texture: &egui::TextureHandle, size: f
     if ui.is_rect_visible(rect) {
         // 创建一个离屏渲染的自定义形状层
         let layer_id = egui::layers::LayerId::new(
-            egui::layers::Order::Middle, 
+            egui::layers::Order::Background, 
             egui::Id::new("circular_image")
         );
         
@@ -241,47 +228,152 @@ fn generate_placeholder_avatar(ctx: &egui::Context) -> Option<egui::TextureHandl
     ))
 }
 
-fn rounded_rect_with_image_and_text(
+fn show_user( //显示用户头像等信息
     ui: &mut egui::Ui, 
     texture: &egui::TextureHandle, 
-    title: &str,
-    description: &str
+    user: &Account,
 ) {
     // 创建圆角长方形框架
     egui::Frame::none()
         .fill(egui::Color32::from_rgb(245, 245, 250))  // 背景色
         .rounding(12.0)  // 圆角半径
         .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 220)))  // 边框
-        .inner_margin(egui::style::Margin::symmetric(200.0, 50.0))  // 内边距
+        .inner_margin(egui::Margin { left: 10.0, right: 20.0, top: 15.0, bottom: 15.0 })  // 内边距
         .show(ui, |ui| {
             // 水平布局放置图片和文字
             ui.horizontal(|ui| {
                 // 左侧图片区域，这里使用小尺寸的圆形图片
                 let image_size = 84.0;
-                draw_circular_image(ui, texture, image_size);
+                draw_user_avatar(ui, texture, image_size);
                 
                 ui.add_space(12.0);  // 图片和文字之间的间距
                 
                 // 右侧文字区域
                 ui.vertical(|ui| {
-                    // 标题文字
-                    ui.add(egui::widgets::Label::new(
-                        egui::RichText::new(title)
-                            .size(38.0)
-                            .strong()
-                            .color(egui::Color32::from_rgb(60, 60, 80))
-                    ));
+                    //第一行
+                    //显示uid和昵称
+                    ui.horizontal(|ui|{
+                        ui.add(egui::widgets::Label::new(
+                            egui::RichText::new(&user.name)
+                                .size(30.0)
+                                .strong()
+                                .color(egui::Color32::from_rgb(60, 60, 80))
+                        ));
+                        ui.add_space(15.0);
+                        ui.add(egui::widgets::Label::new(
+                            egui::RichText::new(format!("UID: {}", user.uid))
+                                .color(egui::Color32::from_rgb(100, 100, 120))
+                                .size(16.0)
+                        ));
+                    });
+                    //第二行
+                    ui.add_space(10.0);
+                    //显示大会员
+                    ui.horizontal(|ui|{
+
+                        match user.vip_label.as_str(){
+                            "月度大会员"=> {
+                                egui::Frame::none()
+                                .fill(egui::Color32::from_rgb(251, 114, 153)) // 粉色背景 #FB7299
+                                .rounding(10.0)  // 圆角
+                                
+                                .inner_margin(egui::vec2(6.0, 3.0))  // 内边距
+                                .show(ui, |ui| {
+                                    // 白色文字 #FFFFFF
+                                        ui.label(
+                                              egui::RichText::new("月度大会员")
+                                              .color(egui::Color32::from_rgb(255, 255, 255))
+                                                // 白色文字
+                                              .size(15.0)
+                                                    );
+                                 });
+                            }
+                            "年度大会员" =>{
+                                egui::Frame::none()
+                                .fill(egui::Color32::from_rgb(251, 114, 153))  // 粉色背景 #FB7299
+                                .rounding(10.0)  // 圆角
+                                .inner_margin(egui::vec2(6.0, 3.0))  // 内边距
+                                .show(ui, |ui| {
+                                    // 白色文字 #FFFFFF
+                                        ui.label(
+                                              egui::RichText::new("年度大会员")
+                                              .color(egui::Color32::from_rgb(255, 255, 255))  // 白色文字
+                                              .size(15.0)
+                                                    );
+                                 });
+                            }
+                            "十年大会员" =>{
+                                egui::Frame::none()
+                                .fill(egui::Color32::from_rgb(251, 114, 153))  // 粉色背景 #FB7299
+                                .rounding(10.0)  // 圆角
+                                .inner_margin(egui::vec2(6.0, 3.0))  // 内边距
+                                .show(ui, |ui| {
+                                    // 白色文字 #FFFFFF
+                                        ui.label(
+                                              egui::RichText::new("十年大会员")
+                                              .color(egui::Color32::from_rgb(255, 255, 255))  // 白色文字
+                                              .size(15.0)
+                                                    );
+                                 });
+                            }
+                            _ => {
+                                egui::Frame::none()
+                                 
+                                .inner_margin(egui::vec2(6.0, 3.0))  // 内边距
+                                .show(ui, |ui| {
+                                    // 白色文字rgb(0, 0, 0)
+                                        ui.label(
+                                              egui::RichText::new("正式会员")
+                                              .color(egui::Color32::from_rgb(0, 0, 0))  // 白色文字
+                                              .size(15.0)
+                                                    );
+                                 });
+                            }
+
+
+
+                        }
+                    })
                     
-                    // 描述文字
-                    ui.label(
-                        egui::RichText::new(description)
-                            .color(egui::Color32::from_rgb(100, 100, 120))
-                            .size(14.0)
-                    );
                 });
+                
+                
             });
+            ui.vertical(|ui|{
+                ui.add_space(15.0);
+                ui.horizontal(|ui|{
+                    ui.add_space(15.0);
+                    let button = egui::Button::new(
+                      egui::RichText::new("登录").size(20.0).color(egui::Color32::WHITE)
+                      )
+                        .min_size(egui::vec2(120.0,50.0))
+                        .fill(egui::Color32::from_rgb(102,204,255))
+                        .rounding(15.0);//圆角成度
+                    ui.add(button);
+                    ui.add_space(150.0);
+                    let button = egui::Button::new(
+                        egui::RichText::new("添加购票人").size(18.0).color(egui::Color32::WHITE)
+                        )
+                          .min_size(egui::vec2(120.0,50.0))
+                          .fill(egui::Color32::from_rgb(102,204,255))
+                          .rounding(15.0);
+                    ui.add(button);
+                    ui.add_space(150.0);
+                    let button = egui::Button::new(
+                          egui::RichText::new("停止抢票").size(18.0).color(egui::Color32::WHITE)
+                          )
+                            .min_size(egui::vec2(120.0,50.0))
+                            .fill(egui::Color32::from_rgb(102,204,255))
+                            .rounding(15.0);
+                    ui.add(button);
+                    });
+                    
+                    
+            })
         });
 }
+
+
 // 显示登录对话框（仅为示例，需要实现具体功能）
 fn show_login_dialog(app: &mut Myapp) {
     // 这里可以触发登录弹窗或其他操作

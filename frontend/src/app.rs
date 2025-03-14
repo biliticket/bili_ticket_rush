@@ -151,6 +151,8 @@ impl Myapp{
                 csrf: String::from("123456"),
                 avatar_texture : None,
                 level: String::from("LV6"),
+                vip_label: String::from("月度大会员"),
+                is_active: true,
             },
             default_avatar_texture: None,
             push_settings: Some(PushSettings::default()),
