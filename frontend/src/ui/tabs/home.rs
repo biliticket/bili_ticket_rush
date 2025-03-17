@@ -16,7 +16,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         egui::RichText::new("开始抢票").size(40.0).color(egui::Color32::WHITE)
                     )
                     .min_size(egui::vec2(300.0, 150.0))
-                    .fill(egui::Color32::from_rgb(66, 150, 250))
+                    .fill(egui::Color32::from_rgb(102,204,255))
                     .rounding(20.0);
                     
                     // 只有点击按钮时才触发
@@ -24,19 +24,8 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
                         app.is_loading = true;
                         app.running_status = String::from("抢票初始化...");
                         app.add_log("开始抢票流程");
-                        let test_accout = Account{
-                            uid: 123456,
-                            name: String::from("test"),
-                            is_logged: true,
-                            account_status: String::from("空闲"),
-                            cookie: String::from("123456"),
-                            csrf: String::from("123456"),
-                            avatar_texture : None,
-                            level: String::from("LV6"),
-                            vip_label: String::from("月度大会员"),
-                            is_active: true,
-                        };
-                        app.account_manager.accounts.push(test_accout);
+                        
+                        //app.account_manager.accounts.push();
                         //待完善鉴权账号及有效信息
                         if let Err(error) = start_grab_ticket(app,"123456","85939"){
                             app.add_log(&format!("抢票失败: {}", error));

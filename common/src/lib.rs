@@ -1,6 +1,7 @@
 pub mod taskmanager;
 pub mod record_log;
 pub mod account;
+pub mod utils;
 
 // 重导出日志收集器
 pub use record_log::LOG_COLLECTOR;

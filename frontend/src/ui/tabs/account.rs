@@ -4,61 +4,35 @@ use common::account::Account;
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
     ui.separator();
+    let example_account = Account{
+        uid: 0,
+        name: "请登录账号".to_string(),
+        vip_label: "未登录，请登录账号".to_string(),
+        level: "未登录".to_string(),
+        cookie: "".to_string(), 
+        csrf: "".to_string(),
+        is_logged: false,
+        account_status: "未登录".to_string(),
+        is_active: false,
+    };
     
 
     // 加载用户头像
     
     load_user_avatar(ui.ctx(), app);
-    /* if let Some(texture) = &app.user_info.avatar_texture {
-        draw_circular_image(ui, texture, 180.0);
-    } else if let Some(default_texture) = &app.default_avatar_texture {
-        draw_circular_image(ui, default_texture, 180.0);
-    } */
+    
     if let Some(texture) = &app.default_avatar_texture {
-    show_user(
-        ui,
-        texture,
-        &app.user_info,
-        
-    );
-    if !app.user_info.is_logged {
-        
-        let button = egui::Button::new(
-            egui::RichText::new("登录").size(20.0).color(egui::Color32::WHITE)
-        )
-        .min_size(egui::vec2(30.0, 15.0))
-        .fill(egui::Color32::from_rgb(66, 150, 250))
-        .rounding(20.0);
-         if ui.add(button).clicked() {
-        app.is_loading = true;
-        
-    }
-    }
+        let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
+        show_user(ui, texture, account_to_show);
+    
     
 
 }
 //show_user_control(ui,&app.user_info);
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
-    show_user(
-        ui,
-        texture,
-        
-        &app.user_info,
-    );
-    if !app.user_info.is_logged {
-        
-        let button = egui::Button::new(
-            egui::RichText::new("登录").size(20.0).color(egui::Color32::WHITE)
-        )
-        .min_size(egui::vec2(30.0, 15.0))
-        .fill(egui::Color32::from_rgb(66, 150, 250))
-        .rounding(20.0);
-         if ui.add(button).clicked() {
-        app.is_loading = true;
-        
-    }
-    }
+    let account_to_show = app.account_manager.accounts.get(1).unwrap_or(&example_account);
+    show_user(ui, texture, account_to_show);
     
 
 }

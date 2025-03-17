@@ -6,6 +6,7 @@ use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,Tic
 use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
 use common::account::{Account};
+use common::utils::Config;
 
 
 //UI
@@ -24,7 +25,7 @@ pub struct Myapp{
     pub logs: Vec<String>,
     pub show_log_window: bool,
     //用户信息
-    pub user_info: Account,
+    
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
         
 
@@ -142,18 +143,7 @@ impl Myapp{
             background_texture: None,
             show_log_window: false,
             logs: Vec::new(),
-            user_info: Account{
-                uid: 123456,
-                name: String::from("test"),
-                is_logged: true,
-                account_status: String::from("空闲"),
-                cookie: String::from("123456"),
-                csrf: String::from("123456"),
-                avatar_texture : None,
-                level: String::from("LV6"),
-                vip_label: String::from("月度大会员"),
-                is_active: true,
-            },
+            
             default_avatar_texture: None,
             push_settings: Some(PushSettings::default()),
             running_status: String::from("空闲ing"),
@@ -161,7 +151,7 @@ impl Myapp{
              // 初始化任务管理器
              task_manager: Box::new(TaskManagerImpl::new()),
              account_manager: AccountManager {
-                 accounts: Vec::new(),
+                 accounts: Config::load_all_accounts(),
                  active_tasks: HashMap::new(),
              },
            
