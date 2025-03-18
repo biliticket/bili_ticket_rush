@@ -12,7 +12,7 @@ pub struct Config{
 
 impl Config{
     pub fn load_config() -> io::Result<Self>{
-        let content = fs::read_to_string("../../config.json")?;//为什么？
+        let content = fs::read_to_string("./config.json")?;
         let data = serde_json::from_str(&content)?;
         Ok(Self{data})
 
@@ -25,7 +25,7 @@ impl Config{
 
     pub fn save_config(&self) -> io::Result<()>{        //后续上加密
         let json_str= serde_json::to_string_pretty(&self.data)?;
-        fs::write("../../config.json",json_str)
+        fs::write("./config.json",json_str)
     }
 
     //添加账号

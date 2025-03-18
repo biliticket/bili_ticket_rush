@@ -7,6 +7,7 @@ use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
 use common::account::{Account};
 use common::utils::Config;
+use common::push::{PushConfig, SmtpConfig};
 
 
 //UI
@@ -29,12 +30,15 @@ pub struct Myapp{
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
         
 
-    pub push_settings: Option<PushSettings>,
+    
     pub ticket_id: String,
    
    //任务管理
    pub task_manager: Box<dyn TaskManager>,
    pub account_manager: AccountManager,
+
+   //推送设置
+   pub push_config: PushConfig,
 
 
 
@@ -52,82 +56,7 @@ pub struct AccountManager{
 
 
 
-//账号状态
-pub enum AccountStatus{
-    Idle,   // 空闲
-    Running,    // 运行中
-    Error(String),  // 错误
-}
 
-
-
-
-
-#[derive(PartialEq, Clone, Copy)]
-pub enum PushType {
-    None,
-    Bark,
-    PushPlus,
-    FangTang,
-    DingTalkWebhook,
-    WeChatWebhook,
-    Email,
-}
-
-// 邮箱设置
-
-pub struct EmailSettings {
-    pub server: String,
-    pub port: u16,
-    pub username: String,
-    pub password: String,
-    pub recipient: String,
-    pub use_ssl: bool,
-}
-
-// 推送设置
-#[derive(Default)]
-pub struct PushSettings {
-    pub enabled: bool,
-    pub push_type: PushType,
-    
-    // 各种推送服务的配置
-    pub bark_url: String,
-    pub pushplus_token: String,
-    pub fangtang_key: String,
-    pub dingtalk_webhook: String,
-    pub dingtalk_secret: String,
-    pub wechat_webhook: String,
-    
-    // 邮箱设置
-    pub email_settings: EmailSettings,
-    
-    // 通用设置
-    pub notification_title: String,
-    
-    // 程序设置
-    pub start_with_system: bool,
-    pub minimize_to_tray: bool,
-}
-
-impl Default for PushType {
-    fn default() -> Self {
-        PushType::None
-    }
-}
-
-impl Default for EmailSettings {
-    fn default() -> Self {
-        Self {
-            server: String::new(),
-            port: 465,
-            username: String::new(),
-            password: String::new(),
-            recipient: String::new(),
-            use_ssl: true,
-        }
-    }
-}
 
 impl Myapp{
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self{
@@ -145,7 +74,6 @@ impl Myapp{
             logs: Vec::new(),
             
             default_avatar_texture: None,
-            push_settings: Some(PushSettings::default()),
             running_status: String::from("空闲ing"),
             ticket_id: String::from("85939"),
              // 初始化任务管理器
@@ -154,6 +82,25 @@ impl Myapp{
                  accounts: Config::load_all_accounts(),
                  active_tasks: HashMap::new(),
              },
+             push_config : PushConfig{
+                enabled: true,
+                bark_token: "123456".to_string(),
+                pushplus_token: "123456".to_string(),
+                fangtang_token: "123456".to_string(),
+                dingtalk_token: "123456".to_string(),
+                wechat_token: "123456".to_string(),
+                smtp_config: SmtpConfig{
+                    smtp_server: "smtp.gmail.com".to_string(),
+                    smtp_port: 465,
+                    smtp_username: "123456".to_string(),
+                    smtp_password: "123456".to_string(),
+                    smtp_from: "123456".to_string(),
+                    smtp_to: "123456".to_string(),
+                },
+        
+        
+                },
+            
            
         }
     }

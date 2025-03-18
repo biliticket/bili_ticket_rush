@@ -31,7 +31,7 @@ pub fn render_sidebar(app: &mut Myapp, ctx: &egui::Context){
                     // 选项样式 - 选中时突出显示
                     let mut text = egui::RichText::new(format!("{} {}", icon, name)).size(16.0);
                     if is_selected {
-                        text = text.strong().color(egui::Color32::from_rgb(66, 150, 250));
+                        text = text.strong().color(egui::Color32::from_rgb(255, 255, 255));
                     }
                     
                     

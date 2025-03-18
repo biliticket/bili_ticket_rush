@@ -313,6 +313,7 @@ fn show_user( //显示用户头像等信息
                 
                 
             });
+            ui.separator();
             ui.vertical(|ui|{
                 ui.add_space(15.0);
                 ui.horizontal(|ui|{
