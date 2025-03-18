@@ -96,6 +96,15 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
                           .strong()   
                 );
                 on_switch(ui, &mut app.push_config.enabled);
+                let available = ui.available_width();
+                ui.add_space(available-100.0);
+                let button = egui::Button::new(
+                    egui::RichText::new("测试推送").size(15.0).color(egui::Color32::WHITE)
+                    )
+                      .min_size(egui::vec2(100.0,50.0))
+                      .fill(egui::Color32::from_rgb(102,204,255))
+                      .rounding(15.0);//圆角成度
+                  ui.add(button);
 
             });
             ui.separator();
@@ -106,6 +115,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
                 ui.add_space(12.0);
                 push_input(ui, "pushplus推送：",&mut app.push_config.pushplus_token,"请输入推送地址");
                 });
+                //TODO补充每个推送方式使用方法
 
             ui.horizontal(|ui|{
                  
