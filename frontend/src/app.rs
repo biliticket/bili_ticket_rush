@@ -7,6 +7,7 @@ use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
 use common::account::{Account};
 use common::utils::Config;
+use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
 
 
@@ -40,6 +41,8 @@ pub struct Myapp{
    //推送设置
    pub push_config: PushConfig,
 
+    //自定义配置
+    pub custom_config: CustomConfig,
 
 
 
@@ -91,7 +94,7 @@ impl Myapp{
                 wechat_token: "123456".to_string(),
                 smtp_config: SmtpConfig{
                     smtp_server: "smtp.gmail.com".to_string(),
-                    smtp_port: 465,
+                    smtp_port: "465".to_string(),
                     smtp_username: "123456".to_string(),
                     smtp_password: "123456".to_string(),
                     smtp_from: "123456".to_string(),
@@ -99,6 +102,14 @@ impl Myapp{
                 },
         
         
+                },
+                custom_config: CustomConfig{
+                     open_custom_ua: true, //是否开启自定义UA
+                     custom_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),      //自定义UA
+                     chapcha_mode: 0,     //验证码模式
+                     ttocr_key: String::from("123456"),      //ttocr key
+                     preinput_phone: String::from("133456789"), //预填手机号
+
                 },
             
            

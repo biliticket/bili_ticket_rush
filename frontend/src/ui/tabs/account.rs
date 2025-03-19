@@ -344,10 +344,10 @@ fn show_user( //显示用户头像等信息
                     });
                     
                     
+                    
             })
         });
 }
-
 
 // 显示登录对话框（仅为示例，需要实现具体功能）
 fn show_login_dialog(app: &mut Myapp) {

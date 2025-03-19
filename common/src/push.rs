@@ -15,7 +15,7 @@ pub struct PushConfig{
 //邮箱配置(属于pushconfig)
 pub struct SmtpConfig{
     pub smtp_server: String,
-    pub smtp_port: u16,
+    pub smtp_port: String,
     pub smtp_username: String,
     pub smtp_password: String,
     pub smtp_from: String,

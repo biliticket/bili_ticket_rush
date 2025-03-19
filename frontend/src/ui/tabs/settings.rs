@@ -1,10 +1,17 @@
 use eframe::egui;
 use crate::app::Myapp;
 
-fn on_switch(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+fn on_switch(ui: &mut egui::Ui, output_char: &str, on: &mut bool) -> egui::Response {
+    ui.label(
+        egui::RichText::new(output_char)
+              .size(15.0)                               
+              .color(egui::Color32::from_rgb(0,0,0))  
+
+              .strong()   
+    );
     // 开关尺寸
-    let width = 60.0;
-    let height = 30.0;
+    let width = 55.0;
+    let height = 26.0;
     
     // 分配空间并获取响应
     let (rect, mut response) = ui.allocate_exact_size(
@@ -30,7 +37,7 @@ fn on_switch(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         rect.expand(-1.0), 
         radius, 
         if *on {
-            egui::Color32::from_rgb(46, 182, 125)  // 启用状态颜色
+            egui::Color32::from_rgb(102,204,255)  // 启用状态颜色
         } else {
             egui::Color32::from_rgb(150, 150, 150)  // 禁用状态颜色
         }
@@ -46,7 +53,14 @@ fn on_switch(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     response
 }
 
-pub fn push_input(ui: &mut egui::Ui, title: &str,text: &mut String,hint: &str) -> bool{
+pub fn push_input(
+    ui: &mut egui::Ui, 
+    title: &str,
+    text: &mut String,
+    hint: &str,
+
+
+) -> bool{
     ui.label(
         egui::RichText::new(title)
               .size(15.0)                               
@@ -83,21 +97,105 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
         .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 220)))  // 边框
         .inner_margin(egui::Margin { left: 10.0, right: 20.0, top: 15.0, bottom: 15.0 })  // 内边距
         .show(ui, |ui| {
-            //推送开关
+            
+        globle_setting(app,ui);
+        ui.separator();
+
+
+        });
+    egui::Frame::none()
+        .fill(egui::Color32::from_rgb(245, 245, 250))  // 背景色
+        .rounding(12.0)  // 圆角半径
+        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 220)))  // 边框
+        .inner_margin(egui::Margin { left: 10.0, right: 20.0, top: 15.0, bottom: 15.0 })  // 内边距
+        .show(ui, |ui| {
+            
+            push_setting(app,ui);  // 调用推送设置
+            ui.separator();
+
+        });
+
+        
+   
+}
+
+pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
+    ui.horizontal(|ui| {
+        
+        push_input(ui, "请输入预填写手机号：", &mut app.custom_config.preinput_phone, "请输入账号绑定的手机号");
+
+    });
+    ui.separator();
+    ui.horizontal(|ui|{
+        ui.label("请选择验证码识别方式：");
+         let options = ["本地识别", "ttocr识别", "选项3"];
+         
+        custom_selection_control(ui, &mut app.custom_config.chapcha_mode, &options) ;
+        match app.custom_config.chapcha_mode{
+            
+            1 => {
+                dynamic_caculate_space(ui, 300.0);
+                push_input(ui, "请输入ttocr key：", &mut app.custom_config.ttocr_key, "请输入ttocr key");
+                
+                
+            },
+            _ => {
+                
+            }
+        }
+
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        on_switch(ui, "开启自定义UA", &mut app.custom_config.open_custom_ua);
+        dynamic_caculate_space(ui, 180.0);
+        push_input(ui, "", &mut app.custom_config.custom_ua, "请输入自定义UA");
+
+    });
+    
+    
+    
+    
+
+}
+
+fn custom_selection_control(ui: &mut egui::Ui, selected: &mut usize, options: &[&str]) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        for (idx, option) in options.iter().enumerate() {
+            let is_selected = *selected == idx;
+            let button = egui::Button::new(
+                egui::RichText::new(*option)
+                    .size(15.0)
+                    .color(if is_selected { egui::Color32::WHITE } else { egui::Color32::BLACK })
+            )
+            .min_size(egui::vec2(80.0, 30.0))
+            .fill(if is_selected { 
+                egui::Color32::from_rgb(102, 204, 255) 
+            } else { 
+                egui::Color32::from_rgb(245, 245, 250)
+            })
+            .rounding(10.0);
+                
+            if ui.add(button).clicked() {
+                *selected = idx;
+                changed = true;
+            }
+        }
+    });
+    changed
+}
+pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
+    //推送开关
             
             // 开关
             ui.horizontal(|ui| {
                 
-                ui.label(
-                    egui::RichText::new("开启推送")
-                          .size(18.0)                               
-                          .color(egui::Color32::from_rgb(0,0,0))  
-
-                          .strong()   
-                );
-                on_switch(ui, &mut app.push_config.enabled);
+                
+                on_switch(ui, "开启推送",&mut app.push_config.enabled);
                 let available = ui.available_width();
                 ui.add_space(available-100.0);
+                //TODO： 动态计算间隔函数，适应多分辨率屏幕和全屏
                 let button = egui::Button::new(
                     egui::RichText::new("测试推送").size(15.0).color(egui::Color32::WHITE)
                     )
@@ -108,53 +206,60 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
 
             });
             ui.separator();
+            
+            
             //推送设置
             ui.horizontal(|ui|{
                  
-                push_input(ui, "bark推送：",&mut app.push_config.bark_token,"请输入推送地址");
-                ui.add_space(12.0);
-                push_input(ui, "pushplus推送：",&mut app.push_config.pushplus_token,"请输入推送地址");
+                push_input(ui, "bark推送：",&mut app.push_config.bark_token,"请输入推送地址，只填token");
+                dynamic_caculate_space(ui, 180.0);
+                push_input(ui, "pushplus推送：",&mut app.push_config.pushplus_token,"请输入推送地址，只填token");
                 });
                 //TODO补充每个推送方式使用方法
 
             ui.horizontal(|ui|{
                  
-                push_input(ui, "方糖推送：",&mut app.push_config.fangtang_token,"请输入推送地址");
-                ui.add_space(12.0);
-                push_input(ui, "钉钉机器人推送：",&mut app.push_config.dingtalk_token,"请输入推送地址");
+                push_input(ui, "方糖推送：",&mut app.push_config.fangtang_token,"请输入推送地址：SCTxxxxxxx");
+                dynamic_caculate_space(ui, 180.0);
+                push_input(ui, "钉钉机器人推送：",&mut app.push_config.dingtalk_token,"请输入钉钉机器人token，只填token");
                 });
 
             ui.horizontal(|ui|{
-                push_input(ui, "企业微信推送：",&mut app.push_config.wechat_token,"请输入推送地址");
-                ui.add_space(12.0);
+                push_input(ui, "企业微信推送：",&mut app.push_config.wechat_token,"请输入企业微信机器人token");
+                dynamic_caculate_space(ui, 180.0);
 
                 });
-            
-        });
-
-   
-}
-// 创建设置卡片
-fn settings_card<R>(
-    ui: &mut egui::Ui,
-    title: &str,
-    icon: &str,
-    content: impl FnOnce(&mut egui::Ui) -> R,
-) -> R {
-    egui::Frame::none()
-        .fill(egui::Color32::from_rgb(245, 245, 250))
-        .rounding(8.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(220, 220, 240)))
-        .inner_margin(15.0)
-        .outer_margin(2.0)
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading(format!("{} {}", icon, title));
+            ui.horizontal(|ui|{
+                push_input(ui, "smtp服务器地址：",&mut app.push_config.smtp_config.smtp_server,"请输入smtp服务器地址");
+                dynamic_caculate_space(ui, 180.0);
+                push_input(ui, "smtp服务器端口：",&mut app.push_config.smtp_config.smtp_port,"请输入smtp服务器端口");
+                
             });
-            ui.separator();
-            ui.add_space(8.0);
-            
-            content(ui)
-        })
-        .inner
+            ui.horizontal(|ui|{
+                
+                push_input(ui, "邮箱账号：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱");
+                dynamic_caculate_space(ui, 180.0);
+                push_input(ui, "授权密码：",&mut app.push_config.smtp_config.smtp_password,"请输入授权密码");
+                dynamic_caculate_space(ui, 180.0);
+                
+            });
+            ui.horizontal(|ui|{
+                
+                
+                
+                push_input(ui, "发件人邮箱：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱");
+                dynamic_caculate_space(ui, 180.0);
+                push_input(ui, "收件人邮箱：",&mut app.push_config.smtp_config.smtp_to,"请输入收件人邮箱");
+                
+            });
 }
+pub fn dynamic_caculate_space(ui :&mut egui::Ui, next_obj_space: f32) {
+    let available_space = ui.available_width();
+    let mut space = available_space - next_obj_space - 250.0;
+    if space < 0.0 {
+        space = 0.0;
+    }
+    ui.add_space(space);
+}
+
+

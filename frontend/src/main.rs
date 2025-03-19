@@ -10,7 +10,7 @@ fn main() -> Result<(), eframe::Error> {
     log::info!("日志初始化成功");
 
     let options = eframe::NativeOptions{
-        initial_window_size:Some(Vec2::new(1100.0, 600.0)),
+        initial_window_size:Some(Vec2::new(1200.0, 600.0)),
         min_window_size:Some(Vec2::new(800.0, 600.0)),
         ..Default::default()
     };
