@@ -325,7 +325,7 @@ fn show_user( //显示用户头像等信息
                         .fill(egui::Color32::from_rgb(102,204,255))
                         .rounding(15.0);//圆角成度
                     ui.add(button);
-                    ui.add_space(150.0);
+                    dynamic_caculate_space(ui, 120.0, 2.0);
                     let button = egui::Button::new(
                         egui::RichText::new("添加购票人").size(18.0).color(egui::Color32::WHITE)
                         )
@@ -333,7 +333,7 @@ fn show_user( //显示用户头像等信息
                           .fill(egui::Color32::from_rgb(102,204,255))
                           .rounding(15.0);
                     ui.add(button);
-                    ui.add_space(150.0);
+                    dynamic_caculate_space(ui, 120.0, 1.0);
                     let button = egui::Button::new(
                           egui::RichText::new("停止抢票").size(18.0).color(egui::Color32::WHITE)
                           )
@@ -347,6 +347,21 @@ fn show_user( //显示用户头像等信息
                     
             })
         });
+}
+
+
+
+fn dynamic_caculate_space(
+     ui :&mut egui::Ui,
+     obj_space: f32, //如果有三个按钮，假设每个按钮尺寸x轴长度=120.0，那么就传入120.0
+     number: f32 //按钮数量
+    ) {
+    let available_space = ui.available_width();
+    let mut space = available_space/number - obj_space ;
+    if space < 0.0 {
+        space = 0.0;
+    }
+    ui.add_space(space);
 }
 
 // 显示登录对话框（仅为示例，需要实现具体功能）

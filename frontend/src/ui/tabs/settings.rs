@@ -53,11 +53,12 @@ fn on_switch(ui: &mut egui::Ui, output_char: &str, on: &mut bool) -> egui::Respo
     response
 }
 
-pub fn push_input(
+pub fn common_input(
     ui: &mut egui::Ui, 
     title: &str,
     text: &mut String,
     hint: &str,
+    open_filter: bool,
 
 
 ) -> bool{
@@ -77,9 +78,16 @@ pub fn push_input(
                 
     let response = ui.add(input);
     if response.changed(){
-        *text = text.chars()//过滤非法字符
+        if open_filter{
+            *text = text.chars()//过滤非法字符
             .filter(|c| c.is_ascii_alphanumeric() || *c == '@' || *c == '.' || *c == '-' || *c == '_')
             .collect();
+        }
+        else{
+            *text = text.chars()//过滤非法字符
+            .collect();
+        };
+            
     }
     response.changed()
 
@@ -122,7 +130,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
 pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
     ui.horizontal(|ui| {
         
-        push_input(ui, "请输入预填写手机号：", &mut app.custom_config.preinput_phone, "请输入账号绑定的手机号");
+        common_input(ui, "请输入预填写手机号：", &mut app.custom_config.preinput_phone, "请输入账号绑定的手机号",true);
 
     });
     ui.separator();
@@ -135,7 +143,7 @@ pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
             
             1 => {
                 dynamic_caculate_space(ui, 300.0);
-                push_input(ui, "请输入ttocr key：", &mut app.custom_config.ttocr_key, "请输入ttocr key");
+                common_input(ui, "请输入ttocr key：", &mut app.custom_config.ttocr_key, "请输入ttocr key",true);
                 
                 
             },
@@ -149,7 +157,7 @@ pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
     ui.horizontal(|ui| {
         on_switch(ui, "开启自定义UA", &mut app.custom_config.open_custom_ua);
         dynamic_caculate_space(ui, 180.0);
-        push_input(ui, "", &mut app.custom_config.custom_ua, "请输入自定义UA");
+        common_input(ui, "", &mut app.custom_config.custom_ua, "请输入自定义UA",false);
 
     });
     
@@ -205,41 +213,44 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                   ui.add(button);
 
             });
+            if app.push_config.enabled{
             ui.separator();
+            
+
             
             
             //推送设置
             ui.horizontal(|ui|{
                  
-                push_input(ui, "bark推送：",&mut app.push_config.bark_token,"请输入推送地址，只填token");
+                common_input(ui, "bark推送：",&mut app.push_config.bark_token,"请输入推送地址，只填token",true);
                 dynamic_caculate_space(ui, 180.0);
-                push_input(ui, "pushplus推送：",&mut app.push_config.pushplus_token,"请输入推送地址，只填token");
+                common_input(ui, "pushplus推送：",&mut app.push_config.pushplus_token,"请输入推送地址，只填token",true);
                 });
                 //TODO补充每个推送方式使用方法
 
             ui.horizontal(|ui|{
                  
-                push_input(ui, "方糖推送：",&mut app.push_config.fangtang_token,"请输入推送地址：SCTxxxxxxx");
+                common_input(ui, "方糖推送：",&mut app.push_config.fangtang_token,"请输入推送地址：SCTxxxxxxx",true);
                 dynamic_caculate_space(ui, 180.0);
-                push_input(ui, "钉钉机器人推送：",&mut app.push_config.dingtalk_token,"请输入钉钉机器人token，只填token");
+                common_input(ui, "钉钉机器人推送：",&mut app.push_config.dingtalk_token,"请输入钉钉机器人token，只填token",true);
                 });
 
             ui.horizontal(|ui|{
-                push_input(ui, "企业微信推送：",&mut app.push_config.wechat_token,"请输入企业微信机器人token");
+                common_input(ui, "企业微信推送：",&mut app.push_config.wechat_token,"请输入企业微信机器人token",true);
                 dynamic_caculate_space(ui, 180.0);
 
                 });
             ui.horizontal(|ui|{
-                push_input(ui, "smtp服务器地址：",&mut app.push_config.smtp_config.smtp_server,"请输入smtp服务器地址");
+                common_input(ui, "smtp服务器地址：",&mut app.push_config.smtp_config.smtp_server,"请输入smtp服务器地址",true);
                 dynamic_caculate_space(ui, 180.0);
-                push_input(ui, "smtp服务器端口：",&mut app.push_config.smtp_config.smtp_port,"请输入smtp服务器端口");
+                common_input(ui, "smtp服务器端口：",&mut app.push_config.smtp_config.smtp_port,"请输入smtp服务器端口",true);
                 
             });
             ui.horizontal(|ui|{
                 
-                push_input(ui, "邮箱账号：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱");
+                common_input(ui, "邮箱账号：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱",true);
                 dynamic_caculate_space(ui, 180.0);
-                push_input(ui, "授权密码：",&mut app.push_config.smtp_config.smtp_password,"请输入授权密码");
+                common_input(ui, "授权密码：",&mut app.push_config.smtp_config.smtp_password,"请输入授权密码",true);
                 dynamic_caculate_space(ui, 180.0);
                 
             });
@@ -247,11 +258,13 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                 
                 
                 
-                push_input(ui, "发件人邮箱：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱");
+                common_input(ui, "发件人邮箱：",&mut app.push_config.smtp_config.smtp_from,"请输入发件人邮箱",true);
                 dynamic_caculate_space(ui, 180.0);
-                push_input(ui, "收件人邮箱：",&mut app.push_config.smtp_config.smtp_to,"请输入收件人邮箱");
+                common_input(ui, "收件人邮箱：",&mut app.push_config.smtp_config.smtp_to,"请输入收件人邮箱",true);
                 
             });
+        }
+        
 }
 pub fn dynamic_caculate_space(ui :&mut egui::Ui, next_obj_space: f32) {
     let available_space = ui.available_width();
