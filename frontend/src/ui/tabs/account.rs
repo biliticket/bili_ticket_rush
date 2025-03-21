@@ -325,6 +325,14 @@ fn show_user( //显示用户头像等信息
                         .fill(egui::Color32::from_rgb(102,204,255))
                         .rounding(15.0);//圆角成度
                     ui.add(button);
+                    dynamic_caculate_space(ui, 122.0, 3.0);
+                    let button = egui::Button::new(
+                        egui::RichText::new("查看全部订单").size(20.0).color(egui::Color32::WHITE)
+                        )
+                          .min_size(egui::vec2(130.0,50.0))
+                          .fill(egui::Color32::from_rgb(102,204,255))
+                          .rounding(15.0);//圆角成度
+                      ui.add(button);
                     dynamic_caculate_space(ui, 120.0, 2.0);
                     let button = egui::Button::new(
                         egui::RichText::new("添加购票人").size(18.0).color(egui::Color32::WHITE)
