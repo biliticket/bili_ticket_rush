@@ -23,7 +23,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     
     if let Some(texture) = &app.default_avatar_texture {
         let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
-        show_user(ui, texture, account_to_show);
+        show_user(ui, texture, account_to_show, &mut app.show_login_windows);
     
     
 
@@ -32,7 +32,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
     let account_to_show = app.account_manager.accounts.get(1).unwrap_or(&example_account);
-    show_user(ui, texture, account_to_show);
+    show_user(ui, texture, account_to_show, &mut app.show_login_windows);
     
 
 }
@@ -206,6 +206,7 @@ fn show_user( //显示用户头像等信息
     ui: &mut egui::Ui, 
     texture: &egui::TextureHandle, 
     user: &Account,
+    show_login_windows: &mut bool,
 ) {
     // 创建圆角长方形框架
     egui::Frame::none()
@@ -324,7 +325,10 @@ fn show_user( //显示用户头像等信息
                         .min_size(egui::vec2(120.0,50.0))
                         .fill(egui::Color32::from_rgb(102,204,255))
                         .rounding(15.0);//圆角成度
-                    ui.add(button);
+                    let response = ui.add(button);
+                    if response.clicked(){
+                        *show_login_windows = true;
+                    }
                     dynamic_caculate_space(ui, 122.0, 3.0);
                     let button = egui::Button::new(
                         egui::RichText::new("查看全部订单").size(20.0).color(egui::Color32::WHITE)

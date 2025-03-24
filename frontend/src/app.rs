@@ -9,6 +9,7 @@ use common::account::{Account};
 use common::utils::Config;
 use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
+use crate::windows::login_windows::LoginTexture;
 
 
 //UI
@@ -26,6 +27,8 @@ pub struct Myapp{
     //日志记录
     pub logs: Vec<String>,
     pub show_log_window: bool,
+    //登录窗口
+    pub show_login_windows: bool,
     //用户信息
     
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
@@ -43,6 +46,9 @@ pub struct Myapp{
 
     //自定义配置
     pub custom_config: CustomConfig,
+    //登录背景
+    pub login_texture: LoginTexture,
+    
 
 
 
@@ -74,6 +80,7 @@ impl Myapp{
             loading_angle: 0.0,
             background_texture: None,
             show_log_window: false,
+            show_login_windows: false,
             logs: Vec::new(),
             
             default_avatar_texture: None,
@@ -111,6 +118,11 @@ impl Myapp{
                      preinput_phone: String::from("133456789"), //预填手机号
 
                 },
+                login_texture: LoginTexture{
+                    left_conrner_texture: None,
+                    right_conrner_texture: None,
+                },
+                
             
            
         }
@@ -211,11 +223,18 @@ impl eframe::App for Myapp{
             windows::log_windows::show(self, ctx);
         }
 
+        //登录窗口
+        if self.show_login_windows{
+            windows::login_windows::show(self, ctx );
+        }
+
         //处理异步任务结果
         self.process_task_results();
 
         //从env_log添加日志进窗口
         self.add_log_windows();
+
+        
 
         
     }
