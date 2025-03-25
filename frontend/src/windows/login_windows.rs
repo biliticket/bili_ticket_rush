@@ -198,6 +198,14 @@ fn ui_password_login(ui: &mut egui::Ui, app: &mut Myapp) {
         common_input(ui, "账号", &mut account, "请输入账号", true);
         ui.add_space(10.0);
         common_input(ui, "密码", &mut password, "请输入密码", true);
+        ui.add_space(20.0);
+        let button = egui::Button::new(
+            egui::RichText::new("登录").size(15.0).color(egui::Color32::WHITE)
+            )
+              .min_size(egui::vec2(200.0,40.0))
+              .fill(egui::Color32::from_rgb(0,174,236))
+              .rounding(15.0);//圆角成度
+        ui.add(button);
 
     });
 }
@@ -210,6 +218,14 @@ fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
         common_input(ui, "手机号", &mut phone_number, "请输入手机号", true);
         ui.add_space(10.0);
         common_input(ui, "验证码", &mut sms_code, "请输入验证码", true);
+        ui.add_space(20.0);
+        let button = egui::Button::new(
+            egui::RichText::new("登录").size(15.0).color(egui::Color32::WHITE)
+            )
+              .min_size(egui::vec2(200.0,40.0))
+              .fill(egui::Color32::from_rgb(0,174,236))
+              .rounding(15.0);//圆角成度
+        ui.add(button);
 
     });
 }
