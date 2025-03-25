@@ -48,6 +48,9 @@ pub struct Myapp{
     pub custom_config: CustomConfig,
     //登录背景
     pub login_texture: LoginTexture,
+
+    //登录方式
+    pub login_method: String,
     
 
 
@@ -122,6 +125,8 @@ impl Myapp{
                     left_conrner_texture: None,
                     right_conrner_texture: None,
                 },
+
+                login_method: "扫码登录".to_string(),
                 
             
            
@@ -225,7 +230,8 @@ impl eframe::App for Myapp{
 
         //登录窗口
         if self.show_login_windows{
-            windows::login_windows::show(self, ctx );
+            
+            windows::login_windows::show(self, ctx);
         }
 
         //处理异步任务结果
