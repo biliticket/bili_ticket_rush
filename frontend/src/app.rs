@@ -1,5 +1,5 @@
 use eframe::egui;
-use reqwest::Client;
+
 use crate::ui;
 use crate::windows;
 use std::collections::HashMap;
@@ -11,6 +11,7 @@ use common::utils::Config;
 use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
 use crate::windows::login_windows::LoginTexture;
+use reqwest::{Client, header};
 
 
 //UI
@@ -56,7 +57,8 @@ pub struct Myapp{
     //client
     pub client: Client,
 
-
+    //登录用，防止重复刷新二维码
+    pub login_qrcode_url: Option<String>,
 
 }
 
@@ -79,6 +81,7 @@ impl Myapp{
         //中文字体
         ui::fonts::configure_fonts(&cc.egui_ctx);
         
+        let client = create_client();
         Self {
             left_panel_width: 250.0,
             selected_tab: 0,
@@ -130,11 +133,13 @@ impl Myapp{
                 },
 
                 login_method: "扫码登录".to_string(),
-                
-                client: Client::new(),
-            
+              
+                client: client,
+                login_qrcode_url: None,
            
         }
+        
+        
     }
 
     pub fn add_log(&mut self, message: &str){
@@ -254,4 +259,15 @@ impl eframe::App for Myapp{
 
 
 
-// 在UI中实现抢票功能
+pub fn create_client() -> Client {
+    let mut headers = header::HeaderMap::new();
+    headers.insert(
+        header::USER_AGENT,
+        header::HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0"),
+    );
+    
+    Client::builder()
+        .default_headers(headers)
+        .build()
+        .unwrap_or_default()
+}

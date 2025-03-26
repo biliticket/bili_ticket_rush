@@ -144,10 +144,13 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
 }
 
 fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
-    match common::login::qrcode_login(){
+    let should_refresh = app.login_qrcode_url.is_none();
+    //这里可以加一个刷新按钮
+    if should_refresh{
+    match common::login::qrcode_login(&app.client){
         Ok(code) =>{
             if let Some(texture) = create_qrcode(ui.ctx(), &code) {
-
+            app.login_qrcode_url = Some(code.clone());
             ui.vertical_centered(|ui|{
                 ui.add_space(20.0);
                 ui.image(&texture);
@@ -159,8 +162,15 @@ fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
             return;
         }
         
-    }
-    
+    }}
+    else{
+        if let Some(texture) = create_qrcode(ui.ctx(), &app.login_qrcode_url.as_ref().unwrap()) {
+
+            ui.vertical_centered(|ui|{
+                ui.add_space(20.0);
+                ui.image(&texture);
+    });
+}}
 }
 
 fn ui_password_login(ui: &mut egui::Ui, app: &mut Myapp) {
