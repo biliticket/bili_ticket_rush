@@ -3,11 +3,13 @@ use eframe::egui;
 use crate::app::Myapp;
 
 pub fn show(app: &mut Myapp, ctx: &egui::Context) {
+    
     let mut window_open = app.show_log_window;
+    let mut user_close: bool = false;
     
     egui::Window::new("监视面板")
         .open(&mut window_open)
-        .default_size([500.0, 400.0])
+        .default_size([550.0, 400.0])
         .resizable(true)
         .show(ctx, |ui| {
             // 顶部工具栏
@@ -22,7 +24,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                     if ui.button("❌").clicked() {
-                        //window_open = false;
+                        user_close = true;
                         app.show_log_window = false;
                     }
                 });

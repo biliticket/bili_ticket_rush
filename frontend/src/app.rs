@@ -1,4 +1,5 @@
 use eframe::egui;
+use reqwest::Client;
 use crate::ui;
 use crate::windows;
 use std::collections::HashMap;
@@ -52,6 +53,8 @@ pub struct Myapp{
     //登录方式
     pub login_method: String,
     
+    //client
+    pub client: Client,
 
 
 
@@ -128,6 +131,7 @@ impl Myapp{
 
                 login_method: "扫码登录".to_string(),
                 
+                client: Client::new(),
             
            
         }

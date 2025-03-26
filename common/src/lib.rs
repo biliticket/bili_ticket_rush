@@ -4,7 +4,7 @@ pub mod account;
 pub mod utils;
 pub mod push;
 pub mod utility;
-
+pub mod login;
 // 重导出日志收集器
 pub use record_log::LOG_COLLECTOR;
 pub use record_log::init as init_logger;
