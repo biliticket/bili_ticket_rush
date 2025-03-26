@@ -70,19 +70,23 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                     
                 });
                 ui.vertical_centered(|ui|{
-                    ui.add_space(40.0);
+                    
 
                     match login_method .as_str(){
                         "扫码登录" =>{
+                            ui.add_space(20.0);
                             ui_qrcode_login(ui, app);
                         }
                         "密码登录" =>{
+                            ui.add_space(40.0);
                             ui_password_login(ui, app);
                         }
                         "短信登录" =>{
+                            ui.add_space(40.0);
                             ui_sms_login(ui, app);
                         }
                         "ck登录" =>{
+                            ui.add_space(40.0);
                             ui_ck_login(ui);
                         }
                         _ => unreachable!(),
@@ -144,15 +148,26 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
 }
 
 fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
-    let should_refresh = app.login_qrcode_url.is_none();
-    //这里可以加一个刷新按钮
+    let mut should_refresh = app.login_qrcode_url.is_none();
+    //刷新按钮
+    let button = egui::Button::new(
+        egui::RichText::new("刷新二维码").size(15.0).color(egui::Color32::WHITE)
+        )
+          .min_size(egui::vec2(150.0,40.0))
+          .fill(egui::Color32::from_rgb(102,204,255))
+          .rounding(15.0);//圆角成度
+    let response = ui.add(button);
+    if response.clicked(){
+        should_refresh = true;
+    }
+    
     if should_refresh{
     match common::login::qrcode_login(&app.client){
         Ok(code) =>{
             if let Some(texture) = create_qrcode(ui.ctx(), &code) {
             app.login_qrcode_url = Some(code.clone());
             ui.vertical_centered(|ui|{
-                ui.add_space(20.0);
+                ui.add_space(10.0);
                 ui.image(&texture);
             });
 
