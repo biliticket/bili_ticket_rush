@@ -149,6 +149,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
 
 fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
     let mut should_refresh = app.login_qrcode_url.is_none();
+    
     //刷新按钮
     let button = egui::Button::new(
         egui::RichText::new("刷新二维码").size(15.0).color(egui::Color32::WHITE)
@@ -158,18 +159,43 @@ fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
           .rounding(15.0);//圆角成度
     let response = ui.add(button);
     if response.clicked(){
+        //取消轮询任务
+        if let Some(task_id) = &app.qrcode_polling_task_id {
+            app.task_manager.cancel_task(task_id);
+            app.qrcode_polling_task_id = None;
+        }
         should_refresh = true;
     }
     
     if should_refresh{
     match common::login::qrcode_login(&app.client){
         Ok(code) =>{
-            if let Some(texture) = create_qrcode(ui.ctx(), &code) {
-            app.login_qrcode_url = Some(code.clone());
+            let login_string = format!("https://account.bilibili.com/h5/account-h5/auth/scan-web?navhide=1&callback=close&qrcode_key={}&from=main-fe-header",code);
+            if let Some(texture) = create_qrcode(ui.ctx(), &login_string) {
+            app.login_qrcode_url = Some(login_string.clone());
             ui.vertical_centered(|ui|{
                 ui.add_space(10.0);
                 ui.image(&texture);
             });
+
+            // 创建新的轮询任务
+            let qrcode_req = common::taskmanager::QrCodeLoginRequest {
+                qrcode_key: code,
+                qrcode_url: app.login_qrcode_url.clone().unwrap(),
+                user_agent: Some(app.custom_config.custom_ua.clone()),
+            };
+            
+            // 提交任务到任务管理器
+            let request = common::taskmanager::TaskRequest::QrCodeLoginRequest(qrcode_req);
+            match app.task_manager.submit_task(request) {
+                Ok(task_id) => {
+                    app.qrcode_polling_task_id = Some(task_id);
+                    log::info!("开始轮询二维码登录状态...");
+                },
+                Err(e) => {
+                    log::error!("提交二维码轮询任务失败: {}", e);
+                }
+            }
 
         }}
         Err(e) => {

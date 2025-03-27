@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,TicketTask};
 use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
-use common::account::{Account};
+use common::account::{Account,add_account};
 use common::utils::Config;
 use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
@@ -60,15 +60,17 @@ pub struct Myapp{
     //登录用，防止重复刷新二维码
     pub login_qrcode_url: Option<String>,
 
+    //登录用异步回调taskid
+    pub qrcode_polling_task_id: Option<String>,
 }
 
+
 //账号管理
+
 pub struct AccountManager{
     pub accounts: Vec<Account>,
     pub active_tasks: HashMap<String, TicketTask>,
 }
-
-
 
 
 
@@ -136,6 +138,7 @@ impl Myapp{
               
                 client: client,
                 login_qrcode_url: None,
+                qrcode_polling_task_id: None,
            
         }
         
@@ -155,39 +158,70 @@ impl Myapp{
         let mut account_updates = Vec::new();
         
         for result in results {
-            // 更新任务状态
-            if let Some(task) = self.account_manager.active_tasks.get_mut(&result.task_id) {
-                // 记录需要更新的账号ID
-                let account_id = task.account_id.clone();
+            match result {
+                // 处理票务任务结果
+                TaskResult::TicketResult(ticket_result) => {
+                    // 获取任务ID和账号ID
+                    let task_id = ticket_result.task_id.clone();
+                    let account_id = ticket_result.account_id.clone();
+                    
+                    // 更新任务状态
+                    if let Some(task) = self.account_manager.active_tasks.get_mut(&task_id) {
+                        match &ticket_result.result {
+                            Ok(ticket_result_data) => {
+                                // 更新任务状态
+                                task.status = TaskStatus::Completed(ticket_result_data.success);
+                                
+                                // 直接克隆值而非引用
+                                task.result = Some(ticket_result_data.clone());
+                                
+                                // 准备日志，但不立即添加
+                                let message = if ticket_result_data.success {
+                                    format!("抢票成功! 订单号: {}", 
+                                        ticket_result_data.order_id.as_ref().unwrap_or(&String::new()))
+                                } else {
+                                    format!("抢票未成功: {}", 
+                                        ticket_result_data.message.as_ref().unwrap_or(&String::new()))
+                                };
+                                
+                                pending_logs.push(message);
+                            },
+                            Err(error) => {
+                                // 更新失败状态
+                                task.status = TaskStatus::Failed(error.clone());
+                                pending_logs.push(format!("任务失败: {}", error));
+                            }
+                        }
+                        
+                        // 将账号添加到待更新列表
+                        account_updates.push(account_id);
+                    }
+                },
                 
-                match &result.result {
-                    Ok(ticket_result) => {
-                        // 更新任务状态
-                        task.status = TaskStatus::Completed(ticket_result.success);
-                        
-                        // 直接克隆值而非引用
-                        task.result = Some((*ticket_result).clone());
-                        
-                        // 准备日志，但不立即添加
-                        let message = if ticket_result.success {
-                            format!("抢票成功! 订单号: {}", 
-                                ticket_result.order_id.as_ref().unwrap_or(&String::new()))
-                        } else {
-                            format!("抢票未成功: {}", 
-                                ticket_result.message.as_ref().unwrap_or(&String::new()))
-                        };
-                        
-                        pending_logs.push(message);
-                    },
-                    Err(error) => {
-                        // 更新失败状态
-                        task.status = TaskStatus::Failed(error.clone());
-                        pending_logs.push(format!("任务失败: {}", error));
+                //处理qrcode登录结果
+                TaskResult::QrCodeLoginResult(qrcode_result) => {
+                    // 二维码登录的处理逻辑
+                    match qrcode_result.status {
+                        common::login::QrCodeLoginStatus::Success(cookie) => {
+                            log::info!("二维码登录成功!");
+                            
+                            
+                            if let Some(cookie_str) = qrcode_result.cookie {
+                                
+                                self.handle_login_success(&cookie_str);
+                            }
+                        },
+                        common::login::QrCodeLoginStatus::Failed(err) => {
+                            log::error!("二维码登录失败: {}", err);
+                        },
+                        common::login::QrCodeLoginStatus::Expired => {
+                            log::warn!("二维码已过期，请刷新");
+                        },
+                        _ => {
+                            
+                        }
                     }
                 }
-                
-                // 将账号添加到待更新列表
-                account_updates.push(account_id);
             }
         }
         
@@ -211,6 +245,20 @@ impl Myapp{
                 self.add_log(&log);
             }
         }
+    }
+
+    pub fn handle_login_success(&mut self, cookie: &str) {
+    log::debug!("登录成功，cookie: {}", cookie);
+    match add_account(cookie, &self.client,&self.custom_config.custom_ua){
+        Ok(account) => {
+            self.account_manager.accounts.push(account);
+            log::info!("登录成功，账号已添加");
+        },
+        Err(e) => {
+            log::error!("登录成功，但添加账号失败: {}", e);
+        }
+    }
+
     }
 }
 
@@ -249,6 +297,7 @@ impl eframe::App for Myapp{
         //从env_log添加日志进窗口
         self.add_log_windows();
 
+        
         
 
         

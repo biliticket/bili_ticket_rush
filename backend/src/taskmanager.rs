@@ -3,20 +3,24 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
-use common::taskmanager::{TaskManager, TaskResult, TaskStatus, TicketRequest, TicketTask, TicketResult};
+use common::taskmanager::{
+    TaskManager, TaskStatus, TaskRequest, TicketRequest, QrCodeLoginRequest,
+    TaskResult, TaskTicketResult, TaskQrCodeLoginResult, 
+    TicketTask, QrCodeLoginTask, TicketResult, Task
+};
 use crate::api::{*};
 
 
 pub struct TaskManagerImpl {
     task_sender: mpsc::Sender<TaskMessage>,
     result_receiver: mpsc::Receiver<TaskResult>,
-    running_tasks: HashMap<String, TicketTask>,
+    running_tasks: HashMap<String, Task>, // 使用 Task 枚举
     runtime: Arc<Runtime>,
     _worker_thread: Option<thread::JoinHandle<()>>,
 }
 
 enum TaskMessage {
-    SubmitTask(TicketRequest),
+    SubmitTask(TaskRequest),
     CancelTask(String),
     Shutdown,
 }
@@ -39,31 +43,63 @@ impl TaskManager for TaskManagerImpl {
                         TaskMessage::SubmitTask(request) => {
                             let task_id = uuid::Uuid::new_v4().to_string();
                             let result_tx = result_tx.clone();
-                            let account_id = request.account_id.clone();
                             
-                            // 为每个请求创建异步任务
-                            tokio::spawn(async move {
-                                // 这里是实际业务逻辑
-                                let result = match perform_ticket_grab(&request).await {
-                                    Ok(ticket_result) => Ok(ticket_result),
-                                    Err(e) => Err(e.to_string()),
-                                };
-                                log::info! (" 任务完成 ID: {}, 结果: {}", 
-             
-             task_id, 
-             
-             if let Ok(ref r) = result { "成功" } else { "失败" });
-                                // 发送结果
-                                let _ = result_tx.send(TaskResult {
-                                    task_id,
-                                    account_id,
-                                    result,
-                                }).await;
-                            });
+                            // 根据任务类型处理
+                            match request {
+                                TaskRequest::TicketRequest(ticket_req) => {
+                                    // 注意: 从 ticket_req 获取 account_id (不是从request)
+                                    let account_id = ticket_req.account_id.clone();
+                                    
+                                    tokio::spawn(async move {
+                                        // 传递 &ticket_req 而不是 &request
+                                        let result = match perform_ticket_grab(&ticket_req).await {
+                                            Ok(ticket_result) => Ok(ticket_result),
+                                            Err(e) => Err(e.to_string()),
+                                        };
+                                        
+                                        log::info!("任务完成 ID: {}, 结果: {}", 
+                                            task_id, 
+                                            if let Ok(ref r) = result { "成功" } else { "失败" }
+                                        );
+                                        
+                                        // 使用正确的 TaskResult 枚举变体
+                                        let task_result = TaskResult::TicketResult(TaskTicketResult {
+                                            task_id,
+                                            account_id,
+                                            result,
+                                        });
+                                        
+                                        let _ = result_tx.send(task_result).await;
+                                    });
+                                },
+                                TaskRequest::QrCodeLoginRequest(qrcode_req) => {
+                                    tokio::spawn(async move {
+                                        // 二维码登录逻辑
+                                        let status = poll_qrcode_login(&qrcode_req.qrcode_key,qrcode_req.user_agent.as_deref()).await;
+                                        
+                                        let (cookie, error) = match &status {
+                                            common::login::QrCodeLoginStatus::Success(cookie) => 
+                                                (Some(cookie.clone()), None),
+                                            common::login::QrCodeLoginStatus::Failed(err) => 
+                                                (None, Some(err.clone())),
+                                            _ => (None, None)
+                                        };
+                                        
+                                        // 创建正确的结果类型
+                                        let task_result = TaskResult::QrCodeLoginResult(TaskQrCodeLoginResult {
+                                            task_id,
+                                            status,
+                                            cookie,
+                                            error,
+                                        });
+                                        
+                                        let _ = result_tx.send(task_result).await;
+                                    });
+                                }
+                            }
                         },
                         TaskMessage::CancelTask(_task_id) => {
                             // 取消任务逻辑
-                            // 实际实现需要保存JoinHandle并使用abort()
                         },
                         TaskMessage::Shutdown => break,
                     }
@@ -80,23 +116,42 @@ impl TaskManager for TaskManagerImpl {
         }
     }
     
-    fn submit_task(&mut self, request: TicketRequest) -> Result<String, String> {
+    fn submit_task(&mut self, request: TaskRequest) -> Result<String, String> {
         // 生成任务ID
         let task_id = uuid::Uuid::new_v4().to_string();
         
-        log::info!("提交任务 ID: {}, 票ID: {}", task_id, request.ticket_id);
-        // 创建任务对象
-        let task = TicketTask {
-            task_id: task_id.clone(),
-            account_id: request.account_id.clone(),
-            ticket_id: request.ticket_id.clone(),
-            status: TaskStatus::Pending,
-            start_time: Some(std::time::Instant::now()),
-            result: None,
-        };
-        
-        // 保存任务
-        self.running_tasks.insert(task_id.clone(), task);
+        // 根据请求类型创建相应的任务
+        match &request {
+            TaskRequest::TicketRequest(ticket_req) => {
+                log::info!("提交票务任务 ID: {}, 票ID: {}", task_id, ticket_req.ticket_id);
+                // 创建票务任务
+                let task = TicketTask {
+                    task_id: task_id.clone(),
+                    account_id: ticket_req.account_id.clone(),
+                    ticket_id: ticket_req.ticket_id.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                    result: None,
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::TicketTask(task));
+            },
+            TaskRequest::QrCodeLoginRequest(qrcode_req) => {
+                log::info!("提交二维码登录任务 ID: {}", task_id);
+                // 创建二维码登录任务
+                let task = QrCodeLoginTask {
+                    task_id: task_id.clone(),
+                    qrcode_key: qrcode_req.qrcode_key.clone(),
+                    qrcode_url: qrcode_req.qrcode_url.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::QrCodeLoginTask(task));
+            }
+        }
         
         // 发送任务
         if let Err(e) = self.task_sender.blocking_send(TaskMessage::SubmitTask(request)) {
@@ -130,7 +185,14 @@ impl TaskManager for TaskManagerImpl {
     }
     
     fn get_task_status(&self, task_id: &str) -> Option<TaskStatus> {
-        self.running_tasks.get(task_id).map(|task| task.status.clone())
+        if let Some(task) = self.running_tasks.get(task_id) {
+            match task {
+                Task::TicketTask(t) => Some(t.status.clone()),
+                Task::QrCodeLoginTask(t) => Some(t.status.clone()),
+            }
+        } else {
+            None
+        }
     }
     
     fn shutdown(&mut self) {

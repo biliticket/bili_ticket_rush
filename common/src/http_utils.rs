@@ -57,3 +57,8 @@ pub async fn request_post<T: serde::Serialize + ?Sized>(
     req.send().await
 }
 
+pub fn request_get_sync(client: &Client, url: &str, ua: Option<String>, cookie: Option<&str>) -> Result<Response, Error> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(request_get(client, url, ua, cookie))
+    
+}

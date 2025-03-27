@@ -1,6 +1,23 @@
 use crate::account::Account;
 use crate::http_utils::{request_get,request_post};
 use reqwest::Client;
+
+pub struct QrCodeLoginTask {
+    pub qrcode_key: String,
+    pub qrcode_url: String,
+    pub start_time: std::time::Instant,
+    pub status: QrCodeLoginStatus,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum QrCodeLoginStatus {
+    Pending,
+    Scanning,
+    Confirming,
+    Success(String), //成功时返回cookie信息
+    Failed(String),  //失败时返回错误信息
+    Expired,
+}
 pub  fn qrcode_login(client: &Client) -> Result<String, String> {
    // 创建一个临时的运行时来执行异步代码
    let rt = tokio::runtime::Runtime::new().unwrap();
@@ -16,8 +33,8 @@ pub  fn qrcode_login(client: &Client) -> Result<String, String> {
     .await.map_err(|e| e.to_string())?;
     
     
-    if let Some(url) = json["data"]["url"].as_str() {
-        Ok(url.to_string())
+    if let Some(qrcode_key) = json["data"]["qrcode_key"].as_str()  {
+        Ok(qrcode_key.to_string())
     } else {
         Err("无法获取二维码URL".to_string())
     }

@@ -91,10 +91,10 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
     }
     
     // 创建请求
-    let request = TicketRequest {
-        ticket_id: ticket_id.to_string(),
-        account_id: account_id.to_string(),
-    };
+    let request = common::taskmanager::TaskRequest::TicketRequest (
+        TicketRequest { ticket_id: ticket_id.to_string(),
+        account_id: account_id.to_string(),}
+    );
     println!("请求创建成功");
     // 提交任务
     match app.task_manager.submit_task(request) {
