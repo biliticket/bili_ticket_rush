@@ -33,6 +33,10 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
         response.json::<serde_json::Value>().await
     }).map_err(|e| e.to_string())?;
     log::info!("获取账号信息: {:?}", json);
+    match json.get("code") {
+        Some(code) if code.as_i64() == Some(0) => {} // 成功
+        _ => return Err("获取账号信息失败".to_string()),
+    }
     if let Some(data) = json.get("data") {
         let account = Account {
             uid: data["mid"].as_i64().unwrap_or(0),

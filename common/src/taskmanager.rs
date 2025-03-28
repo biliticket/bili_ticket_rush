@@ -1,6 +1,7 @@
 use std::time::Instant;
 use std::fmt;
 use crate::TicketInfo;
+use crate::utility::CustomConfig;
 
 
 
@@ -27,6 +28,7 @@ pub struct TicketResult {
 pub enum Task {
     TicketTask(TicketTask),
     QrCodeLoginTask(QrCodeLoginTask),
+    LoginSmsRequestTask(LoginSmsRequestTask),
 }
 
 pub struct TicketTask {
@@ -47,10 +49,19 @@ pub struct QrCodeLoginTask {
     
 }
 
+pub struct LoginSmsRequestTask {
+    pub task_id: String,
+    pub phone : String,
+    pub status: TaskStatus,
+    pub start_time: Option<Instant>,
+    
+}
+
 // 任务请求枚举
 pub enum TaskRequest {
     TicketRequest(TicketRequest),
     QrCodeLoginRequest(QrCodeLoginRequest),
+    LoginSmsRequest(LoginSmsRequest),
 }
 
 pub struct TicketRequest {
@@ -65,11 +76,18 @@ pub struct QrCodeLoginRequest {
     pub user_agent: Option<String>,
 }
 
+pub struct LoginSmsRequest {
+    pub phone: String,
+    pub user_agent: String,
+    pub custom_config: CustomConfig,
+}
+
 // 任务结果枚举
 #[derive(Clone)]
 pub enum TaskResult {
     TicketResult(TaskTicketResult),
     QrCodeLoginResult(TaskQrCodeLoginResult),
+    LoginSmsResult(LoginSmsRequestResult),
 }
 
 #[derive(Clone)]
@@ -85,6 +103,14 @@ pub struct TaskQrCodeLoginResult {
     pub status: crate::login::QrCodeLoginStatus,
     pub cookie: Option<String>,
     pub error: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct LoginSmsRequestResult {
+    pub task_id: String,
+    pub phone: String,
+    pub success: bool,
+    pub message: String,
 }
 
 // 更新 TaskManager trait

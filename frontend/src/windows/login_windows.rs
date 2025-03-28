@@ -1,10 +1,11 @@
 use eframe::egui;
 use base64;
 use crate::app::Myapp;
-use common::login::*;
+use common::{login::*, utility::CustomConfig};
 use image::Luma;
 use qrcode::QrCode;
 use egui::TextureHandle;
+use reqwest::Client;
 pub struct LoginTexture{
     pub left_conrner_texture: Option<egui::TextureHandle>,
     pub right_conrner_texture: Option<egui::TextureHandle>,
@@ -87,7 +88,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                         }
                         "ck登录" =>{
                             ui.add_space(40.0);
-                            ui_ck_login(ui);
+                            ui_ck_login(ui, app);
                         }
                         _ => unreachable!(),
                     }
@@ -216,12 +217,11 @@ fn ui_qrcode_login(ui: &mut egui::Ui, app: &mut Myapp) {
 
 fn ui_password_login(ui: &mut egui::Ui, app: &mut Myapp) {
     
-    let mut account = String::new();
-    let mut password = String::new();
+    
     ui.vertical_centered(|ui|{
-        common_input(ui, "账号", &mut account, "请输入账号", true);
+        common_input(ui, "账号", &mut app.login_input.account, "请输入账号", true);
         ui.add_space(10.0);
-        common_input(ui, "密码", &mut password, "请输入密码", true);
+        common_input(ui, "密码", &mut app.login_input.password, "请输入密码", true);
         ui.add_space(20.0);
         let button = egui::Button::new(
             egui::RichText::new("登录").size(15.0).color(egui::Color32::WHITE)
@@ -231,7 +231,7 @@ fn ui_password_login(ui: &mut egui::Ui, app: &mut Myapp) {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            match password_login(&account, &password){
+            match password_login(&app.login_input.account, &app.login_input.password){
                 Ok(log) => {
                     log::info!("{}", log);
                 }
@@ -249,13 +249,13 @@ fn ui_password_login(ui: &mut egui::Ui, app: &mut Myapp) {
 
 fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
     
-    let mut phone_number = String::new();
-    let mut sms_code = String::new();
+    
     ui.vertical_centered(|ui|{
-        phone_input(ui, "手机号", &mut phone_number, "请输入手机号", true);
+        //phone的要传入app，参数从里面获得
+        phone_input(ui, "手机号", app, "请输入手机号", true);
         app.show_log_window = true;
         ui.add_space(10.0);
-        common_input(ui, "验证码", &mut sms_code, "请输入验证码", true);
+        common_input(ui, "验证码", &mut app.login_input.sms_code, "请输入验证码", true);
         ui.add_space(20.0);
         let button = egui::Button::new(
             egui::RichText::new("登录").size(15.0).color(egui::Color32::WHITE)
@@ -265,7 +265,7 @@ fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            match sms_login(&phone_number, &sms_code){
+            /* match sms_login(&phone_number, &sms_code){
                 Ok(log) => {
                     log::info!("{}", log);
                 }
@@ -273,16 +273,16 @@ fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
                     log::error!("短信登录时出错！请尝试使用其他登陆方式{}", e);
                     
                 }
-            }
+            } */
         }
 
     });
 }
 
-fn ui_ck_login(ui: &mut egui::Ui   )  {
-    let mut cookie = String::new();
+fn ui_ck_login(ui: &mut egui::Ui  , app: &mut Myapp)  {
+    
     ui.vertical_centered(|ui|{
-        common_input(ui, "请输入ck", &mut cookie, "请输入ck，不知道不要填写", 
+        common_input(ui, "请输入ck", &mut app.login_input.cookie, "请输入ck，不知道不要填写", 
         false); 
 
         ui.add_space(20.0);
@@ -294,9 +294,10 @@ fn ui_ck_login(ui: &mut egui::Ui   )  {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            match cookie_login(&cookie){
-                Ok(log) => {
-                    log::info!("{}", log);
+            match cookie_login(&app.login_input.cookie,&app.client, &app.custom_config.custom_ua){
+                Ok(account) => {
+                    app.account_manager.accounts.push(account.clone());
+                    log::info!("添加账号成功");
                 }
                 Err(e) => {
                     log::error!("ck登录时出错！请尝试使用其他登陆方式{}", e);
@@ -354,12 +355,15 @@ pub fn common_input(
 pub fn phone_input(
     ui: &mut egui::Ui, 
     title: &str,
-    text: &mut String,
+    app: &mut Myapp,
     hint: &str,
     open_filter: bool,
-
+   
+    
 
 ) -> bool{
+    let ua = &app.custom_config.custom_ua;
+    let custom_config = app.custom_config.clone();
     ui.label(
         egui::RichText::new(title)
               .size(15.0)                               
@@ -368,7 +372,7 @@ pub fn phone_input(
               
     );
     ui.add_space(8.0);
-    let input = egui::TextEdit::singleline( text)
+    let input = egui::TextEdit::singleline(&mut app.login_input.phone)
                 .hint_text(hint)//提示
                 .desired_rows(1)//限制1行       
                 .min_size(egui::vec2(120.0, 25.0));
@@ -377,26 +381,36 @@ pub fn phone_input(
     let response = ui.add(input);
     if response.changed(){
         if open_filter{
-            *text = text.chars()//过滤非法字符
+            app.login_input.phone = app.login_input.phone.chars()//过滤非法字符
             .filter(|c| c.is_ascii_alphanumeric() || *c == '@' || *c == '.' || *c == '-' || *c == '_')
             .collect();
         }
         else{
-            *text = text.chars()//过滤非法字符
+            app.login_input.phone = app.login_input.phone.chars()//过滤非法字符
             .collect();
         };
             
     }
     if ui.link(egui::RichText::new("发送短信").size(12.0)).clicked() {
-        match send_loginsms(&text){
-            Ok(log) => {
-                log::info!("{}", log);
-            }
+        log::info!("{}", app.login_input.phone);
+        let sms_req = common::taskmanager::LoginSmsRequest {
+            phone: app.login_input.phone.clone(),
+            user_agent: ua.to_string(),
+            custom_config: custom_config.clone(),
+        };  
+        let request = common::taskmanager::TaskRequest::LoginSmsRequest(sms_req);
+        match app.task_manager.submit_task(request) {
+            Ok(task_id) => {
+                app.pending_sms_task_id = Some(task_id);
+                log::info!("短信验证码发送中...");
+                //app.show_toast("短信发送中", "请稍候", 3.0);
+            },
             Err(e) => {
-                log::error!("发送短信时出错！{}", e);
-                
+                log::error!("提交短信任务失败: {}", e);
+                //app.show_toast("发送失败", &format!("错误: {}", e), 3.0);
             }
-        }   
+        }
+       
                     
                 }   
     response.changed()

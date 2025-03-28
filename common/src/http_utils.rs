@@ -2,6 +2,7 @@ use reqwest::{Client, header, Response, Error};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
+use serde_json;
 
 // 随机UA生成
 
@@ -33,7 +34,6 @@ pub async fn request_get(client: &Client, url: &str, ua: Option<String>, cookie:
     req.send().await
 }
 
-
 pub async fn request_post<T: serde::Serialize + ?Sized>(
     client: &Client, 
     url: &str, 
@@ -51,11 +51,21 @@ pub async fn request_post<T: serde::Serialize + ?Sized>(
     }
     
     if let Some(data) = json_data {
-        req = req.json(data);
+        if let Ok(json_value) = serde_json::to_value(data) {
+            if let Some(obj) = json_value.as_object() {
+                let mut form = std::collections::HashMap::new();
+                for (key, value) in obj {
+                    // 转换所有值为字符串
+                    form.insert(key, value.to_string().trim_matches('"').to_string());
+                }
+                req = req.form(&form);
+            }
+        }
     }
     
     req.send().await
 }
+
 
 pub fn request_get_sync(client: &Client, url: &str, ua: Option<String>, cookie: Option<&str>) -> Result<Response, Error> {
     let rt = tokio::runtime::Runtime::new().unwrap();

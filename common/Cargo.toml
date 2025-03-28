@@ -21,3 +21,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 reqwest = { version="0.11.22", features=["json", "blocking"]}
+
+#chapcha
+#biliTicker_gt = { git = "https://github.com/Amorter/biliTicker_gt"}
+#bili_ticket_gt_python = { path = "G:/大学软件/BiliTicketGUI/biliTicker_gt"}

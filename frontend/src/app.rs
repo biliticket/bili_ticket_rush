@@ -10,6 +10,7 @@ use common::account::{Account,add_account};
 use common::utils::Config;
 use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
+use common::login::LoginInput;
 use crate::windows::login_windows::LoginTexture;
 use reqwest::{Client, header};
 
@@ -62,6 +63,12 @@ pub struct Myapp{
 
     //登录用异步回调taskid
     pub qrcode_polling_task_id: Option<String>,
+
+    //登录用输入
+    pub login_input: LoginInput,
+
+    //登录用发送短信任务id
+    pub pending_sms_task_id: Option<String>,
 }
 
 
@@ -139,6 +146,14 @@ impl Myapp{
                 client: client,
                 login_qrcode_url: None,
                 qrcode_polling_task_id: None,
+                login_input: LoginInput{
+                    phone: String::new(),
+                    account: String::new(),
+                    password: String::new(),
+                    cookie: String::new(),
+                    sms_code: String::new(),
+                },
+                pending_sms_task_id: None,
            
         }
         
@@ -220,6 +235,14 @@ impl Myapp{
                         _ => {
                             
                         }
+                    }
+                }
+                TaskResult::LoginSmsResult(sms_result) => {
+                    // 处理短信登录结果
+                    if sms_result.success {
+                        log::info!("短信登录成功: {}", sms_result.message);
+                    } else {
+                        log::error!("短信登录失败: {}", sms_result.message);
                     }
                 }
             }
