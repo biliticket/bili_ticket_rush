@@ -89,6 +89,17 @@ impl Myapp{
         
         //中文字体
         ui::fonts::configure_fonts(&cc.egui_ctx);
+        let config = match Config::load_config() {
+            Ok(load_config) => {
+                log::info!("配置文件加载成功");
+                load_config
+            },
+            Err(e) => {
+                log::error!("配置文件加载失败: {}", e);
+                Config::new()
+            }
+        };
+        
         
         let client = create_client();
         Self {
@@ -110,36 +121,24 @@ impl Myapp{
                  accounts: Config::load_all_accounts(),
                  active_tasks: HashMap::new(),
              },
-             push_config : PushConfig{
-                enabled: true,
-                bark_token: "123456".to_string(),
-                pushplus_token: "123456".to_string(),
-                fangtang_token: "123456".to_string(),
-                dingtalk_token: "123456".to_string(),
-                wechat_token: "123456".to_string(),
-                smtp_config: SmtpConfig{
-                    smtp_server: "smtp.gmail.com".to_string(),
-                    smtp_port: "465".to_string(),
-                    smtp_username: "123456".to_string(),
-                    smtp_password: "123456".to_string(),
-                    smtp_from: "123456".to_string(),
-                    smtp_to: "123456".to_string(),
-                },
+            push_config : match serde_json::from_value::<PushConfig>(config["push_config"].clone()) {
+                Ok(config) => config,
+                Err(e) => {
+                    log::warn!("无法解析推送配置: {}, 使用默认值", e);
+                    PushConfig::new()
+                }
+            },
         
         
-                },
-                custom_config: CustomConfig{
-                     open_custom_ua: true, //是否开启自定义UA
-                     custom_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),      //自定义UA
-                     chapcha_mode: 0,     //验证码模式
-                     ttocr_key: String::from("123456"),      //ttocr key
-                     preinput_phone: String::from("133456789"), //预填手机号
-
-                },
-                login_texture: LoginTexture{
-                    left_conrner_texture: None,
-                    right_conrner_texture: None,
-                },
+               
+            custom_config: match serde_json::from_value::<CustomConfig>(config["custom_config"].clone()) {
+                Ok(config) => config,
+                Err(e) => {
+                    log::warn!("无法解析自定义配置: {}, 使用默认值", e);
+                    CustomConfig::new()
+                }
+            },
+            login_texture: LoginTexture { left_conrner_texture: None , right_conrner_texture: None},
 
                 login_method: "扫码登录".to_string(),
               

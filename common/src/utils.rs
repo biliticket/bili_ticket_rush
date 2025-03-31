@@ -3,6 +3,8 @@ use std::io;
 use std::ops::{Index, IndexMut};
 use serde_json::{Value, json, Map};
 use crate::account::Account;
+use crate::push::PushConfig;
+use crate::utility::CustomConfig;
 
 
 #[derive(Clone,Debug)]
@@ -27,6 +29,7 @@ impl Config{
         let json_str= serde_json::to_string_pretty(&self.data)?;
         fs::write("./config.json",json_str)
     }
+    
 
     //添加账号
     pub fn add_account(&mut self, account: &Account) -> io::Result<()>{  
@@ -148,4 +151,22 @@ impl IndexMut<&str> for Config {
             }
         }
     }
+}
+
+pub fn save_config(push_config: &PushConfig, custon_config: &CustomConfig) -> Result<bool, String> {
+    let mut config = Config::new();
+    config["push_config"] = serde_json::to_value(push_config).unwrap();
+    config["custom_config"] = serde_json::to_value(custon_config).unwrap();
+
+    match config.save_config(){
+        Ok(_) => {
+            log::info!("配置文件保存成功");
+            Ok(true)
+        },
+        Err(e) => {
+            log::error!("配置文件保存失败: {}", e);
+            Err(e.to_string())
+        }
+    }
+
 }

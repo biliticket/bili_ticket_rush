@@ -1,5 +1,6 @@
 use eframe::egui;
 use crate::app::Myapp;
+use common::utils::save_config;
 
 fn on_switch(ui: &mut egui::Ui, output_char: &str, on: &mut bool) -> egui::Response {
     ui.label(
@@ -94,8 +95,29 @@ pub fn common_input(
 }
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
     
-        
-    ui.heading("设置");
+    ui.horizontal(|ui|{
+        ui.heading("设置");
+        ui.add_space(20.0);
+        let button = egui::Button::new(
+            egui::RichText::new("保存设置").size(15.0).color(egui::Color32::WHITE)
+            )
+              .min_size(egui::vec2(100.0,35.0))
+              .fill(egui::Color32::from_rgb(102,204,255))
+              .rounding(15.0);//圆角成度
+        let response = ui.add(button);
+        if response.clicked(){
+            match save_config(&app.push_config,&app.custom_config){
+                Ok(_) => {
+                    log::info!("设置保存成功");
+                },
+                Err(e) => {
+                    log::info!("设置保存失败: {}", e);
+                }
+            }
+        }
+
+    })   ; 
+    
     ui.separator();
             //推送设置：
     // 创建圆角长方形框架  
@@ -207,10 +229,11 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                 let button = egui::Button::new(
                     egui::RichText::new("测试推送").size(15.0).color(egui::Color32::WHITE)
                     )
-                      .min_size(egui::vec2(100.0,50.0))
+                      .min_size(egui::vec2(100.0,40.0))
                       .fill(egui::Color32::from_rgb(102,204,255))
                       .rounding(15.0);//圆角成度
                   ui.add(button);
+                  //TODO:测试推送
 
             });
             if app.push_config.enabled{
