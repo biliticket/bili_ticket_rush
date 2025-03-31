@@ -152,8 +152,8 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
 pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
     ui.horizontal(|ui| {
         
-        common_input(ui, "请输入预填写手机号：", &mut app.custom_config.preinput_phone, "请输入账号绑定的手机号",true);
-
+        common_input(ui, "请输入账号1预填手机号：", &mut app.custom_config.preinput_phone1, "请输入账号1绑定的手机号",true);
+        common_input(ui, "请输入账号2预填手机号：", &mut app.custom_config.preinput_phone1, "请输入账号2绑定的手机号，没有可不填",true);
     });
     ui.separator();
     ui.horizontal(|ui|{
@@ -225,7 +225,7 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                 on_switch(ui, "开启推送",&mut app.push_config.enabled);
                 let available = ui.available_width();
                 ui.add_space(available-100.0);
-                //TODO： 动态计算间隔函数，适应多分辨率屏幕和全屏
+                
                 let button = egui::Button::new(
                     egui::RichText::new("测试推送").size(15.0).color(egui::Color32::WHITE)
                     )
