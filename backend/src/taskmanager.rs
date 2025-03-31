@@ -6,7 +6,9 @@ use tokio::sync::mpsc;
 use common::taskmanager::{
     TaskManager, TaskStatus, TaskRequest, TicketRequest, QrCodeLoginRequest,
     TaskResult, TaskTicketResult, TaskQrCodeLoginResult, 
-    TicketTask, QrCodeLoginTask, TicketResult, Task,LoginSmsRequestResult,LoginSmsRequestTask
+    TicketTask, QrCodeLoginTask, TicketResult, Task,LoginSmsRequestResult,LoginSmsRequestTask,
+    PushRequest, PushRequestResult, PushType, PushTask,
+    
 };
 use common::login::send_loginsms;
 use crate::api::{*};
@@ -142,6 +144,46 @@ impl TaskManager for TaskManagerImpl {
                                     });
                                 
                                 }
+                                TaskRequest::PushRequest(push_req) => {
+                                    let task_id = uuid::Uuid::new_v4().to_string();
+                                    let push_config = push_req.push_config.clone();
+                                    let title = push_req.title.clone();
+                                    let message = push_req.message.clone();
+                                    let push_type = push_req.push_type.clone();
+                                    let result_tx = result_tx.clone();
+                                    
+                                    // 启动异步任务处理推送
+                                    tokio::spawn(async move {
+                                        log::info!("开始处理推送任务 ID: {}, 类型: {:?}", task_id, push_type);
+                                        
+                                        let (success, result_message) = match push_type {
+                                            PushType::All => {
+                                                push_config.push_all_async( &title, &message).await
+                                            },
+                                            
+                                            // 其他推送类型的处理...
+                                            _ => (false, "未实现的推送类型".to_string())
+                                        };
+                                        
+                                        // 创建任务结果
+                                        let task_result = TaskResult::PushResult(PushRequestResult {
+                                            task_id: task_id.clone(),
+                                            success,
+                                            message: result_message,
+                                            push_type: push_type.clone(),
+                                        });
+                                        
+                                        // 发送结果
+                                        if let Err(e) = result_tx.send(task_result).await {
+                                            log::error!("发送推送任务结果失败: {}", e);
+                                        }
+                                        
+                                        log::info!("推送任务 ID: {} 完成, 结果: {}", task_id, 
+                                                  if success { "成功" } else { "失败" });
+                                    });
+                                    
+                                    
+                                }
                             }
                         },
                         TaskMessage::CancelTask(_task_id) => {
@@ -211,6 +253,21 @@ impl TaskManager for TaskManagerImpl {
                 // 保存任务
                 self.running_tasks.insert(task_id.clone(), Task::LoginSmsRequestTask(task));
             }
+            TaskRequest::PushRequest(push_req) => {
+                log::info!("提交推送任务 ID: {}", task_id);
+                // 创建推送任务
+                let task = PushTask {
+                    task_id: task_id.clone(),
+                    push_type: push_req.push_type.clone(),  // 使用push_type
+                    title: push_req.title.clone(),
+                    message: push_req.message.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::PushTask(task));
+            }
 
         }
         
@@ -251,6 +308,7 @@ impl TaskManager for TaskManagerImpl {
                 Task::TicketTask(t) => Some(t.status.clone()),
                 Task::QrCodeLoginTask(t) => Some(t.status.clone()),
                 Task::LoginSmsRequestTask(t) => Some(t.status.clone()),
+                Task::PushTask(t) => Some(t.status.clone()),
             }
         } else {
             None

@@ -244,6 +244,14 @@ impl Myapp{
                         log::error!("短信登录失败: {}", sms_result.message);
                     }
                 }
+                TaskResult::PushResult(push_result) => {
+                    // 处理推送结果
+                    if push_result.success {
+                        log::info!("推送成功: {}", push_result.message);
+                    } else {
+                        log::error!("推送失败: {}", push_result.message);
+                    }
+                }
             }
         }
         

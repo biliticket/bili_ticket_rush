@@ -1,5 +1,5 @@
 use std::time::Instant;
-use std::fmt;
+use crate::push::PushConfig;
 use crate::TicketInfo;
 use crate::utility::CustomConfig;
 
@@ -29,6 +29,48 @@ pub enum Task {
     TicketTask(TicketTask),
     QrCodeLoginTask(QrCodeLoginTask),
     LoginSmsRequestTask(LoginSmsRequestTask),
+    PushTask(PushTask),
+    
+}
+
+#[derive(Clone)]
+pub struct PushRequest{
+    pub title: String,
+    pub message: String,
+    pub push_config: PushConfig,
+    pub push_type : PushType,
+}
+
+//推送类型
+#[derive(Clone,Debug)]
+pub enum PushType {
+    All,
+    Bark,
+    PushPlus,
+    Fangtang,
+    Dingtalk,
+    WeChat,
+    Smtp,
+}
+
+// 推送结果结构体
+#[derive(Clone)]
+pub struct PushRequestResult {
+    pub task_id: String,
+    pub success: bool,
+    pub message: String,
+    pub push_type: PushType,
+}
+
+
+#[derive(Clone)]
+pub struct PushTask {
+    pub task_id: String,
+    pub title: String,
+    pub message:String,
+    pub push_type: PushType,
+    pub status: TaskStatus,
+    pub start_time: Option<Instant>,    
 }
 
 pub struct TicketTask {
@@ -62,7 +104,9 @@ pub enum TaskRequest {
     TicketRequest(TicketRequest),
     QrCodeLoginRequest(QrCodeLoginRequest),
     LoginSmsRequest(LoginSmsRequest),
+    PushRequest(PushRequest),
 }
+
 
 pub struct TicketRequest {
     pub ticket_id: String,
@@ -82,12 +126,15 @@ pub struct LoginSmsRequest {
     pub custom_config: CustomConfig,
 }
 
+
+
 // 任务结果枚举
 #[derive(Clone)]
 pub enum TaskResult {
     TicketResult(TaskTicketResult),
     QrCodeLoginResult(TaskQrCodeLoginResult),
     LoginSmsResult(LoginSmsRequestResult),
+    PushResult(PushRequestResult),
 }
 
 #[derive(Clone)]

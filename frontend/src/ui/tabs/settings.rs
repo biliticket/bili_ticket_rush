@@ -232,8 +232,11 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                       .min_size(egui::vec2(100.0,40.0))
                       .fill(egui::Color32::from_rgb(102,204,255))
                       .rounding(15.0);//圆角成度
-                  ui.add(button);
-                  //TODO:测试推送
+                let response = ui.add(button);
+                if response.clicked(){
+                    app.push_config.push_all("biliticket推送测试", "这是一个推送测试", &mut *app.task_manager);
+                }
+                  
 
             });
             if app.push_config.enabled{
