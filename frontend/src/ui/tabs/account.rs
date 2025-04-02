@@ -14,6 +14,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         is_logged: false,
         account_status: "未登录".to_string(),
         is_active: false,
+        client: None,
     };
     
 

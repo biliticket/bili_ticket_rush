@@ -265,15 +265,22 @@ fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            /* match sms_login(&phone_number, &sms_code){
-                Ok(log) => {
-                    log::info!("{}", log);
-                }
+            let request = common::taskmanager::SubmitLoginSmsRequest{
+                phone: app.login_input.phone.clone(),
+                code: app.login_input.sms_code.clone(),
+                captcha_key: app.sms_chapcha_key.clone(),
+                client: app.client.clone(),
+            };
+            let request = common::taskmanager::TaskRequest::SubmitLoginSmsRequest(request);
+            match app.task_manager.submit_task(request) {
+                Ok(task_id) => {
+                    app.pending_sms_task_id = Some(task_id);
+                    log::info!("短信验证码登录中...");
+                },
                 Err(e) => {
-                    log::error!("短信登录时出错！请尝试使用其他登陆方式{}", e);
-                    
+                    log::error!("提交短信登录任务失败: {}", e);
                 }
-            } */
+            }
         }
 
     });
@@ -362,8 +369,9 @@ pub fn phone_input(
     
 
 ) -> bool{
-    let ua = &app.custom_config.custom_ua;
+    let ua = &app.default_ua;
     let custom_config = app.custom_config.clone();
+    let client = 
     ui.label(
         egui::RichText::new(title)
               .size(15.0)                               
@@ -395,7 +403,7 @@ pub fn phone_input(
         log::info!("{}", app.login_input.phone);
         let sms_req = common::taskmanager::LoginSmsRequest {
             phone: app.login_input.phone.clone(),
-            user_agent: ua.to_string(),
+            client: app.client.clone(),
             custom_config: custom_config.clone(),
         };  
         let request = common::taskmanager::TaskRequest::LoginSmsRequest(sms_req);

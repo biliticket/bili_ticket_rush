@@ -52,7 +52,7 @@ pub async fn chapcha(custom_config: CustomConfig, gt: &str, challenge: &str, ref
                 return Err("验证码提交识别失败".to_string());
             }
             let result_id = json_response["resultid"].as_str().unwrap_or("");
-            for _ in 0..10{
+            for _ in 0..20{
                 let response = client.post("http://api.ttocr.com/api/results")
                 .json(&json!({
                     "appkey": custom_config.ttocr_key,

@@ -7,10 +7,10 @@ use common::taskmanager::{
     TaskManager, TaskStatus, TaskRequest, TicketRequest, QrCodeLoginRequest,
     TaskResult, TaskTicketResult, TaskQrCodeLoginResult, 
     TicketTask, QrCodeLoginTask, TicketResult, Task,LoginSmsRequestResult,LoginSmsRequestTask,
-    PushRequest, PushRequestResult, PushType, PushTask,
+    PushRequest, PushRequestResult, PushType, PushTask,SubmitLoginSmsRequestTask
     
 };
-use common::login::send_loginsms;
+use common::login::{send_loginsms,sms_login};
 use crate::api::{*};
 
 
@@ -102,18 +102,39 @@ impl TaskManager for TaskManagerImpl {
                                 TaskRequest::LoginSmsRequest(login_sms_req) => {
                                     let task_id = uuid::Uuid::new_v4().to_string();
                                     let phone = login_sms_req.phone.clone();
-                                    let user_agent = login_sms_req.user_agent.clone();
+                                    let client = login_sms_req.client.clone();
                                     let custom_config = login_sms_req.custom_config.clone();
                                     let result_tx = result_tx.clone();
+                                    
 
-                                    let client = reqwest::Client::new();
+                                    /* let client = match reqwest::Client::builder()
+                                        .user_agent(user_agent.clone())
+                                        .cookie_store(true)
+                                        .build() {
+                                            Ok(client) => client,
+                                            Err(err) => {
+                                               // 记录错误并发送错误结果
+                                               log::error!("创建请求客户端失败 ID: {}, 错误: {}", task_id, err);
+                
+                                               let task_result = TaskResult::LoginSmsResult(LoginSmsRequestResult {
+                                                    task_id,
+                                                    phone,
+                                                    success: false,
+                                                    message: format!("创建客户端失败: {}", err),
+                                                    });
+                
+                                               let _ = result_tx.send(task_result).await;
+                                               return; 
+                                               }
+                                               }; */
+                                    
 
                                     tokio::spawn(async move{
                                         log::info!("开始发送短信验证码 ID: {}", task_id);
 
                                         let result = async{
                                             log::info!("开始发送短信验证码 ID: {}", task_id);
-                                            let response = send_loginsms(&phone, &client, &user_agent, custom_config).await;
+                                            let response = send_loginsms(&phone, &client, custom_config).await;
                                             log::info!("开始发送短信验证码 ID: {}", task_id);
                                             let success = response.is_ok();
                                             let message = match &response {
@@ -182,7 +203,45 @@ impl TaskManager for TaskManagerImpl {
                                                   if success { "成功" } else { "失败" });
                                     });
                                     
-                                    
+                                 
+                                }
+                                TaskRequest::SubmitLoginSmsRequest(login_sms_req) => {
+                                    let task_id = uuid::Uuid::new_v4().to_string();
+                                    let phone = login_sms_req.phone.clone();
+                                    let client = login_sms_req.client.clone();
+                                    let captcha_key = login_sms_req.captcha_key.clone();
+                                    let code = login_sms_req.code.clone();
+                                    let result_tx = result_tx.clone();
+
+                                    tokio::spawn(async move{
+                                        log::info!("短信验证码登录进行中 ID: {}", task_id);
+                                        
+                                        let result = async{
+                                            let response = sms_login(&phone,  &code,&captcha_key, &client).await;
+                                            let success = response.is_ok();
+                                            let message: String = match &response {
+                                                    Ok(msg) => msg.clone(),
+                                                    Err(err) => {
+                                                        log::error!("提交短信验证码失败: {}", err);
+                                                        err.to_string()
+                                                    },
+                                                };
+                                            log::info!("提交短信任务完成 ID: {}, 结果: {}", 
+                                                task_id, 
+                                                if success { "成功" } else { "失败" }
+                                            );
+
+                                            let task_result = TaskResult::LoginSmsResult(LoginSmsRequestResult {
+                                                task_id,
+                                                phone,
+                                                success,
+                                                message,
+                                            });
+
+                                            let _ = result_tx.send(task_result).await;
+
+                                        }.await;
+                                    });
                                 }
                             }
                         },
@@ -269,6 +328,23 @@ impl TaskManager for TaskManagerImpl {
                 self.running_tasks.insert(task_id.clone(), Task::PushTask(task));
             }
 
+            TaskRequest::SubmitLoginSmsRequest(login_sms_req) => {
+                log::info!("提交短信验证码登录任务 ID: {}, 手机号: {}", task_id, login_sms_req.phone);
+                
+                // 创建短信验证码登录任务
+                let task = SubmitLoginSmsRequestTask {
+                    task_id: task_id.clone(),
+                    phone: login_sms_req.phone.clone(),
+                    code: login_sms_req.code.clone(),
+                    captcha_key: login_sms_req.captcha_key.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::SubmitLoginSmsRequestTask(task));
+            }
+
         }
         
         // 发送任务
@@ -309,6 +385,7 @@ impl TaskManager for TaskManagerImpl {
                 Task::QrCodeLoginTask(t) => Some(t.status.clone()),
                 Task::LoginSmsRequestTask(t) => Some(t.status.clone()),
                 Task::PushTask(t) => Some(t.status.clone()),
+                Task::SubmitLoginSmsRequestTask(t) => Some(t.status.clone()),
             }
         } else {
             None

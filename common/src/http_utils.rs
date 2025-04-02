@@ -21,11 +21,11 @@ pub fn get_random_ua() -> String {
 }
 
 
-pub async fn request_get(client: &Client, url: &str, ua: Option<String>, cookie: Option<&str>) -> Result<Response, Error> {
-    let ua = ua.unwrap_or_else(get_random_ua);
+pub async fn request_get(client: &Client, url: &str, cookie: Option<&str>) -> Result<Response, Error> {
     
-    let mut req = client.get(url)
-        .header(header::USER_AGENT, ua);
+    
+    let mut req = client.get(url);
+        
     
     if let Some(cookie_str) = cookie {
         req = req.header(header::COOKIE, cookie_str);
@@ -37,15 +37,14 @@ pub async fn request_get(client: &Client, url: &str, ua: Option<String>, cookie:
 pub async fn request_post<T: serde::Serialize + ?Sized>(
     client: &Client, 
     url: &str, 
-    ua: Option<String>,
+    
     cookie: Option<&str>,
     json_data: Option<&T>
 ) -> Result<Response, Error> {
-    let ua = ua.unwrap_or_else(get_random_ua);
     
-    let mut req = client.post(url)
-        .header(header::USER_AGENT, ua);
     
+    let mut req = client.post(url);
+        
     if let Some(cookie_str) = cookie {
         req = req.header(header::COOKIE, cookie_str);
     }
@@ -69,6 +68,6 @@ pub async fn request_post<T: serde::Serialize + ?Sized>(
 
 pub fn request_get_sync(client: &Client, url: &str, ua: Option<String>, cookie: Option<&str>) -> Result<Response, Error> {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(request_get(client, url, ua, cookie))
+    rt.block_on(request_get(client, url,  cookie))
     
 }

@@ -2,6 +2,7 @@ use std::time::Instant;
 use crate::push::PushConfig;
 use crate::TicketInfo;
 use crate::utility::CustomConfig;
+use reqwest::Client;
 
 
 
@@ -30,6 +31,7 @@ pub enum Task {
     QrCodeLoginTask(QrCodeLoginTask),
     LoginSmsRequestTask(LoginSmsRequestTask),
     PushTask(PushTask),
+    SubmitLoginSmsRequestTask(SubmitLoginSmsRequestTask),
     
 }
 
@@ -99,12 +101,22 @@ pub struct LoginSmsRequestTask {
     
 }
 
+pub struct SubmitLoginSmsRequestTask {
+    pub task_id: String,
+    pub phone : String,
+    pub code: String,
+    pub captcha_key: String,
+    pub status: TaskStatus,
+    pub start_time: Option<Instant>,
+}
+
 // 任务请求枚举
 pub enum TaskRequest {
     TicketRequest(TicketRequest),
     QrCodeLoginRequest(QrCodeLoginRequest),
     LoginSmsRequest(LoginSmsRequest),
     PushRequest(PushRequest),
+    SubmitLoginSmsRequest(SubmitLoginSmsRequest),
 }
 
 
@@ -122,11 +134,17 @@ pub struct QrCodeLoginRequest {
 
 pub struct LoginSmsRequest {
     pub phone: String,
-    pub user_agent: String,
+    pub client: Client,
     pub custom_config: CustomConfig,
 }
 
+pub struct SubmitLoginSmsRequest {
+    pub phone : String,
+    pub code: String,
+    pub captcha_key: String,
+    pub client: Client,
 
+}
 
 // 任务结果枚举
 #[derive(Clone)]
@@ -135,6 +153,7 @@ pub enum TaskResult {
     QrCodeLoginResult(TaskQrCodeLoginResult),
     LoginSmsResult(LoginSmsRequestResult),
     PushResult(PushRequestResult),
+    SubmitSmsLoginResult(SubmitSmsLoginResult),
 }
 
 #[derive(Clone)]
@@ -160,6 +179,14 @@ pub struct LoginSmsRequestResult {
     pub message: String,
 }
 
+#[derive(Clone)]
+pub struct SubmitSmsLoginResult {
+    pub task_id: String,
+    pub phone: String,
+    pub success: bool,
+    pub message: String,
+    pub cookie: Option<String>,
+}
 // 更新 TaskManager trait
 pub trait TaskManager: Send + 'static {
     // 创建新的任务管理器

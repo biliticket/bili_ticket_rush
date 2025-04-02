@@ -44,7 +44,7 @@ pub  fn qrcode_login(client: &Client) -> Result<String, String> {
    let response = request_get(
     client,
     "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
-    None,
+    
         None,
     ).await.map_err(|e| e.to_string())?;
     
@@ -64,14 +64,24 @@ pub fn password_login(username: &str, password: &str) -> Result<String, String> 
     Ok("https://account.bilibili.com/h5/account-h5/auth/scan-web?navhide=1&callback=close&qrcode_key=7d0bd3e133117eab86bc5f42f8731e0e&from=main-fe-header".to_string())
 }
 
-pub async fn send_loginsms(phone: &str, client: &Client, ua: &str, custom_config: CustomConfig) -> Result<String, String> {
-    
+pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomConfig) -> Result<String, String> {
+        //打开主页获取buvid
+        let response = request_get(
+            client,
+            "https://www.bilibili.com/",
+       
+            None,
+        ).await.map_err(|e| e.to_string())?;
+        
+        log::info!("获取主页ck: {:?}", response.cookies().collect::<Vec<_>>());
+        
+        
     
         // 发送请求
         let response = request_get(
             client,
             "https://passport.bilibili.com/x/passport-login/captcha",
-            Some(ua.to_string()),
+       
             None,
         ).await.map_err(|e| e.to_string())?;
         log::info!("获取验证码: {:?}", response);
@@ -99,15 +109,18 @@ pub async fn send_loginsms(phone: &str, client: &Client, ua: &str, custom_config
                 let send_sms = request_post(
                     client,
                     "https://passport.bilibili.com/x/passport-login/web/sms/send",
-                    Some(ua.to_string()),
+                    
                     None,
                     Some(&json_data),
                 ).await.map_err(|e| e.to_string())?;
                 
                 let json_response = send_sms.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
+                log::debug!("验证码发送响应: {:?}", json_response);
                 if json_response["code"].as_i64() == Some(0) {
+                    let chapcha_key = json_response["data"]["captcha_key"].as_str().unwrap_or("");
                     log::info!("验证码发送成功");
-                    Ok("验证码发送成功".to_string())
+                    log::debug!("chapcha_key: {:?}", chapcha_key);
+                    Ok(chapcha_key.to_string())
                 } else {
                     log::error!("验证码发送失败: {}", json_response["message"].as_str().unwrap_or("未知错误"));
                     Err("验证码发送失败".to_string())
@@ -123,9 +136,49 @@ pub async fn send_loginsms(phone: &str, client: &Client, ua: &str, custom_config
     
 }
 
-pub fn sms_login(username: &str, sms_code: &str, client: &Client, ua: &str, custom_config: CustomConfig) -> Result<String, String> {
-    //测试调用
-    Ok("验证码已发送".to_string())
+pub async fn sms_login(phone: &str, sms_code: &str, captcha_key:&str, client: &Client) -> Result<String, String> {
+    let data = serde_json::json!({
+        "cid": 86,
+        "tel": phone.parse::<i64>().unwrap_or(0),
+        "code": sms_code.parse::<i64>().unwrap_or(0),
+        "source":"main_mini",
+        "captcha_key":captcha_key,
+    });
+    log::debug!("短信登录数据: {:?}", data);
+    let login_response = request_post(
+        client,
+        "https://passport.bilibili.com/x/passport-login/web/login/sms",
+        
+        None,
+        Some(&data),
+    ).await.map_err(|e| e.to_string())?;
+    let mut all_cookies = Vec::new();
+    let cookie_headers = login_response.headers().get_all(reqwest::header::SET_COOKIE);
+    log::debug!("headers返回：{:?}",cookie_headers);
+    for value in cookie_headers {
+        if let Ok(cookie_str) = value.to_str() {
+     
+          if let Some(end_pos) = cookie_str.find(';') {
+            all_cookies.push(cookie_str[0..end_pos].to_string());
+           } else {
+           all_cookies.push(cookie_str.to_string());
+           }
+         }
+     }
+     log::info!("获取cookie: {:?}", all_cookies);
+    let json_response = login_response.json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("解析JSON失败: {}", e))?;
+    log::debug!("登录接口响应：{:?}",json_response);
+    if json_response["code"].as_i64() == Some(0) {
+        log::info!("短信登录成功！");
+       log::info!("登录cookie：{:?}", all_cookies);
+       return Ok(all_cookies.to_vec().join(";"));
+        
+    }
+    Err("短信登录失败".to_string())
+    
+    
 }
 
 pub fn cookie_login(cookie: &str, client: &Client, ua: &str) -> Result<Account, String> {

@@ -49,7 +49,7 @@ pub async fn poll_qrcode_login(qrcode_key: &str,user_agent: Option<&str>) ->QrCo
     let response = match request_get(
         &client,
         &format!("https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={}", qrcode_key),
-        None,
+       
         None,
     ).await {
         Ok(resp) => resp,

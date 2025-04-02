@@ -55,7 +55,7 @@ pub struct Myapp{
     //登录方式
     pub login_method: String,
     
-    //client
+    //用于登录的client，登录后存入account
     pub client: Client,
 
     //登录用，防止重复刷新二维码
@@ -69,6 +69,17 @@ pub struct Myapp{
 
     //登录用发送短信任务id
     pub pending_sms_task_id: Option<String>,
+
+   /*  //账号1 client
+    pub client1: Option<Client>,
+    //账号2 client
+    pub client2: Option<Client>, */
+
+    //默认ua
+    pub default_ua: String,
+
+    //发送短信chapcha_key
+    pub sms_chapcha_key: String,
 }
 
 
@@ -101,8 +112,8 @@ impl Myapp{
         };
         
         
-        let client = create_client();
-        Self {
+        
+        let mut app = Self {
             left_panel_width: 250.0,
             selected_tab: 0,
             is_loading: false,
@@ -111,7 +122,7 @@ impl Myapp{
             show_log_window: false,
             show_login_windows: false,
             logs: Vec::new(),
-            
+            client: Client::new(),
             default_avatar_texture: None,
             running_status: String::from("空闲ing"),
             ticket_id: String::from("85939"),
@@ -121,6 +132,7 @@ impl Myapp{
                  accounts: Config::load_all_accounts(),
                  active_tasks: HashMap::new(),
              },
+             
             push_config : match serde_json::from_value::<PushConfig>(config["push_config"].clone()) {
                 Ok(config) => config,
                 Err(e) => {
@@ -142,7 +154,7 @@ impl Myapp{
 
                 login_method: "扫码登录".to_string(),
               
-                client: client,
+                
                 login_qrcode_url: None,
                 qrcode_polling_task_id: None,
                 login_input: LoginInput{
@@ -152,9 +164,33 @@ impl Myapp{
                     cookie: String::new(),
                     sms_code: String::new(),
                 },
-                pending_sms_task_id: None,
-           
-        }
+            pending_sms_task_id: None,
+            
+            default_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),
+            sms_chapcha_key: String::new(),
+
+        };
+        // 初始化每个账号的 client
+        for account in &mut app.account_manager.accounts {
+        account.ensure_client();
+        log::debug!("为账号 {} 初始化了专属客户端", account.name);
+    }
+
+    //初始化client和ua
+    let random_value = generate_random_string(8);
+    app.default_ua = format!(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0 {}", 
+        random_value
+    );
+    if config["custom_config"]["enable_custom_ua"].as_bool().unwrap_or(false) && !config["custom_config"]["custom_ua"].is_null() {
+        app.default_ua = config["custom_config"]["custom_ua"].as_str().unwrap_or(&app.default_ua).to_string();
+        
+    }
+    let new_client = create_client(app.default_ua.clone());
+    app.client = new_client;
+        
+      
+    app
         
         
     }
@@ -239,9 +275,20 @@ impl Myapp{
                 TaskResult::LoginSmsResult(sms_result) => {
                     // 处理短信登录结果
                     if sms_result.success {
-                        log::info!("短信登录成功: {}", sms_result.message);
+                        self.sms_chapcha_key = sms_result.message.clone();
+                        log::debug!("发送chapchakey：{}",sms_result.message);
+                        log::info!("短信发送成功 ");
                     } else {
-                        log::error!("短信登录失败: {}", sms_result.message);
+                        log::error!("短信发送失败: {}", sms_result.message);
+                    }
+                }
+                TaskResult::SubmitSmsLoginResult(submit_result) => {
+                    if submit_result.success{
+                        if let Some(cookie_str) = submit_result.cookie {
+                            self.handle_login_success(&cookie_str);
+                        }
+                    } else {
+                        log::error!("短信登录失败: {}", submit_result.message);
                     }
                 }
                 TaskResult::PushResult(push_result) => {
@@ -279,7 +326,7 @@ impl Myapp{
 
     pub fn handle_login_success(&mut self, cookie: &str) {
     log::debug!("登录成功，cookie: {}", cookie);
-    match add_account(cookie, &self.client,&self.custom_config.custom_ua){
+    match add_account(cookie, &self.client,&self.default_ua){
         Ok(account) => {
             self.account_manager.accounts.push(account);
             log::info!("登录成功，账号已添加");
@@ -338,15 +385,31 @@ impl eframe::App for Myapp{
 
 
 
-pub fn create_client() -> Client {
+pub fn create_client(user_agent: String) -> Client {
     let mut headers = header::HeaderMap::new();
+    
+    log::info!("客户端 User-Agent: {}", user_agent);
     headers.insert(
         header::USER_AGENT,
-        header::HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0"),
+        header::HeaderValue::from_str(&user_agent).unwrap_or_else(|_| {
+            header::HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        })
     );
     
     Client::builder()
         .default_headers(headers)
+        .cookie_store(true)
         .build()
         .unwrap_or_default()
+}
+
+fn generate_random_string(length: usize) -> String {
+    use rand::{thread_rng, Rng};
+    use rand::distributions::Alphanumeric;
+    
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(|c| c as char)
+        .collect()
 }

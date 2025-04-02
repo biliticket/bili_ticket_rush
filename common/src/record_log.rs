@@ -53,6 +53,7 @@ impl log::Log for CollectorLogger{
             if let Ok(mut collector) = LOG_COLLECTOR.lock(){
                 collector.add(log_message.clone());
             }
+            
 
             println!("{}", log_message);
         }
@@ -68,5 +69,5 @@ static LOGGER: CollectorLogger = CollectorLogger;
 // 初始化日志系统
 pub fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(LevelFilter::Info))
+        .map(|()| log::set_max_level(LevelFilter::Debug))
 }
