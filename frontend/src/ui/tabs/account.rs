@@ -358,7 +358,7 @@ fn show_user( //显示用户头像等信息
                       egui::RichText::new("登出").size(20.0).color(egui::Color32::WHITE)
                       )
                         .min_size(egui::vec2(120.0,50.0))
-                        .fill(egui::Color32::from_rgb(102,204,255))
+                        .fill(egui::Color32::from_rgb(255,174,201))
                         .rounding(15.0);//圆角成度
                     let response = ui.add(button);
                     if response.clicked(){
