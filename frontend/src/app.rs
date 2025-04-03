@@ -89,6 +89,9 @@ pub struct Myapp{
 
     //cookie登录，暂存cookie
     pub cookie_login: Option<String>,
+
+    //该账号开启抢票开关
+    pub account_switch: Option<AccountSwitch>,
 }
 
 
@@ -180,6 +183,7 @@ impl Myapp{
             sms_captcha_key: String::new(),
             delete_account: None,
             cookie_login: None,
+            account_switch: None,
 
         };
         // 初始化每个账号的 client
@@ -423,6 +427,18 @@ impl eframe::App for Myapp{
         }
         
 
+        //检测是否有更新账号开关
+        if let Some(account_switch) = &self.account_switch {
+            log::info!("检测到账号开关: {}", account_switch.uid);
+            if let Some(account) = self.account_manager.accounts.iter_mut().find(|a| a.uid == account_switch.uid.parse::<i64>().unwrap_or(-1)) {
+                account.is_active = account_switch.switch;
+                log::info!("账号 {} 开关已更新", account_switch.uid);
+            } else {
+                log::error!("未找到账号 {}", account_switch.uid);
+            }
+            self.account_switch = None; // 清空开关
+        }
+
         
     }
 
@@ -458,4 +474,9 @@ fn generate_random_string(length: usize) -> String {
         .take(length)
         .map(|c| c as char)
         .collect()
+}
+
+pub struct AccountSwitch {
+    pub uid: String,
+    pub switch: bool,
 }

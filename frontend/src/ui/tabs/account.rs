@@ -1,5 +1,5 @@
 use eframe::egui;
-use crate::app::Myapp;
+use crate::app::{Myapp, AccountSwitch};
 use common::account::{Account , signout_account};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
@@ -24,8 +24,14 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     
     if let Some(texture) = &app.default_avatar_texture {
         let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
-        show_user(ui, texture, account_to_show, &mut app.delete_account, &mut app.show_login_windows , &mut app.config  );
-    
+        show_user(
+            ui, 
+            texture,account_to_show, 
+            &mut app.delete_account,
+            &mut app.show_login_windows , 
+            &mut app.config,
+            &mut app.account_switch,
+            );
     
 
 }
@@ -33,7 +39,14 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
     let account_to_show = app.account_manager.accounts.get(1).unwrap_or(&example_account);
-    show_user(ui, texture,account_to_show, &mut app.delete_account,&mut app.show_login_windows , &mut app.config  );
+    show_user(
+        ui, 
+        texture,account_to_show, 
+        &mut app.delete_account,
+        &mut app.show_login_windows , 
+        &mut app.config,
+        &mut app.account_switch,
+        );
     
 
 }
@@ -211,6 +224,7 @@ fn show_user( //显示用户头像等信息
     delete_account: &mut Option<String>,
     show_login_windows: &mut bool,
     config: &mut common::utils::Config,
+    account_switch: &mut Option<AccountSwitch>,
    
     
 ) {
@@ -378,29 +392,39 @@ fn show_user( //显示用户头像等信息
                           .rounding(15.0);
                     ui.add(button);
                     dynamic_caculate_space(ui, 120.0, 1.0);
-                    if user.is_active{
-                    let button = egui::Button::new(
-                          egui::RichText::new("停止抢票").size(18.0).color(egui::Color32::WHITE)
-                          )
-                            .min_size(egui::vec2(120.0,50.0))
-                            .fill(egui::Color32::from_rgb(102,204,255))
-                            .rounding(15.0);
-                    let response = ui.add(button);
-                    if response.clicked(){
-                        user.is_active = false;
-                    }
+                    
+                    if user.is_active == false{
+                            let button = egui::Button::new(
+                              egui::RichText::new("抢票关闭中").size(18.0).color(egui::Color32::WHITE)
+                              )
+                                .min_size(egui::vec2(120.0,50.0))
+                                .fill(egui::Color32::from_rgb(255,174,201))
+                                .rounding(15.0);
+                            let response = ui.add(button);
+                            if response.clicked(){
+                                let switch = AccountSwitch{
+                                    uid: user.uid.to_string(),
+                                    switch: true,
+                                };
+                                *account_switch = Some(switch);
+                            }
                     }else{
-                        let button = egui::Button::new(
-                          egui::RichText::new("开始抢票").size(18.0).color(egui::Color32::WHITE)
-                          )
-                            .min_size(egui::vec2(120.0,50.0))
-                            .fill(egui::Color32::from_rgb(102,204,255))
-                            .rounding(15.0);
-                        let response = ui.add(button);
-                        if response.clicked(){
-                            user.is_active = true;
+                            let button = egui::Button::new(
+                              egui::RichText::new("抢票开启中").size(18.0).color(egui::Color32::WHITE)
+                              )
+                                .min_size(egui::vec2(120.0,50.0))
+                                .fill(egui::Color32::from_rgb(102,204,255))
+                                .rounding(15.0);
+                            let response = ui.add(button);
+                            if response.clicked(){
+                                let switch = AccountSwitch{
+                                    uid: user.uid.to_string(),
+                                    switch: false,
+                                };
+                                *account_switch = Some(switch);
+                            }
                         }
-                    }
+                    
                     });
                     
                     
