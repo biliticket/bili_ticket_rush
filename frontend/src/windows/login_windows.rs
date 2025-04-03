@@ -301,16 +301,7 @@ fn ui_ck_login(ui: &mut egui::Ui  , app: &mut Myapp)  {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            match cookie_login(&app.login_input.cookie,&app.client, &app.custom_config.custom_ua){
-                Ok(account) => {
-                    app.account_manager.accounts.push(account.clone());
-                    log::info!("添加账号成功");
-                }
-                Err(e) => {
-                    log::error!("ck登录时出错！请尝试使用其他登陆方式{}", e);
-                    
-                }
-            }
+            app.cookie_login = Some(app.login_input.cookie.clone());
         }
     });
 

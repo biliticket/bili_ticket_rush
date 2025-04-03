@@ -106,7 +106,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
               .rounding(15.0);//圆角成度
         let response = ui.add(button);
         if response.clicked(){
-            match save_config(&app.push_config,&app.custom_config){
+            match save_config(&mut app.config, Some(&app.push_config),Some(&app.custom_config), None){
                 Ok(_) => {
                     log::info!("设置保存成功");
                 },

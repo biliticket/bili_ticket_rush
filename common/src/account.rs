@@ -49,7 +49,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             is_login: true,
             account_status: "空闲".to_string(),
             vip_label: data["vip_label"]["text"].as_str().unwrap_or("").to_string(),
-            is_active: false,
+            is_active: true,
             client: Some(client.clone()),
         };
         account.ensure_client();
@@ -79,12 +79,28 @@ pub fn signout_account(account: &Account) -> Result<bool, String> {
 
 //提取 csrf
 fn extract_csrf(cookie: &str) -> String {
-    cookie.split(";")
-        .find(|s| s.contains("bili_jct="))
-        .map(|s| s.trim().replace("bili_jct=", ""))
-        .unwrap_or_default()
+    // 打印原始cookie用于调试
+    log::debug!("提取CSRF的原始cookie: {}", cookie);
+    
+    for part in cookie.split(';') {
+        let part = part.trim();
+        // 检查是否以bili_jct开头（不区分大小写）
+        if part.to_lowercase().starts_with("bili_jct=") {
+            // 找到等号位置
+            if let Some(pos) = part.find('=') {
+                let value = &part[pos + 1..];
+                // 去除可能的引号
+                let value = value.trim_matches('"').trim_matches('\'');
+                log::debug!("成功提取CSRF值: {}", value);
+                return value.to_string();
+            }
+        }
+    }
+    
+    // 没找到，记录并返回空字符串
+    log::warn!("无法从cookie中提取CSRF值");
+    String::new()
 }
-
 impl Account {
     // 确保每个账号都有自己的 client
     pub fn ensure_client(&mut self) {

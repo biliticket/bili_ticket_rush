@@ -7,7 +7,7 @@ use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,Tic
 use backend::taskmanager::TaskManagerImpl;
 use common::LOG_COLLECTOR;
 use common::account::{Account,add_account};
-use common::utils::Config;
+use common::utils::{Config,save_config};
 use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
 use common::login::LoginInput;
@@ -86,6 +86,9 @@ pub struct Myapp{
 
     //删除账号
     pub delete_account: Option<String>,
+
+    //cookie登录，暂存cookie
+    pub cookie_login: Option<String>,
 }
 
 
@@ -176,6 +179,7 @@ impl Myapp{
             default_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),
             sms_captcha_key: String::new(),
             delete_account: None,
+            cookie_login: None,
 
         };
         // 初始化每个账号的 client
@@ -336,7 +340,15 @@ impl Myapp{
     log::debug!("登录成功，cookie: {}", cookie);
     match add_account(cookie, &self.client,&self.default_ua){
         Ok(account) => {
-            self.account_manager.accounts.push(account);
+            self.account_manager.accounts.push(account.clone());
+            match save_config(&mut self.config, None, None, Some(account.clone())){
+                Ok(_) => {
+                    log::info!("登录成功，账号已添加");
+                },
+                Err(e) => {
+                    log::error!("登录成功，但保存账号失败: {}", e);
+                }
+            }
             log::info!("登录成功，账号已添加");
         },
         Err(e) => {
@@ -385,10 +397,30 @@ impl eframe::App for Myapp{
         //删除账号
         if let Some(account_id) = self.delete_account.take() {
             self.account_manager.accounts.retain(|account| account.uid != account_id.parse::<i64>().unwrap_or(-1));
+            self.config.delete_account(account_id.parse::<i64>().unwrap_or(-1));
             log::info!("账号 {} 已删除", account_id);
         }
 
-        
+        //检测是否有cookie
+        if let Some(cookie) = &self.cookie_login {
+            log::info!("检测到cookie: {}", cookie);
+            if let Ok(account) = add_account(cookie, &self.client,&self.default_ua) {
+                self.account_manager.accounts.push(account.clone());
+                match save_config(&mut self.config, None, None, Some(account.clone())){
+                    Ok(_) => {
+                        log::info!("cookie登录成功，账号已添加");
+                    },
+                    Err(e) => {
+                        log::error!("cookie登录成功，但保存账号失败: {}", e);
+                    }
+                }
+                log::info!("cookie登录成功，账号已添加");
+                self.cookie_login = None; // 清空cookie
+            } else {
+                log::error!("cookie登录失败");
+                self.cookie_login = None;
+            }
+        }
         
 
         

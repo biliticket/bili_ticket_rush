@@ -97,6 +97,14 @@ impl Config{
             });
             remove_flag = accounts.len() != old_len;
         }
+        match save_config(self, None, None, None){
+            Ok(_) => {
+                log::info!("删除账号成功");
+            },
+            Err(e) => {
+                log::error!("删除账号失败: {}", e);
+            }
+        }
         remove_flag
     }
 
@@ -153,10 +161,17 @@ impl IndexMut<&str> for Config {
     }
 }
 
-pub fn save_config(push_config: &PushConfig, custon_config: &CustomConfig) -> Result<bool, String> {
-    let mut config = Config::new();
-    config["push_config"] = serde_json::to_value(push_config).unwrap();
-    config["custom_config"] = serde_json::to_value(custon_config).unwrap();
+pub fn save_config(config: &mut Config, push_config: Option<&PushConfig>, custon_config: Option<&CustomConfig>, account: Option<Account>) -> Result<bool, String> {
+    if let Some(push_config) = push_config {
+        config["push_config"] = serde_json::to_value(push_config).unwrap();
+    } 
+    if let Some(custon_config) = custon_config {
+        config["custom_config"] = serde_json::to_value(custon_config).unwrap();
+    }
+    if let Some(account) = account {
+        config.add_account(&account).unwrap();
+    }
+    
 
     match config.save_config(){
         Ok(_) => {

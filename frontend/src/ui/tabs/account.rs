@@ -424,11 +424,3 @@ fn dynamic_caculate_space(
     ui.add_space(space);
 }
 
-// 显示登录对话框（仅为示例，需要实现具体功能）
-fn show_login_dialog(app: &mut Myapp) {
-    // 这里可以触发登录弹窗或其他操作
-    // 实际项目中，可能是显示一个新窗口或与后端交互
-    println!("显示登录对话框");
-
-
-}
