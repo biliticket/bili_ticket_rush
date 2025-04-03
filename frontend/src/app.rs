@@ -83,6 +83,9 @@ pub struct Myapp{
 
     //发送短信captcha_key
     pub sms_captcha_key: String,
+
+    //删除账号
+    pub delete_account: Option<String>,
 }
 
 
@@ -172,6 +175,7 @@ impl Myapp{
             
             default_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),
             sms_captcha_key: String::new(),
+            delete_account: None,
 
         };
         // 初始化每个账号的 client
@@ -377,6 +381,12 @@ impl eframe::App for Myapp{
 
         //从env_log添加日志进窗口
         self.add_log_windows();
+
+        //删除账号
+        if let Some(account_id) = self.delete_account.take() {
+            self.account_manager.accounts.retain(|account| account.uid != account_id.parse::<i64>().unwrap_or(-1));
+            log::info!("账号 {} 已删除", account_id);
+        }
 
         
         

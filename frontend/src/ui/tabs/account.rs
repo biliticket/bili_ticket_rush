@@ -24,7 +24,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     
     if let Some(texture) = &app.default_avatar_texture {
         let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
-        show_user(ui, texture, account_to_show, &mut app.show_login_windows , &mut app.config);
+        show_user(ui, texture, account_to_show, &mut app.delete_account, &mut app.show_login_windows , &mut app.config  );
     
     
 
@@ -33,7 +33,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
     let account_to_show = app.account_manager.accounts.get(1).unwrap_or(&example_account);
-    show_user(ui, texture,account_to_show, &mut app.show_login_windows , &mut app.config);
+    show_user(ui, texture,account_to_show, &mut app.delete_account,&mut app.show_login_windows , &mut app.config  );
     
 
 }
@@ -208,8 +208,10 @@ fn show_user( //显示用户头像等信息
     texture: &egui::TextureHandle, 
     
     account: &Account,
+    delete_account: &mut Option<String>,
     show_login_windows: &mut bool,
     config: &mut common::utils::Config,
+   
     
 ) {
     let mut user = account.clone();
@@ -348,11 +350,12 @@ fn show_user( //显示用户头像等信息
                     if response.clicked(){
                         match signout_account(&user){
                             Ok(_) => {
-                                println!("登出成功");
-                                config.delete_account(user.uid);
+                                *delete_account = Some(user.uid.to_string().clone());
+                                log::info!("登出成功");
+                                
                             }
                             Err(e) => {
-                                println!("登出失败: {}", e);
+                                log::error!("登出失败: {}", e);
                             }
                         }
 
