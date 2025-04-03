@@ -55,7 +55,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 
 }
 pub fn check_setting_info( app: &mut Myapp) -> bool{
-    if !app.user_info.is_logged {
+    if !app.user_info.is_login {
             app.is_loading = false;
             app.add_log("请先登录账号");
             // 弹出登录窗口
@@ -86,7 +86,7 @@ pub fn check_input_ticket( app: &mut Myapp)  -> bool{
         .find(|a| a.uid ==  account_id.parse::<i64>().unwrap_or(-1))
         .ok_or("未找到账号")?;
     
-    if !account.is_logged {
+    if !account.is_login {
         return Err("账号未登录".to_string());
     }
     

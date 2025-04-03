@@ -1,6 +1,6 @@
 use eframe::egui;
 use crate::app::Myapp;
-use common::account::Account;
+use common::account::{Account , signout_account};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
     ui.separator();
@@ -11,7 +11,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         level: "未登录".to_string(),
         cookie: "".to_string(), 
         csrf: "".to_string(),
-        is_logged: false,
+        is_login: false,
         account_status: "未登录".to_string(),
         is_active: false,
         client: None,
@@ -24,7 +24,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     
     if let Some(texture) = &app.default_avatar_texture {
         let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
-        show_user(ui, texture, account_to_show, &mut app.show_login_windows);
+        show_user(ui, texture, account_to_show, &mut app.show_login_windows , &mut app.config);
     
     
 
@@ -33,7 +33,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
 ui.separator();
 if let Some(texture) = &app.default_avatar_texture {
     let account_to_show = app.account_manager.accounts.get(1).unwrap_or(&example_account);
-    show_user(ui, texture, account_to_show, &mut app.show_login_windows);
+    show_user(ui, texture,account_to_show, &mut app.show_login_windows , &mut app.config);
     
 
 }
@@ -139,7 +139,7 @@ fn load_user_avatar(ctx: &egui::Context, app: &mut Myapp) {
     }
     
     // 如果用户已登录且提供了头像路径，尝试加载
-    /* if app.user_info.is_logged && app.user_info.avatar_texture.is_none() {
+    /* if app.user_info.is_login && app.user_info.avatar_texture.is_none() {
         if let Some(avatar_path) = &app.user_info.avatar_path {
             // 尝试加载用户头像
             app.user_info.avatar_texture = load_texture_from_path(ctx, avatar_path, "user_avatar");
@@ -206,9 +206,13 @@ fn generate_placeholder_avatar(ctx: &egui::Context) -> Option<egui::TextureHandl
 fn show_user( //显示用户头像等信息
     ui: &mut egui::Ui, 
     texture: &egui::TextureHandle, 
-    user: &Account,
+    
+    account: &Account,
     show_login_windows: &mut bool,
+    config: &mut common::utils::Config,
+    
 ) {
+    let mut user = account.clone();
     // 创建圆角长方形框架
     egui::Frame::none()
         .fill(egui::Color32::from_rgb(245, 245, 250))  // 背景色
@@ -320,6 +324,9 @@ fn show_user( //显示用户头像等信息
                 ui.add_space(15.0);
                 ui.horizontal(|ui|{
                     ui.add_space(15.0);
+                    if !user.is_login {
+
+                    
                     let button = egui::Button::new(
                       egui::RichText::new("登录").size(20.0).color(egui::Color32::WHITE)
                       )
@@ -330,6 +337,27 @@ fn show_user( //显示用户头像等信息
                     if response.clicked(){
                         *show_login_windows = true;
                     }
+                }else{
+                    let button = egui::Button::new(
+                      egui::RichText::new("登出").size(20.0).color(egui::Color32::WHITE)
+                      )
+                        .min_size(egui::vec2(120.0,50.0))
+                        .fill(egui::Color32::from_rgb(102,204,255))
+                        .rounding(15.0);//圆角成度
+                    let response = ui.add(button);
+                    if response.clicked(){
+                        match signout_account(&user){
+                            Ok(_) => {
+                                println!("登出成功");
+                                config.delete_account(user.uid);
+                            }
+                            Err(e) => {
+                                println!("登出失败: {}", e);
+                            }
+                        }
+
+                    }
+                }
                     dynamic_caculate_space(ui, 122.0, 3.0);
                     let button = egui::Button::new(
                         egui::RichText::new("查看全部订单").size(20.0).color(egui::Color32::WHITE)
@@ -347,13 +375,29 @@ fn show_user( //显示用户头像等信息
                           .rounding(15.0);
                     ui.add(button);
                     dynamic_caculate_space(ui, 120.0, 1.0);
+                    if user.is_active{
                     let button = egui::Button::new(
                           egui::RichText::new("停止抢票").size(18.0).color(egui::Color32::WHITE)
                           )
                             .min_size(egui::vec2(120.0,50.0))
                             .fill(egui::Color32::from_rgb(102,204,255))
                             .rounding(15.0);
-                    ui.add(button);
+                    let response = ui.add(button);
+                    if response.clicked(){
+                        user.is_active = false;
+                    }
+                    }else{
+                        let button = egui::Button::new(
+                          egui::RichText::new("开始抢票").size(18.0).color(egui::Color32::WHITE)
+                          )
+                            .min_size(egui::vec2(120.0,50.0))
+                            .fill(egui::Color32::from_rgb(102,204,255))
+                            .rounding(15.0);
+                        let response = ui.add(button);
+                        if response.clicked(){
+                            user.is_active = true;
+                        }
+                    }
                     });
                     
                     

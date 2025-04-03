@@ -7,9 +7,9 @@ use reqwest::Client;
 use serde_json::json;
 use crate::utility::CustomConfig;
 
-pub async fn chapcha(custom_config: CustomConfig, gt: &str, challenge: &str, referer: &str, chapcha_type:usize) -> Result<String, String> {
+pub async fn captcha(custom_config: CustomConfig, gt: &str, challenge: &str, referer: &str, captcha_type:usize) -> Result<String, String> {
     // 0:本地打码  1：ttocr
-    match custom_config.chapcha_mode {
+    match custom_config.captcha_mode {
         0 => {
             // 本地打码
             
@@ -25,7 +25,7 @@ pub async fn chapcha(custom_config: CustomConfig, gt: &str, challenge: &str, ref
                 "appkey": custom_config.ttocr_key,
                 "gt": gt,
                 "challenge": challenge,
-                "itemid": chapcha_type,//33对应三代点字 32对应三代滑块
+                "itemid": captcha_type,//33对应三代点字 32对应三代滑块
                 "referer": referer,
             });
             log::info!("验证码请求参数: {:?}", form_data);
@@ -89,11 +89,11 @@ pub async fn chapcha(custom_config: CustomConfig, gt: &str, challenge: &str, ref
     }
 }
 
-pub fn chapcha_sync(custom_config: &CustomConfig, gt: &str, challenge: &str, referer: &str, chapcha_type:usize) -> Result<String, String> {
+pub fn captcha_sync(custom_config: &CustomConfig, gt: &str, challenge: &str, referer: &str, captcha_type:usize) -> Result<String, String> {
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| format!("无法创建运行时: {}", e))?;
     
-    rt.block_on(chapcha(custom_config.clone(), gt, challenge, referer, chapcha_type))
+    rt.block_on(captcha(custom_config.clone(), gt, challenge, referer, captcha_type))
 }
 
 /* pub fn test(){

@@ -160,8 +160,8 @@ pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui){
         ui.label("请选择验证码识别方式：");
          let options = ["本地识别", "ttocr识别", "选项3"];
          
-        custom_selection_control(ui, &mut app.custom_config.chapcha_mode, &options) ;
-        match app.custom_config.chapcha_mode{
+        custom_selection_control(ui, &mut app.custom_config.captcha_mode, &options) ;
+        match app.custom_config.captcha_mode{
             
             1 => {
                 dynamic_caculate_space(ui, 300.0);

@@ -47,6 +47,9 @@ pub struct Myapp{
    //推送设置
    pub push_config: PushConfig,
 
+   //config
+    pub config: Config,
+
     //自定义配置
     pub custom_config: CustomConfig,
     //登录背景
@@ -78,8 +81,8 @@ pub struct Myapp{
     //默认ua
     pub default_ua: String,
 
-    //发送短信chapcha_key
-    pub sms_chapcha_key: String,
+    //发送短信captcha_key
+    pub sms_captcha_key: String,
 }
 
 
@@ -141,7 +144,7 @@ impl Myapp{
                 }
             },
         
-        
+            
                
             custom_config: match serde_json::from_value::<CustomConfig>(config["custom_config"].clone()) {
                 Ok(config) => config,
@@ -150,6 +153,7 @@ impl Myapp{
                     CustomConfig::new()
                 }
             },
+            config: config.clone(),
             login_texture: LoginTexture { left_conrner_texture: None , right_conrner_texture: None},
 
                 login_method: "扫码登录".to_string(),
@@ -167,7 +171,7 @@ impl Myapp{
             pending_sms_task_id: None,
             
             default_ua: String::from("Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"),
-            sms_chapcha_key: String::new(),
+            sms_captcha_key: String::new(),
 
         };
         // 初始化每个账号的 client
@@ -275,8 +279,8 @@ impl Myapp{
                 TaskResult::LoginSmsResult(sms_result) => {
                     // 处理短信登录结果
                     if sms_result.success {
-                        self.sms_chapcha_key = sms_result.message.clone();
-                        log::debug!("发送chapchakey：{}",sms_result.message);
+                        self.sms_captcha_key = sms_result.message.clone();
+                        log::debug!("发送captchakey：{}",sms_result.message);
                         log::info!("短信发送成功 ");
                     } else {
                         log::error!("短信发送失败: {}", sms_result.message);

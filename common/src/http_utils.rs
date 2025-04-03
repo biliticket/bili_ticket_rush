@@ -71,3 +71,9 @@ pub fn request_get_sync(client: &Client, url: &str, ua: Option<String>, cookie: 
     rt.block_on(request_get(client, url,  cookie))
     
 }
+
+pub fn request_post_sync(client: &Client, url: &str, ua: Option<String>, cookie: Option<&str>, json_data: Option<&serde_json::Value>) -> Result<Response, Error> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(request_post(client, url, cookie, json_data))
+    
+}

@@ -268,7 +268,7 @@ fn ui_sms_login(ui: &mut egui::Ui, app: &mut Myapp) {
             let request = common::taskmanager::SubmitLoginSmsRequest{
                 phone: app.login_input.phone.clone(),
                 code: app.login_input.sms_code.clone(),
-                captcha_key: app.sms_chapcha_key.clone(),
+                captcha_key: app.sms_captcha_key.clone(),
                 client: app.client.clone(),
             };
             let request = common::taskmanager::TaskRequest::SubmitLoginSmsRequest(request);

@@ -3,7 +3,7 @@ use crate::account::Account;
 use crate::http_utils::{request_get,request_post,request_get_sync};
 use serde_json::json;
 use crate::utility::CustomConfig;
-use crate::chapcha::chapcha;
+use crate::captcha::captcha;
 use reqwest::Client;
 
 pub struct LoginInput{
@@ -60,12 +60,11 @@ pub  fn qrcode_login(client: &Client) -> Result<String, String> {
 })
 }
 pub fn password_login(username: &str, password: &str) -> Result<String, String> {
-    //测试调用
-    Ok("https://account.bilibili.com/h5/account-h5/auth/scan-web?navhide=1&callback=close&qrcode_key=7d0bd3e133117eab86bc5f42f8731e0e&from=main-fe-header".to_string())
+    Err("暂不支持账号密码登录".to_string())
 }
 
 pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomConfig) -> Result<String, String> {
-        //打开主页获取buvid
+        
         let response = request_get(
             client,
             "https://www.bilibili.com/",
@@ -73,7 +72,7 @@ pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomCo
             None,
         ).await.map_err(|e| e.to_string())?;
         
-        log::info!("获取主页ck: {:?}", response.cookies().collect::<Vec<_>>());
+        log::debug!("{:?}", response.cookies().collect::<Vec<_>>());
         
         
     
@@ -85,13 +84,13 @@ pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomCo
             None,
         ).await.map_err(|e| e.to_string())?;
         log::info!("获取验证码: {:?}", response);
-        // 解析 JSON
+       
         let json = response.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
         let gt = json["data"]["geetest"]["gt"].as_str().unwrap_or("");
         let challenge = json["data"]["geetest"]["challenge"].as_str().unwrap_or("");
         let token = json["data"]["token"].as_str().unwrap_or("");
         let referer = "https://passport.bilibili.com/x/passport-login/captcha";
-        match chapcha(custom_config.clone(), gt, challenge, referer, 33).await {
+        match captcha(custom_config.clone(), gt, challenge, referer, 33).await {
             Ok(result_str) => {
                 log::info!("验证码识别成功: {}", result_str);
                 let result: serde_json::Value = serde_json::from_str(&result_str).map_err(|e| e.to_string())?;
@@ -105,7 +104,7 @@ pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomCo
                             "validate": result["validate"],
                             "seccode": result["seccode"],
                             });
-                log::info!("验证码数据: {:?}", json_data);
+                log::debug!("验证码数据: {:?}", json_data);
                 let send_sms = request_post(
                     client,
                     "https://passport.bilibili.com/x/passport-login/web/sms/send",
@@ -117,10 +116,10 @@ pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomCo
                 let json_response = send_sms.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
                 log::debug!("验证码发送响应: {:?}", json_response);
                 if json_response["code"].as_i64() == Some(0) {
-                    let chapcha_key = json_response["data"]["captcha_key"].as_str().unwrap_or("");
+                    let captcha_key = json_response["data"]["captcha_key"].as_str().unwrap_or("");
                     log::info!("验证码发送成功");
-                    log::debug!("chapcha_key: {:?}", chapcha_key);
-                    Ok(chapcha_key.to_string())
+                    log::debug!("captcha_key: {:?}", captcha_key);
+                    Ok(captcha_key.to_string())
                 } else {
                     log::error!("验证码发送失败: {}", json_response["message"].as_str().unwrap_or("未知错误"));
                     Err("验证码发送失败".to_string())
@@ -193,4 +192,5 @@ pub fn cookie_login(cookie: &str, client: &Client, ua: &str) -> Result<Account, 
         }
     }
 }
+
 

@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use reqwest::Client;
-use crate::http_utils::{request_get_sync};
+use crate::http_utils::{request_get_sync,request_post_sync};
 use serde_json;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -10,7 +10,7 @@ pub struct Account{
     pub level: String,
     pub cookie: String, //cookie
     pub csrf : String,  //csrf
-    pub is_logged: bool,    //是否登录
+    pub is_login: bool,    //是否登录
     pub account_status: String,  //账号状态
     pub vip_label: String, //大会员，对应/nav请求中data['vip_label']['text']
     pub is_active: bool, //该账号是否启动抢票
@@ -34,7 +34,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
     let json = rt.block_on(async {
         response.json::<serde_json::Value>().await
     }).map_err(|e| e.to_string())?;
-    log::info!("获取账号信息: {:?}", json);
+    log::debug!("获取账号信息: {:?}", json);
     match json.get("code") {
         Some(code) if code.as_i64() == Some(0) => {} // 成功
         _ => return Err("获取账号信息失败".to_string()),
@@ -46,7 +46,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             level: data["level_info"]["current_level"].as_i64().unwrap_or(0).to_string(),
             cookie: cookie.to_string(),
             csrf: extract_csrf(cookie),
-            is_logged: true,
+            is_login: true,
             account_status: "空闲".to_string(),
             vip_label: data["vip_label"]["text"].as_str().unwrap_or("").to_string(),
             is_active: false,
@@ -58,6 +58,24 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
         Err("无法获取用户信息".to_string())
     }
 }
+
+pub fn signout_account(account: &Account) -> Result<bool, String> {
+    let data = serde_json::json!({
+        "biliCSRF" : account.csrf,
+
+    });
+    let response = request_post_sync(
+        account.client.as_ref().unwrap(),
+        "https://passport.bilibili.com/login/exit/v2",
+        None,
+        None,
+        Some(&data),
+    ).map_err(|e| e.to_string())?;
+    log::debug!("退出登录响应： {:?}",response);
+    Ok(response.status().is_success())
+    
+}
+
 
 //提取 csrf
 fn extract_csrf(cookie: &str) -> String {

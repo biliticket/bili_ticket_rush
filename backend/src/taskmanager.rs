@@ -7,7 +7,7 @@ use common::taskmanager::{
     TaskManager, TaskStatus, TaskRequest, TicketRequest, QrCodeLoginRequest,
     TaskResult, TaskTicketResult, TaskQrCodeLoginResult, 
     TicketTask, QrCodeLoginTask, TicketResult, Task,LoginSmsRequestResult,LoginSmsRequestTask,
-    PushRequest, PushRequestResult, PushType, PushTask,SubmitLoginSmsRequestTask
+    PushRequest, PushRequestResult, PushType, PushTask,SubmitLoginSmsRequestTask,SubmitSmsLoginResult,
     
 };
 use common::login::{send_loginsms,sms_login};
@@ -226,16 +226,21 @@ impl TaskManager for TaskManagerImpl {
                                                         err.to_string()
                                                     },
                                                 };
+                                            let cookie = match &response {
+                                                Ok(msg) => Some(msg.clone()),
+                                                Err(_) => None,
+                                            };
                                             log::info!("提交短信任务完成 ID: {}, 结果: {}", 
                                                 task_id, 
                                                 if success { "成功" } else { "失败" }
                                             );
 
-                                            let task_result = TaskResult::LoginSmsResult(LoginSmsRequestResult {
+                                            let task_result = TaskResult::SubmitSmsLoginResult(SubmitSmsLoginResult {
                                                 task_id,
                                                 phone,
                                                 success,
                                                 message,
+                                                cookie,
                                             });
 
                                             let _ = result_tx.send(task_result).await;
