@@ -12,6 +12,7 @@ use common::utility::CustomConfig;
 use common::push::{PushConfig, SmtpConfig};
 use common::login::LoginInput;
 use crate::windows::login_windows::LoginTexture;
+use crate::windows::add_buyer::AddBuyerInput;
 use reqwest::{Client, header};
 
 
@@ -92,6 +93,13 @@ pub struct Myapp{
 
     //该账号开启抢票开关
     pub account_switch: Option<AccountSwitch>,
+
+    //添加购票人的输入
+    pub add_buyer_input: AddBuyerInput,
+
+    //添加购票人窗口
+    pub show_add_buyer_window: Option<String>, //如果是bool类型会导致无法对应申请添加的账号，
+                                        //所以使用string表示要添加购票人的账号的uid
 }
 
 
@@ -184,6 +192,14 @@ impl Myapp{
             delete_account: None,
             cookie_login: None,
             account_switch: None,
+            add_buyer_input: AddBuyerInput {
+                name: String::new(),
+                phone: String::new(),
+                id_type: 0,
+                id_number: String::new(),
+                as_default_buyer: false,
+            },
+            show_add_buyer_window: None,
 
         };
         // 初始化每个账号的 client
@@ -348,6 +364,7 @@ impl Myapp{
             match save_config(&mut self.config, None, None, Some(account.clone())){
                 Ok(_) => {
                     log::info!("登录成功，账号已添加");
+                    self.show_login_windows = false;
                 },
                 Err(e) => {
                     log::error!("登录成功，但保存账号失败: {}", e);
@@ -437,6 +454,18 @@ impl eframe::App for Myapp{
                 log::error!("未找到账号 {}", account_switch.uid);
             }
             self.account_switch = None; // 清空开关
+        }
+
+        //开启添加购票人窗口？
+        if let Some(account_id) = &self.show_add_buyer_window {
+            if account_id == "0"{
+                self.show_add_buyer_window = None;
+                
+            }
+            else{
+                windows::add_buyer::show(self, ctx, account_id.clone().as_str());
+            }
+            
         }
 
         

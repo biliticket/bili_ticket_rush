@@ -77,3 +77,81 @@ pub fn request_post_sync(client: &Client, url: &str, ua: Option<String>, cookie:
     rt.block_on(request_post(client, url, cookie, json_data))
     
 }
+
+pub fn request_form_sync(
+    client: &Client, 
+    url: &str,
+    ua: Option<String>,
+    cookie: Option<&str>,
+    form_data: &HashMap<String, String>
+) -> Result<Response, Error> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    
+    rt.block_on(async {
+        let mut req = client.post(url);
+        
+        if let Some(cookie_str) = cookie {
+            req = req.header(header::COOKIE, cookie_str);
+        }
+
+        if let Some(ua_str) = ua {
+            req = req.header(header::USER_AGENT, ua_str);
+        }
+        
+        req = req.form(&form_data);
+        req.send().await
+    })
+}
+
+
+pub fn request_json_form_sync(
+    client: &Client, 
+    url: &str,
+    ua: Option<String>,
+    referer: Option<String>,
+    cookie: Option<&str>,
+    json_form: &serde_json::Map<String, serde_json::Value>
+) -> Result<Response, Error> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    
+    rt.block_on(async {
+        let mut req = client.post(url);
+        
+        if let Some(cookie_str) = cookie {
+            req = req.header(header::COOKIE, cookie_str);
+        }
+
+        if let Some(ua_str) = ua {
+            req = req.header(header::USER_AGENT, ua_str);
+        }
+        
+        if let Some(referer_str) = referer {
+            req = req.header(header::REFERER, referer_str);
+        }
+        // 创建一个特殊的表单，保留数字类型
+        let mut form = std::collections::HashMap::new();
+        for (key, value) in json_form {
+            match value {
+                // 字符串类型
+                serde_json::Value::String(s) => {
+                    form.insert(key.clone(), s.clone());
+                },
+                // 数字类型 - 直接转为字符串但不加引号
+                serde_json::Value::Number(n) => {
+                    form.insert(key.clone(), n.to_string());
+                },
+                // 布尔类型
+                serde_json::Value::Bool(b) => {
+                    form.insert(key.clone(), b.to_string());
+                },
+                // 其他类型
+                _ => {
+                    form.insert(key.clone(), value.to_string().trim_matches('"').to_string());
+                }
+            }
+        }
+        
+        req = req.form(&form);
+        req.send().await
+    })
+}
