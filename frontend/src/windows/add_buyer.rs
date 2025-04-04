@@ -148,6 +148,11 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &str) {
             })
 
         });
+
+        //更新窗口状态
+        if !window_open {
+            app.show_add_buyer_window = None;
+        }
 }
 
 pub fn common_input(
