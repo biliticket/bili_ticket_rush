@@ -18,7 +18,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &str) {
     };
     let select_client = select_account.client.as_ref().unwrap();
     let mut window_open = app.show_add_buyer_window.is_some();
-    let mut user_close: bool = false;
+    
     egui::Window::new("添加购票人")
         .open(&mut window_open)
         .default_size([700.0, 400.0])

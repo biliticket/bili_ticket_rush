@@ -100,7 +100,9 @@ pub struct Myapp{
     //添加购票人窗口
     pub show_add_buyer_window: Option<String>, //如果是bool类型会导致无法对应申请添加的账号，
                                         //所以使用string表示要添加购票人的账号的uid
-}
+
+    pub show_orderlist_window: Option<String>, //订单列表窗口的账号uid
+                                    }
 
 
 //账号管理
@@ -200,6 +202,7 @@ impl Myapp{
                 as_default_buyer: false,
             },
             show_add_buyer_window: None,
+            show_orderlist_window: None,
 
         };
         // 初始化每个账号的 client
@@ -464,6 +467,18 @@ impl eframe::App for Myapp{
             }
             else{
                 windows::add_buyer::show(self, ctx, account_id.clone().as_str());
+            }
+            
+        }
+
+        //开启查看订单窗口？
+        if let Some(account_id) = &self.show_orderlist_window {
+            if account_id == "0"{
+                self.show_orderlist_window = None;
+                
+            }
+            else{
+                windows::show_orderlist::show(self, ctx);
             }
             
         }

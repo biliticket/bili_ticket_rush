@@ -1,5 +1,5 @@
 use eframe::egui;
-use crate::app::{Myapp, AccountSwitch};
+use crate::{app::{AccountSwitch, Myapp}, windows::show_orderlist};
 use common::account::{Account , signout_account};
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
@@ -32,6 +32,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
             &mut app.config,
             &mut app.account_switch,
             &mut app.show_add_buyer_window,
+            &mut app.show_orderlist_window,
             );
     
 
@@ -48,6 +49,7 @@ if let Some(texture) = &app.default_avatar_texture {
         &mut app.config,
         &mut app.account_switch,
         &mut app.show_add_buyer_window,
+        &mut app.show_orderlist_window,
         );
     
 
@@ -228,6 +230,7 @@ fn show_user( //显示用户头像等信息
     config: &mut common::utils::Config,
     account_switch: &mut Option<AccountSwitch>,
     show_add_buyer_window: &mut Option<String>,
+    show_orderlist_window: &mut Option<String>,
    
     
 ) {
@@ -385,7 +388,10 @@ fn show_user( //显示用户头像等信息
                           .min_size(egui::vec2(130.0,50.0))
                           .fill(egui::Color32::from_rgb(102,204,255))
                           .rounding(15.0);//圆角成度
-                      ui.add(button);
+                    let response =   ui.add(button);
+                    if response.clicked(){
+                        *show_orderlist_window = Some(user.uid.to_string().clone());
+                    }
                     dynamic_caculate_space(ui, 120.0, 2.0);
                     let button = egui::Button::new(
                         egui::RichText::new("添加购票人").size(18.0).color(egui::Color32::WHITE)
