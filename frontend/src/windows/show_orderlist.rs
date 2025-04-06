@@ -1,10 +1,57 @@
 use crate::app::Myapp;
 use eframe::egui::{self, RichText};
 use egui::{Image, TextureHandle};
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use common::account::Account;
 use common::http_utils::request_get_sync;
 
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OrderResponse {
+    pub errno: i32,
+    pub errtag: i32,
+    pub msg: String,
+    pub data: OrderData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OrderData{
+    pub total: i32,
+    list: Vec<Order>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Order{
+    pub order_id: String,
+    pub order_type: i32,
+    pub item_id: i64,
+    pub item_info: ItemInfo,
+    pub total_money: i64,
+    pub count: i32,
+    pub pay_money: i64,
+    pub pay_channel: Option<String>,
+    pub status: i32,
+    pub sub_status: i32,
+    pub ctime: String,
+    pub img: ImageInfo,
+    pub sub_status_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ItemInfo{
+    pub name: String,
+    pub image: String,
+    pub screen_id: i64,
+    pub screen_name: String,
+    pub screen_start_time: String,
+    pub screen_end_time: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ImageInfo{
+    pub url: String,
+
+}
 pub fn show(
     app: &mut Myapp,
     ctx: &egui::Context,
@@ -17,6 +64,22 @@ pub fn show(
     };
     let select_client = select_account.client.as_ref().unwrap();
     let mut window_open = app.show_orderlist_window.is_some();
+    let response = request_get_sync(
+        select_client,
+        "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10", // 替换为实际API地址
+        None,
+        None,
+    );
+    match response {
+        Ok(res) =>{
+            
+
+        }
+        Err(err) => {
+            log::error!("请求失败: {}", err);
+            return;
+        }
+    }
     egui::Window::new("订单列表")
         .open(&mut window_open)
         .default_height(600.0)
@@ -35,8 +98,8 @@ pub fn show(
             egui::ScrollArea::vertical().show(ui, |ui| {
                 // 示例订单数据 - 实际中应从API获取
                 let orders = vec![
-                    ("O2023123456", "五月天2023巡回演唱会", "北京鸟巢", "2023-12-30 20:00", "¥680", "已付款", "https://example.com/image1.jpg"),
-                    ("O2023123457", "周杰伦2023地表最强", "上海体育场", "2023-12-25 19:30", "¥1080", "待付款", "https://example.com/image2.jpg"),
+                    ("O2023123456", "五月天2023巡回演唱会", "1张", "2023-12-30 20:00", "¥680", "已付款", "https://example.com/image1.jpg"),
+                    ("O2023123457", "周杰伦2023地表最强", "1张", "2023-12-25 19:30", "¥1080", "待付款", "https://example.com/image2.jpg"),
                     // ...更多订单
                 ];
                 
@@ -104,7 +167,7 @@ pub fn show(
                                     });
                                     
                                     ui.horizontal(|ui| {
-                                        ui.label(RichText::new("场馆:").color(egui::Color32::GRAY));
+                                        ui.label(RichText::new("数量:").color(egui::Color32::GRAY));
                                         ui.label(*venue);
                                     });
                                     
