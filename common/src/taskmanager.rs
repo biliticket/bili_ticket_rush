@@ -138,6 +138,7 @@ pub struct GetAllorderRequest {
     pub task_id: String,
     pub client: Client,
     pub status: TaskStatus,
+    pub cookies: String,
     pub account_id: String,
     pub start_time: Option<Instant>,
    

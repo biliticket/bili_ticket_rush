@@ -568,6 +568,8 @@ pub fn submit_get_total_order(task_manager: &mut Box<dyn TaskManager>,client: &C
         task_id: "".to_string(),
         account_id: account.uid.to_string().clone(),
         client: client.clone(),
+        cookies: account.cookie.clone(),
+        //ua: account.user_agent.clone(),
         status: TaskStatus::Pending,
         start_time: None,
     });

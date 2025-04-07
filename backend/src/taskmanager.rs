@@ -249,9 +249,10 @@ impl TaskManager for TaskManagerImpl {
                                     let result_tx = result_tx.clone();
                                     let task_id = uuid::Uuid::new_v4().to_string();
                                     let account_id = get_order_req.account_id.clone();
+                                    let cookies = get_order_req.cookies.clone();
                                     tokio::spawn(async move{
                                         log::info!("正在获取全部订单 ID: {}", task_id);
-                                        let response = get_orderlist(client).await;
+                                        let response = get_orderlist(client,cookies.as_str()).await;
                                         let success = response.is_ok();
                                         let data = match &response {
                                             Ok(order_resp) => {order_resp.clone()},
@@ -389,6 +390,7 @@ impl TaskManager for TaskManagerImpl {
                     task_id: task_id.clone(),
                     client: get_order_req.client.clone(),
                     status: TaskStatus::Pending,
+                    cookies: get_order_req.cookies.clone(),
                     account_id: get_order_req.account_id.clone(),
                     start_time: Some(std::time::Instant::now()),
                 };

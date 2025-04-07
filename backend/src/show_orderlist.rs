@@ -5,11 +5,11 @@ use serde::{Deserialize,Serialize};
 use common::show_orderlist::{*};
 
 
-pub async fn get_orderlist(client :Client) -> Result<OrderResponse, String>{
+pub async fn get_orderlist(client :Client, cookies: &str) -> Result<OrderResponse, String>{
     match request_get(
         &client,
         "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10", 
-        None).await{
+        Some(cookies)).await{
             Ok(resp) =>{
                 if resp.status().is_success(){
 
