@@ -536,7 +536,18 @@ impl eframe::App for Myapp{
                     }
                     
                 }
-                if self.orderlist_need_reload {
+
+                // 防止频繁请求的逻辑
+                let should_request = self.orderlist_need_reload && !self.orderlist_requesting && 
+                match self.orderlist_last_request_time {
+                     Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(5), // 5秒冷却时间
+                     None => true, // 从未请求过，允许请求
+                        };
+                if should_request {
+                    log::debug!("提交订单请求 (冷却期已过)");
+                     self.orderlist_requesting = true;  // 标记为正在请求中
+                     self.orderlist_last_request_time = Some(std::time::Instant::now());
+                     self.orderlist_need_reload = false;
                     submit_get_total_order(&mut self.task_manager, &client, account);
                     self.orderlist_need_reload = false;
                 }
