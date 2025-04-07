@@ -3,6 +3,7 @@ use crate::push::PushConfig;
 use crate::TicketInfo;
 use crate::utility::CustomConfig;
 use reqwest::Client;
+use crate::show_orderlist::OrderResponse;
 
 
 
@@ -32,7 +33,29 @@ pub enum Task {
     LoginSmsRequestTask(LoginSmsRequestTask),
     PushTask(PushTask),
     SubmitLoginSmsRequestTask(SubmitLoginSmsRequestTask),
+    GetAllorderRequestTask(GetAllorderRequest),
     
+}
+
+// 任务请求枚举
+pub enum TaskRequest {
+    TicketRequest(TicketRequest),
+    QrCodeLoginRequest(QrCodeLoginRequest),
+    LoginSmsRequest(LoginSmsRequest),
+    PushRequest(PushRequest),
+    SubmitLoginSmsRequest(SubmitLoginSmsRequest),
+    GetAllorderRequest(GetAllorderRequest),
+}
+
+// 任务结果枚举
+#[derive(Clone)]
+pub enum TaskResult {
+    TicketResult(TaskTicketResult),
+    QrCodeLoginResult(TaskQrCodeLoginResult),
+    LoginSmsResult(LoginSmsRequestResult),
+    PushResult(PushRequestResult),
+    SubmitSmsLoginResult(SubmitSmsLoginResult),
+    GetAllorderRequestResult(GetAllorderRequestResult),
 }
 
 #[derive(Clone)]
@@ -110,13 +133,31 @@ pub struct SubmitLoginSmsRequestTask {
     pub start_time: Option<Instant>,
 }
 
-// 任务请求枚举
-pub enum TaskRequest {
-    TicketRequest(TicketRequest),
-    QrCodeLoginRequest(QrCodeLoginRequest),
-    LoginSmsRequest(LoginSmsRequest),
-    PushRequest(PushRequest),
-    SubmitLoginSmsRequest(SubmitLoginSmsRequest),
+//获取全部订单信息
+pub struct GetAllorderRequest {
+    pub task_id: String,
+    pub client: Client,
+    pub status: TaskStatus,
+    pub account_id: String,
+    pub start_time: Option<Instant>,
+   
+}
+
+#[derive(Clone)]
+pub struct GetAllorderRequestResult {
+    pub task_id: String,
+    pub account_id: String,
+    pub success: bool,
+    pub message: String,
+    pub order_info: Option<OrderResponse>,
+    pub timestamp: Instant,
+}
+
+pub struct GetAllorderTask {
+    pub task_id: String,
+    pub account_id: String,
+    pub status: TaskStatus,
+    pub start_time: Option<Instant>,
 }
 
 
@@ -146,15 +187,7 @@ pub struct SubmitLoginSmsRequest {
 
 }
 
-// 任务结果枚举
-#[derive(Clone)]
-pub enum TaskResult {
-    TicketResult(TaskTicketResult),
-    QrCodeLoginResult(TaskQrCodeLoginResult),
-    LoginSmsResult(LoginSmsRequestResult),
-    PushResult(PushRequestResult),
-    SubmitSmsLoginResult(SubmitSmsLoginResult),
-}
+
 
 #[derive(Clone)]
 pub struct TaskTicketResult {

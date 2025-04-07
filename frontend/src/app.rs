@@ -1,3 +1,7 @@
+use common::show_orderlist::Order;
+use common::show_orderlist::OrderResponse;
+use common::taskmanager::GetAllorderRequest;
+use common::taskmanager::TaskRequest;
 use eframe::egui;
 
 use crate::ui;
@@ -102,6 +106,14 @@ pub struct Myapp{
                                         //所以使用string表示要添加购票人的账号的uid
 
     pub show_orderlist_window: Option<String>, //订单列表窗口的账号uid
+
+    pub total_order_data: Option<OrderData>, //订单数据缓存
+
+    pub orderlist_need_reload: bool, //订单列表是否需要重新加载
+
+    pub orderlist_last_request_time: Option<std::time::Instant>,  // 上次请求的时间
+    pub orderlist_requesting: bool,  // 是否正在请求中
+                                   
                                     }
 
 
@@ -112,7 +124,11 @@ pub struct AccountManager{
     pub active_tasks: HashMap<String, TicketTask>,
 }
 
-
+//获取全部订单结构体（便于区分）
+pub struct OrderData {
+    pub account_id: String,
+    pub data : Option<OrderResponse>,
+}
 
 
 
@@ -203,6 +219,10 @@ impl Myapp{
             },
             show_add_buyer_window: None,
             show_orderlist_window: None,
+            total_order_data: None,
+            orderlist_need_reload: false,
+            orderlist_last_request_time: None,
+            orderlist_requesting: false,
 
         };
         // 初始化每个账号的 client
@@ -332,6 +352,18 @@ impl Myapp{
                         log::info!("推送成功: {}", push_result.message);
                     } else {
                         log::error!("推送失败: {}", push_result.message);
+                    }
+                }
+                TaskResult::GetAllorderRequestResult(order_result) => {
+                    // 处理订单请求结果
+                    if order_result.success {
+                        self.total_order_data = Some(OrderData {
+                            account_id: order_result.account_id.clone(),
+                            data: order_result.order_info.clone(),
+                        });
+                        log::info!("账号 {} 订单请求成功", order_result.account_id);
+                    } else {    
+                        log::error!("账号 {} 订单请求失败", order_result.account_id);
                     }
                 }
             }
@@ -472,12 +504,42 @@ impl eframe::App for Myapp{
         }
 
         //开启查看订单窗口？
-        if let Some(account_id) = &self.show_orderlist_window {
-            if account_id == "0"{
+        if let Some(uid) = &self.show_orderlist_window {
+            let account_id = uid.clone().parse::<i64>().unwrap_or(0);
+            if account_id == 0{
                 self.show_orderlist_window = None;
                 
             }
             else{
+                
+                let account = self.account_manager.accounts.iter_mut().find(|a| a.uid == account_id.clone()).unwrap();
+                let client = match account.client.clone() {
+                    Some(client) => client,
+                    None => {
+                        log::error!("账号 {} 的客户端未初始化", account.name);
+                        self.show_orderlist_window = None;
+                        return;
+                    }
+                };
+                if self.total_order_data.is_none() {
+                    self.orderlist_need_reload = true;
+                   
+
+                }else{
+                    if self.total_order_data.as_ref().unwrap().account_id == uid.clone(){
+                        
+                    }else{
+                        log::error!("账号不匹配，正在重新加载");
+                        self.orderlist_need_reload = true;
+                        
+                        
+                    }
+                    
+                }
+                if self.orderlist_need_reload {
+                    submit_get_total_order(&mut self.task_manager, &client, account);
+                    self.orderlist_need_reload = false;
+                }
                 windows::show_orderlist::show(self, ctx);
             }
             
@@ -489,6 +551,26 @@ impl eframe::App for Myapp{
     
 }
 
+
+pub fn submit_get_total_order(task_manager: &mut Box<dyn TaskManager>,client: &Client, account: &Account){
+    let request = TaskRequest::GetAllorderRequest(GetAllorderRequest{
+        task_id: "".to_string(),
+        account_id: account.uid.to_string().clone(),
+        client: client.clone(),
+        status: TaskStatus::Pending,
+        start_time: None,
+    });
+
+match task_manager.submit_task(request) {
+    Ok(task_id) => {
+        log::info!("订单请求提交成功，任务ID: {}", task_id);
+    }
+    Err(e) => {
+        log::error!("查看全部订单请求提交失败：{}",e);
+    }
+}
+
+}
 
 
 pub fn create_client(user_agent: String) -> Client {

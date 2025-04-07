@@ -1,4 +1,4 @@
-use crate::app::Myapp;
+use crate::app::{Myapp, OrderData};
 use eframe::egui::{self, RichText};
 use egui::{Image, TextureHandle};
 use serde::{Deserialize, Serialize};
@@ -6,80 +6,21 @@ use common::account::Account;
 use common::http_utils::request_get_sync;
 
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct OrderResponse {
-    pub errno: i32,
-    pub errtag: i32,
-    pub msg: String,
-    pub data: OrderData,
-}
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct OrderData{
-    pub total: i32,
-    list: Vec<Order>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Order{
-    pub order_id: String,
-    pub order_type: i32,
-    pub item_id: i64,
-    pub item_info: ItemInfo,
-    pub total_money: i64,
-    pub count: i32,
-    pub pay_money: i64,
-    pub pay_channel: Option<String>,
-    pub status: i32,
-    pub sub_status: i32,
-    pub ctime: String,
-    pub img: ImageInfo,
-    pub sub_status_name: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ItemInfo{
-    pub name: String,
-    pub image: String,
-    pub screen_id: i64,
-    pub screen_name: String,
-    pub screen_start_time: String,
-    pub screen_end_time: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ImageInfo{
-    pub url: String,
-
-}
 pub fn show(
     app: &mut Myapp,
     ctx: &egui::Context,
+    
 ){
-    let uid = app.show_orderlist_window.as_ref().unwrap().clone();
-    let find_account = app.account_manager.accounts.iter().find(|account| account.uid.to_string() == uid);
-    let select_account = match find_account {
-        Some(account) => account,
-        None => return,
-    };
-    let select_client = select_account.client.as_ref().unwrap();
     let mut window_open = app.show_orderlist_window.is_some();
-    let response = request_get_sync(
-        select_client,
-        "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10", // 替换为实际API地址
-        None,
-        None,
-    );
-    match response {
-        Ok(res) =>{
-            
-
-        }
-        Err(err) => {
-            log::error!("请求失败: {}", err);
-            return;
-        }
-    }
+    
+    let orders_data = match &app.total_order_data {
+        Some(data) => {app.is_loading = false; data.clone()},
+        None => {app.is_loading = true; return;}, 
+    };
+    
+    
+    // 显示窗口和订单数据
     egui::Window::new("订单列表")
         .open(&mut window_open)
         .default_height(600.0)
@@ -96,109 +37,20 @@ pub fn show(
             
             // 添加滚动区域
             egui::ScrollArea::vertical().show(ui, |ui| {
-                // 示例订单数据 - 实际中应从API获取
-                let orders = vec![
-                    ("O2023123456", "五月天2023巡回演唱会", "1张", "2023-12-30 20:00", "¥680", "已付款", "https://example.com/image1.jpg"),
-                    ("O2023123457", "周杰伦2023地表最强", "1张", "2023-12-25 19:30", "¥1080", "待付款", "https://example.com/image2.jpg"),
-                    // ...更多订单
-                ];
-                
-                // 显示订单卡片
-                for (order_id, name, venue, time, price, status, image_url) in &orders {
-                    ui.add_space(12.0);
-                    
-                    egui::Frame::none()
-                        .fill(ui.style().visuals.widgets.noninteractive.bg_fill)
-                        .rounding(8.0)
-                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(220, 220, 220)))
-                        .shadow(egui::epaint::Shadow {
-                            extrusion: 2.0,
-                            color: egui::Color32::from_black_alpha(20),
-                        })
-                        .inner_margin(egui::vec2(12.0, 12.0))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                // 预留图片位置 (可从URL加载或显示默认图片)
-                                // 这里只是示例，实际中应该异步加载图片
-                                let image_size = egui::vec2(80.0, 80.0);
-                                
-                                // 图片加载逻辑 - 这里使用占位区域
-                                ui.add_sized(image_size, |ui: &mut egui::Ui| {
-                                    // 直接返回自己的响应
-                                    if let Some(texture) = get_image_texture(ctx, image_url) {
-                                        // 居中显示图片
-                                        ui.centered_and_justified(|ui| {
-                                            ui.add(Image::new(texture).fit_to_exact_size(image_size))
-                                        }).inner
-                                    } else {
-                                        // 居中显示加载提示
-                                        let inner_response = ui.centered_and_justified(|ui| {
-                                            ui.label("加载中...")
-                                        });
-                                        // 触发图片加载
-                                        request_image_async(ctx.clone(), image_url.to_string());
-                                        inner_response.inner
-                                    }
-                                });
-                                
-                                ui.add_space(12.0);
-                                
-                                // 订单信息区域
-                                ui.vertical(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label(RichText::new(*name).size(16.0).strong());
-                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            ui.label(RichText::new(*status)
-                                                .color(if *status == "已付款" { 
-                                                    egui::Color32::from_rgb(0, 150, 0) 
-                                                } else { 
-                                                    egui::Color32::from_rgb(200, 80, 0) 
-                                                })
-                                                .strong());
-                                        });
-                                    });
-                                    
-                                    ui.add_space(4.0);
-                                    
-                                    // 订单详细信息
-                                    ui.horizontal(|ui| {
-                                        ui.label(RichText::new("订单号:").color(egui::Color32::GRAY));
-                                        ui.monospace(*order_id);
-                                    });
-                                    
-                                    ui.horizontal(|ui| {
-                                        ui.label(RichText::new("数量:").color(egui::Color32::GRAY));
-                                        ui.label(*venue);
-                                    });
-                                    
-                                    ui.horizontal(|ui| {
-                                        ui.label(RichText::new("场次:").color(egui::Color32::GRAY));
-                                        ui.label(*time);
-                                    });
-                                    
-                                    ui.horizontal(|ui| {
-                                        ui.label(RichText::new("价格:").color(egui::Color32::GRAY));
-                                        ui.label(RichText::new(*price).strong());
-                                        
-                                        // 操作按钮放在右侧
-                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            let button = egui::Button::new(
-                                                egui::RichText::new("查看详情").size(20.0).color(egui::Color32::WHITE)
-                                            )
-                                            .min_size(egui::vec2(120.0, 50.0))
-                                            .fill(egui::Color32::from_rgb(102,204,255))
-                                            .rounding(20.0);
-                                            let response = ui.add(button);
-                                            if response.clicked()
-                                            {
-                                                // 处理点击事件
-                                                log::debug!("查看订单详情: {}", order_id);
-                                            }
-                                        });
-                                    });
-                                });
-                            });
-                        });
+                // 使用从内存中获取的orders_data
+                if let Some(order_data) = &orders_data.data {
+                    // 显示订单数据
+                    for order in &order_data.data.list {
+                        // 原有的显示逻辑...
+                        
+                        // 注意：这里不要修改orders_data
+                    }
+                } else {
+                    // 显示加载中状态
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(50.0);
+                        ui.label(RichText::new("加载中...").size(16.0).color(egui::Color32::GRAY));
+                    });
                 }
                 
                 ui.add_space(10.0); // 底部留白

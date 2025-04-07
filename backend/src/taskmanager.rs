@@ -1,16 +1,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use common::account;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
-use common::taskmanager::{
-    TaskManager, TaskStatus, TaskRequest, TicketRequest, QrCodeLoginRequest,
-    TaskResult, TaskTicketResult, TaskQrCodeLoginResult, 
-    TicketTask, QrCodeLoginTask, TicketResult, Task,LoginSmsRequestResult,LoginSmsRequestTask,
-    PushRequest, PushRequestResult, PushType, PushTask,SubmitLoginSmsRequestTask,SubmitSmsLoginResult,
-    
-};
+use common::taskmanager::{*};
 use common::login::{send_loginsms,sms_login};
+use crate::show_orderlist::get_orderlist;
 use crate::api::{*};
 
 
@@ -248,6 +244,42 @@ impl TaskManager for TaskManagerImpl {
                                         }.await;
                                     });
                                 }
+                                TaskRequest::GetAllorderRequest(get_order_req) => {
+                                    let client = get_order_req.client.clone();
+                                    let result_tx = result_tx.clone();
+                                    let task_id = uuid::Uuid::new_v4().to_string();
+                                    let account_id = get_order_req.account_id.clone();
+                                    tokio::spawn(async move{
+                                        log::info!("正在获取全部订单 ID: {}", task_id);
+                                        let response = get_orderlist(client).await;
+                                        let success = response.is_ok();
+                                        let data = match &response {
+                                            Ok(order_resp) => {order_resp.clone()},
+                                            Err(err) => {
+                                                log::error!("获取全部订单失败: {}", err);
+                                                return;
+                                            }
+                                        };
+                                        let message = match &response {
+                                            Ok(msg) => {format!("获取全部订单成功: {}", msg.data.total)},
+                                            Err(err) => {
+                                                log::error!("获取全部订单失败: {}", err);
+                                                err.to_string()
+                                            },
+                                        };
+
+                                        let task_result = TaskResult::GetAllorderRequestResult(GetAllorderRequestResult {
+                                            task_id: task_id.clone(),
+                                            success,
+                                            message,
+                                            order_info: Some(data.clone()),
+                                            account_id: account_id.clone(),
+                                            timestamp: std::time::Instant::now(),
+                                        });
+
+                                        let _ = result_tx.send(task_result).await;
+                                    });
+                                }
                             }
                         },
                         TaskMessage::CancelTask(_task_id) => {
@@ -349,6 +381,21 @@ impl TaskManager for TaskManagerImpl {
                 // 保存任务
                 self.running_tasks.insert(task_id.clone(), Task::SubmitLoginSmsRequestTask(task));
             }
+            TaskRequest::GetAllorderRequest(get_order_req) => {
+                log::info!("提交获取全部订单任务 ID: {}", task_id);
+                
+                // 创建获取全部订单任务
+                let task = GetAllorderRequest {
+                    task_id: task_id.clone(),
+                    client: get_order_req.client.clone(),
+                    status: TaskStatus::Pending,
+                    account_id: get_order_req.account_id.clone(),
+                    start_time: Some(std::time::Instant::now()),
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::GetAllorderRequestTask(task));
+            }
 
         }
         
@@ -391,6 +438,7 @@ impl TaskManager for TaskManagerImpl {
                 Task::LoginSmsRequestTask(t) => Some(t.status.clone()),
                 Task::PushTask(t) => Some(t.status.clone()),
                 Task::SubmitLoginSmsRequestTask(t) => Some(t.status.clone()),
+                Task::GetAllorderRequestTask(t) => Some(t.status.clone()),
             }
         } else {
             None
