@@ -125,9 +125,13 @@ pub fn show(
                                             ui.label(RichText::new(price_text).strong());
                                             
                                             // 显示支付方式（如果已支付）
-                                            if !order.pay_channel.is_none() {
+                                            let pay_channel = match order.pay_channel {
+                                                Some(ref channel) => channel.clone(),
+                                                None => "".to_string(),
+                                            };
+                                            if !pay_channel.is_empty() {
                                                 ui.add_space(8.0);
-                                                ui.label(format!("({:?})", order.pay_channel));
+                                                ui.label(format!("({:?})", pay_channel));
                                             }
                                             
                                             // 操作按钮放在右侧
