@@ -1,23 +1,24 @@
-use common::show_orderlist::Order;
-use common::show_orderlist::OrderResponse;
-use common::taskmanager::GetAllorderRequest;
-use common::taskmanager::TaskRequest;
+use std::collections::HashMap;
 use eframe::egui;
+use reqwest::{Client, header};
 
 use crate::ui;
 use crate::windows;
-use std::collections::HashMap;
-use common::taskmanager::{TaskManager, TaskStatus, TicketRequest, TaskResult,TicketTask};
-use backend::taskmanager::TaskManagerImpl;
+use crate::windows::login_windows::LoginTexture;
+use crate::windows::add_buyer::AddBuyerInput;
+
 use common::LOG_COLLECTOR;
 use common::account::{Account,add_account};
 use common::utils::{Config,save_config};
 use common::utility::CustomConfig;
-use common::push::{PushConfig, SmtpConfig};
+use common::push::{*};
 use common::login::LoginInput;
-use crate::windows::login_windows::LoginTexture;
-use crate::windows::add_buyer::AddBuyerInput;
-use reqwest::{Client, header};
+use common::taskmanager::{*};
+use common::show_orderlist::OrderResponse;
+use common::taskmanager::GetAllorderRequest;
+use common::taskmanager::TaskRequest;
+
+use backend::taskmanager::TaskManagerImpl;
 
 
 //UI
