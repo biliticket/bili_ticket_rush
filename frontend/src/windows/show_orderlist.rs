@@ -41,9 +41,137 @@ pub fn show(
                 if let Some(order_data) = &orders_data.data {
                     // 显示订单数据
                     for order in &order_data.data.list {
-                        // 原有的显示逻辑...
+                        ui.add_space(12.0);
                         
-                        // 注意：这里不要修改orders_data
+                        egui::Frame::none()
+                            .fill(ui.style().visuals.widgets.noninteractive.bg_fill)
+                            .rounding(8.0)
+                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(220, 220, 220)))
+                            .shadow(egui::epaint::Shadow {
+                                extrusion: 2.0,
+                                color: egui::Color32::from_black_alpha(20),
+                            })
+                            .inner_margin(egui::vec2(12.0, 12.0))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    // 图片处理
+                                    let image_size = egui::vec2(80.0, 80.0);
+                                    // 处理URL格式：如果以//开头，添加https:前缀
+                                    let image_url = if order.img.url.starts_with("//") {
+                                        format!("https:{}", order.img.url)
+                                    } else {
+                                        order.img.url.clone()
+                                    };
+                                    
+                                    // 图片加载逻辑
+                                    ui.add_sized(image_size, |ui: &mut egui::Ui| {
+                                        if let Some(texture) = get_image_texture(ctx, &image_url) {
+                                            ui.centered_and_justified(|ui| {
+                                                ui.add(Image::new(texture).fit_to_exact_size(image_size))
+                                            }).inner
+                                        } else {
+                                            let inner_response = ui.centered_and_justified(|ui| {
+                                                ui.label("图片加载中...")
+                                            });
+                                            request_image_async(ctx.clone(), image_url);
+                                            inner_response.inner
+                                        }
+                                    });
+                                    
+                                    ui.add_space(12.0);
+                                    
+                                    // 订单信息区域
+                                    ui.vertical(|ui| {
+                                        ui.horizontal(|ui| {
+                                            // 活动名称
+                                            ui.label(RichText::new(&order.item_info.name).size(16.0).strong());
+                                            
+                                            // 订单状态
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                // 根据订单状态设置不同颜色
+                                                let status_color = match order.status {
+                                                    2 => egui::Color32::from_rgb(0, 150, 0),   // 已完成/已付款
+                                                    4 => egui::Color32::from_rgb(200, 80, 0),  // 已取消
+                                                    _ => egui::Color32::from_rgb(100, 100, 100),
+                                                };
+                                                ui.label(RichText::new(&order.sub_status_name)
+                                                    .color(status_color)
+                                                    .strong());
+                                            });
+                                        });
+                                        
+                                        ui.add_space(4.0);
+                                        
+                                        // 订单详细信息
+                                        ui.horizontal(|ui| {
+                                            ui.label(RichText::new("订单号:").color(egui::Color32::GRAY));
+                                            ui.monospace(&order.order_id);
+                                        });
+                                        
+                                        ui.horizontal(|ui| {
+                                            ui.label(RichText::new("场次:").color(egui::Color32::GRAY));
+                                            ui.label(&order.item_info.screen_name);
+                                        });
+                                        
+                                        ui.horizontal(|ui| {
+                                            ui.label(RichText::new("下单时间:").color(egui::Color32::GRAY));
+                                            ui.label(&order.ctime);
+                                        });
+                                        
+                                        ui.horizontal(|ui| {
+                                            ui.label(RichText::new("价格:").color(egui::Color32::GRAY));
+                                            // 将分转换为元并格式化为价格
+                                            let price_text = format!("¥{:.2}", order.pay_money as f64 / 100.0);
+                                            ui.label(RichText::new(price_text).strong());
+                                            
+                                            // 显示支付方式（如果已支付）
+                                            if !order.pay_channel.is_none() {
+                                                ui.add_space(8.0);
+                                                ui.label(format!("({:?})", order.pay_channel));
+                                            }
+                                            
+                                            // 操作按钮放在右侧
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                // 根据订单状态决定是否显示不同按钮
+                                                if order.status == 2 {  // 已完成
+                                                    /* let button = egui::Button::new(
+                                                        egui::RichText::new("查看详情").size(16.0).color(egui::Color32::WHITE)
+                                                    )
+                                                    .min_size(egui::vec2(100.0, 36.0))
+                                                    .fill(egui::Color32::from_rgb(102, 204, 255))
+                                                    .rounding(18.0);
+                                                    
+                                                    let response = ui.add(button);
+                                                    if response.clicked() {
+                                                        log::debug!("查看订单详情: {}", order.order_id);
+                                                        // 处理点击事件
+                                                    } */
+                                                } else if order.status == 1 && order.sub_status == 1 {  // 待付款
+                                                    let pay_button = egui::Button::new(
+                                                        egui::RichText::new("未支付").size(16.0).color(egui::Color32::WHITE)
+                                                    )
+                                                    .min_size(egui::vec2(80.0, 36.0))
+                                                    .fill(egui::Color32::from_rgb(250, 100, 0))
+                                                    .rounding(18.0);
+                                                    
+                                                    if ui.add(pay_button).clicked() {
+                                                        log::info!("暂不支持支付订单: {}", order.order_id);
+                                                        // 添加支付逻辑
+                                                    }
+                                                }
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                    }
+                    
+                    // 如果没有订单
+                    if order_data.data.list.is_empty() {
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(50.0);
+                            ui.label(RichText::new("暂无订单记录").size(16.0).color(egui::Color32::GRAY));
+                        });
                     }
                 } else {
                     // 显示加载中状态
@@ -55,10 +183,13 @@ pub fn show(
                 
                 ui.add_space(10.0); // 底部留白
             });
+            
         });
     
     if !window_open {
         app.show_orderlist_window = None;
+        app.orderlist_requesting = false;
+        app.orderlist_need_reload = true;
     }
 }
 
