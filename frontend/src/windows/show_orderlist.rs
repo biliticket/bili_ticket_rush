@@ -131,7 +131,7 @@ pub fn show(
                                             };
                                             if !pay_channel.is_empty() {
                                                 ui.add_space(8.0);
-                                                ui.label(format!("({:?})", pay_channel));
+                                                ui.label(format!("(支付方式：{})", pay_channel));
                                             }
                                             
                                             // 操作按钮放在右侧
