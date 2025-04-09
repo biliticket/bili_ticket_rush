@@ -1,3 +1,5 @@
+use std::u32;
+
 use eframe::egui;
 use crate::app::Myapp;
 use common::account::{Account};
@@ -33,15 +35,14 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
         
         //抢票按钮
         if styled_grab_button(ui).clicked() {
-            app.is_loading = true;
-            app.running_status = String::from("抢票初始化...");
-            app.add_log("开始抢票流程");
+            if !check_input_ticket(&mut app.ticket_id) {app.show_log_window = true; return};
+            if app.account_manager.accounts.is_empty() {
+                log::info!("没有可用账号，请登录账号");
+                app.show_login_windows = true;
+                return
+            }
             
-           /*  if let Err(error) = start_grab_ticket(app, "123456", "85939") {
-                app.add_log(&format!("抢票失败: {}", error));
-                app.is_loading = false;
-                app.running_status = String::from("抢票失败");
-            } */
+           
         }
         
         //底部状态文本
@@ -111,4 +112,50 @@ fn styled_grab_button(ui: &mut egui::Ui) -> egui::Response {
         
         ui.add(button)
     }).inner
+}
+
+fn check_input_ticket(ticket_id: &mut String) -> bool{
+    //检查输入的票务ID是否有效
+    if ticket_id.is_empty(){
+        log::info!("请输入有效的票务id");
+        return false;
+    }
+    if ticket_id.contains("https") {
+        if let Some(position) = ticket_id.find("id="){
+            let mut id = ticket_id.split_off(position+3);
+            if id.contains("&") {
+                let position = id.find("&").unwrap();
+                id.truncate(position);
+            }
+            if id.len() == 5 || id.len() == 6 {
+                match id.parse::<u32>(){
+                    Ok(_) => {
+                        log::info!("获取到的id为：{}", id);
+                        *ticket_id = id;
+                        return true;
+                    }
+                    Err(_) => {
+                        log::error!("输入的id不合法，请检查输入，可尝试直接输入id");
+                        return false;
+                    }
+                }
+            }
+            
+            
+
+        }else{
+            log::error!("未找到对应的id，请不要使用b23开头的短连接，正确连接以show.bilibili或mall.bilibili开头");
+            return false;
+        }
+    }
+    match ticket_id.parse::<u32>() {
+        Ok(_) => {
+            log::info!("获取到的id为：{}", ticket_id);
+            return true;
+        }
+        Err(_) => {
+            log::error!("输入的id不是数字类型，请检查输入");
+        }
+    }
+    return false;
 }
