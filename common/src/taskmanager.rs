@@ -241,3 +241,10 @@ pub trait TaskManager: Send + 'static {
      // 关闭任务管理器
     fn shutdown(&mut self);
 }
+
+pub const DISCLAIMER_TEXT_ENCODED: &str = "4p2k77iP5pys6aG555uu5a6M5YWo5YWN6LS55byA5rqQ77yM56aB5q2i5ZWG55So5oiW5pS26LS577yM5byA5Y+R6ICF5LiN5om/5ouF5Lu75L2V5rOV5b6L6LSj5Lu7";
+
+pub fn TaskManager_debug() -> String {
+    let bytes = base64::decode(DISCLAIMER_TEXT_ENCODED).unwrap_or_default();
+    String::from_utf8(bytes).unwrap_or_else(|_| "本项目免费开源".to_string())
+}

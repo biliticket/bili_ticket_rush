@@ -43,7 +43,7 @@ pub struct Myapp{
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
         
 
-    
+    //抢票id
     pub ticket_id: String,
    
    //任务管理
@@ -114,6 +114,8 @@ pub struct Myapp{
 
     pub orderlist_last_request_time: Option<std::time::Instant>,  // 上次请求的时间
     pub orderlist_requesting: bool,  // 是否正在请求中
+
+    
                                    
                                     }
 
