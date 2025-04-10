@@ -6,6 +6,7 @@ use crate::ui;
 use crate::windows;
 use crate::windows::login_windows::LoginTexture;
 use crate::windows::add_buyer::AddBuyerInput;
+use crate::ui::error_banner::render_error_banner;
 
 use common::LOG_COLLECTOR;
 use common::account::{Account,add_account};
@@ -42,6 +43,11 @@ pub struct Myapp{
     
     pub default_avatar_texture: Option<egui::TextureHandle>, // 默认头像
         
+    //错误提醒横幅
+    pub error_banner_active: bool,
+    pub error_banner_text: String,
+    pub error_banner_start_time: Option<std::time::Instant>,
+    pub error_banner_opacity: f32,
 
     //抢票id
     pub ticket_id: String,
@@ -226,6 +232,10 @@ impl Myapp{
             orderlist_need_reload: false,
             orderlist_last_request_time: None,
             orderlist_requesting: false,
+            error_banner_active: false,
+            error_banner_text: String::new(),
+            error_banner_start_time: None,
+            error_banner_opacity: 0.0,
 
         };
         // 初始化每个账号的 client
@@ -255,6 +265,14 @@ impl Myapp{
 
     pub fn add_log(&mut self, message: &str){
         self.logs.push(format!("{}",message));
+
+        // 检测是否是ERROR日志
+        if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") ||message.contains("抢票") {
+            self.error_banner_active = true;
+            self.error_banner_text = message.to_string();
+            self.error_banner_start_time = Some(std::time::Instant::now());
+            self.error_banner_opacity = 1.0;
+        }
     }
     // 处理任务结果的方法
     fn process_task_results(&mut self) {
@@ -453,6 +471,32 @@ impl eframe::App for Myapp{
         //从env_log添加日志进窗口
         self.add_log_windows();
 
+        // 渲染错误横幅
+        if self.error_banner_active {
+            // 计算横幅显示时间和透明度
+            if let Some(start_time) = self.error_banner_start_time {
+                let elapsed = start_time.elapsed().as_secs_f32();
+                
+                // 横幅在屏幕上停留2秒，然后在0.5秒内淡出
+                if elapsed < 2.5 {
+                    // 如果超过2秒，开始淡出
+                    if elapsed > 2.0 {
+                        self.error_banner_opacity = 1.0 - (elapsed - 2.0) * 2.0; // 0.5秒内从1.0淡到0
+                    }
+                    
+                    // 绘制横幅
+                    render_error_banner(self, ctx);
+                    
+                    // 持续重绘以实现动画效果
+                    ctx.request_repaint();
+                } else {
+                    // 超过2.5秒，停用横幅
+                    self.error_banner_active = false;
+                    self.error_banner_start_time = None;
+                }
+            }
+        }
+
         //删除账号
         if let Some(account_id) = self.delete_account.take() {
             self.account_manager.accounts.retain(|account| account.uid != account_id.parse::<i64>().unwrap_or(-1));
@@ -622,3 +666,4 @@ pub struct AccountSwitch {
     pub uid: String,
     pub switch: bool,
 }
+
