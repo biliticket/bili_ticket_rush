@@ -12,3 +12,6 @@ Cargo.lock
 Thumbs.db
 *.tmp
 *.log
+/学习
+*.json
+*txt
