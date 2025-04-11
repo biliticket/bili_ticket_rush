@@ -18,6 +18,7 @@ use common::taskmanager::{*};
 use common::show_orderlist::OrderResponse;
 use common::taskmanager::GetAllorderRequest;
 use common::taskmanager::TaskRequest;
+use common::ticket::BilibiliTicket;
 
 use backend::taskmanager::TaskManagerImpl;
 
@@ -120,6 +121,14 @@ pub struct Myapp{
 
     pub orderlist_last_request_time: Option<std::time::Instant>,  // 上次请求的时间
     pub orderlist_requesting: bool,  // 是否正在请求中
+
+    //抢票相关
+    pub status_delay: usize, //延迟时间
+
+    pub grab_mode: u8,   // 0: 自动抢票, 1: 直接抢票, 2: 捡漏回流票
+    pub selected_account_uid: Option<i64>, // 记录被选择账号的UID
+
+    pub bilibiliticket_list: Vec<BilibiliTicket>, // 用于存储多个抢票实例
 
     
                                    
@@ -236,6 +245,10 @@ impl Myapp{
             error_banner_text: String::new(),
             error_banner_start_time: None,
             error_banner_opacity: 0.0,
+            status_delay: 2,
+            grab_mode: 1,
+            selected_account_uid: None,
+            bilibiliticket_list: Vec::new(),
 
         };
         // 初始化每个账号的 client
@@ -601,6 +614,12 @@ impl eframe::App for Myapp{
                 windows::show_orderlist::show(self, ctx);
             }
             
+        }
+
+        //开始抢票？弹出窗口
+        if self.bilibiliticket_list.len() > 0{
+            let mut new_ticket = self.bilibiliticket_list.pop().unwrap();
+            windows::grab_ticket::show(self, ctx, &mut new_ticket);
         }
 
         

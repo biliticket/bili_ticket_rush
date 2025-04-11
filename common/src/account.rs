@@ -3,7 +3,7 @@ use reqwest::Client;
 use crate::http_utils::{request_get_sync,request_post_sync};
 use serde_json;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Account{
     pub uid: i64,  //UID
     pub name: String,   //昵称
