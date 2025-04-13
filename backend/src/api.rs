@@ -5,7 +5,7 @@ use common::login::QrCodeLoginStatus;
 use reqwest::Client;
 //这里实现抢票api
 
-pub async fn perform_ticket_grab(request: &TicketRequest) -> Result<TicketResult, Box<dyn std::error::Error + Send + Sync>> {
+/* pub async fn perform_ticket_grab(request: &TicketRequest) -> Result<TicketResult, Box<dyn std::error::Error + Send + Sync>> {
     // 这里实现实际的抢票逻辑
     
     // 模拟抢票过程
@@ -25,7 +25,7 @@ pub async fn perform_ticket_grab(request: &TicketRequest) -> Result<TicketResult
         },
         timestamp: std::time::Instant::now(),
     })
-}
+} */
 
 
 //轮询登录状态
