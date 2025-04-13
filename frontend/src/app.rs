@@ -246,7 +246,7 @@ impl Myapp{
             error_banner_start_time: None,
             error_banner_opacity: 0.0,
             status_delay: 2,
-            grab_mode: 1,
+            grab_mode: 0,
             selected_account_uid: None,
             bilibiliticket_list: Vec::new(),
 
