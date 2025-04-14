@@ -261,21 +261,22 @@ impl TaskManager for TaskManagerImpl {
                                     let task_id = get_ticketinfo_req.task_id.clone();
                                     let result_tx = result_tx.clone();
                                     let project_id = get_ticketinfo_req.project_id.clone();
+                                    let uid = get_ticketinfo_req.uid.clone();
                                     tokio::spawn(async move{
                                         log::debug!("正在获取project{}",task_id);
                                         let response  = get_project(client, &project_id).await;
                                         let success = response.is_ok();
                                         let ticket_info = match &response{
-                                            Ok(info) => {info.clone()},
+                                            Ok(info) => {Some(info.clone())},
                                             Err(e) => {
                                                 log::error!("获取项目时失败，原因：{}",e);
-                                                return;
+                                                None
                                             }
                                         };
                                         let message = match &response{
                                             Ok(info) => {
-                                                log::debug!("项目{}获取成功",info.name);
-                                                format!("项目{}获取成功",info.name)
+                                                //log::debug!("项目{}请求成功",info.errno);
+                                                format!("项目{}请求成功",info.errno)
                                             }
                                             Err(e) => {
                                                 e.to_string()
@@ -283,6 +284,7 @@ impl TaskManager for TaskManagerImpl {
                                         };
                                         let task_result = TaskResult::GetTicketInfoResult(GetTicketInfoResult{
                                             task_id : task_id.clone(),
+                                            uid: uid.clone(),
                                             ticket_info : ticket_info.clone(),
                                             success : success,
                                             message : message.clone(),

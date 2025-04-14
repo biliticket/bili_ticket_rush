@@ -1,5 +1,6 @@
 use std::time::Instant;
 use reqwest::Client;
+use std::sync::Arc;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 use crate::show_orderlist::OrderResponse;
@@ -64,16 +65,18 @@ pub enum TaskResult {
 //请求project_id票详情
 #[derive(Clone,Debug)]
 pub struct GetTicketInfoRequest {
+    pub uid : i64,
     pub task_id : String,
     pub project_id : String,
-    pub client: Client,
+    pub client: Arc<Client>,
 
 }
 
 #[derive(Clone,Debug)]
 pub struct GetTicketInfoResult {
     pub task_id : String,
-    pub ticket_info: TicketInfo,
+    pub uid : i64,
+    pub ticket_info: Option<InfoResponse>,
     pub success: bool,
     pub message : String,
 }
@@ -84,7 +87,7 @@ pub struct GetTicketInfoTask {
     pub project_id : String,
     pub status: TaskStatus,
     pub start_time : Option<Instant>,
-    pub client: Client,
+    pub client: Arc<Client>,
 }
 
 

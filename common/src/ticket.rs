@@ -4,6 +4,7 @@ use reqwest::header::HeaderValue;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::account::Account;
 use crate::push::PushConfig;
@@ -11,6 +12,7 @@ use crate::utility::CustomConfig;
 
 #[derive(Debug, Clone)]
 pub struct BilibiliTicket{
+    pub uid : i64, //UID
     pub method : u8,
     pub ua : String,
     pub config: CustomConfig,
@@ -18,16 +20,19 @@ pub struct BilibiliTicket{
     pub push_self : PushConfig,
     pub status_delay : usize,
     pub captcha_use_type: usize,    //选择的验证码方式
-    pub session: Option<reqwest::Client>,
+    pub session: Option<Arc<reqwest::Client>>,
 
     //抢票相关
     pub project_id: String,
     pub screen_id: String,
 
+    pub project_info : Option<TicketInfo>, //项目详情
+
 }
 
 impl BilibiliTicket{
     pub fn new(
+        
         method: &u8,
         ua: &String,
         config: &CustomConfig,
@@ -74,6 +79,7 @@ impl BilibiliTicket{
         let captcha_type = config.captcha_mode;      
            
         let new = Self{
+            uid: account.uid.clone(),
             method: method.clone(),
             ua: ua.clone(),
             config: config.clone(),
@@ -81,9 +87,10 @@ impl BilibiliTicket{
             push_self: push_self.clone(),
             status_delay: *status_delay,
             captcha_use_type: captcha_type,
-            session: Some(client),
+            session: Some(Arc::new(client)),
             project_id: project_id.to_string(),
             screen_id: String::new(),
+            project_info: None,
 
         };
         log::debug!("新建抢票对象：{:?}",new);
@@ -95,7 +102,7 @@ impl BilibiliTicket{
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct TicketInfo {
-    pub id: String,
+    pub id: i32,
     pub name: String,
     pub is_sale: usize,
     pub start_time: usize,
@@ -105,9 +112,10 @@ pub struct TicketInfo {
     pub express_fee: usize, //快递费
     pub sale_begin: usize, //开售时间
     pub sale_end: usize, //截止时间
-    pub count_down: usize, //倒计时
+    pub count_down: i64, //倒计时（可能有负数）
     pub screen_list: Vec<ScreenInfo>, //场次列表
     pub sale_flag_number: usize, //售票标志位
+    #[serde(default)]
     pub sale_flag: String, //售票状态
     pub is_free: bool,
     pub performance_desc: Option<DescribeList>, //基础信息
@@ -117,6 +125,7 @@ pub struct TicketInfo {
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct ScreenInfo {
+    #[serde(default)]
     pub sale_flag: SaleFlag,
     pub id: usize,
     pub start_time: usize,
@@ -134,9 +143,20 @@ pub struct ScreenInfo {
 }
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
-pub struct SaleFlag{
-    pub number: usize, //售票标志位
-    pub display_name: String, //售票状态
+pub struct SaleFlag {
+    #[serde(default)]
+    pub number: usize,
+    #[serde(default)]
+    pub display_name: String,
+}
+
+impl Default for SaleFlag {
+    fn default() -> Self {
+        Self {
+            number: 0,
+            display_name: "未知状态".to_string(),
+        }
+    }
 }
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
@@ -185,4 +205,12 @@ pub struct ModuleItem {
 pub struct BaseInfoItem {
     pub title: String,
     pub content: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InfoResponse{
+    pub errno: i32,
+    pub errtag: i32,
+    pub msg: String,
+    pub data: TicketInfo,
 }

@@ -55,6 +55,7 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
                 }
             };
             let bilibili_ticket: BilibiliTicket = BilibiliTicket::new(
+                
                 &app.grab_mode,
                 &app.default_ua,
                 &app.custom_config,
@@ -68,6 +69,8 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
                 &app.ticket_id,
             );
             app.bilibiliticket_list.push(bilibili_ticket);
+            log::debug!("当前抢票对象列表：{:?}", app.bilibiliticket_list);
+            app.show_screen_info = Some(select_uid);
             
            
         }

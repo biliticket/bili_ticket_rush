@@ -1,13 +1,14 @@
 use common::taskmanager::*;
 use common::http_utils::request_get;
-use common::ticket::TicketInfo;
+use common::ticket::InfoResponse;
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
+use std::sync::Arc;
 //这里实现抢票api
 
-pub async fn get_project(client: Client, project_id : &str) -> Result<TicketInfo,String>{
-    let req = client.get("https://show.bilibili.com/api/ticket/project/getV2?id=");
+pub async fn get_project(client: Arc<Client>, project_id : &str) -> Result<InfoResponse,String>{
+    let req = client.get(format!("https://show.bilibili.com/api/ticket/project/getV2?id={}",project_id));
     let response = req.send().await;
     match response {
         Ok(resp)=>{
@@ -18,7 +19,7 @@ pub async fn get_project(client: Client, project_id : &str) -> Result<TicketInfo
                 }){
                     Ok(text) => {
                         log::debug!("获取项目详情：{}",text);
-                        match serde_json::from_str::<TicketInfo>(&text){
+                        match serde_json::from_str::<InfoResponse>(&text){
                             Ok(ticket_info) => {
                                 return Ok(ticket_info);
                             }

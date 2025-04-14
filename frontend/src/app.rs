@@ -132,9 +132,14 @@ pub struct Myapp{
 
     pub ticket_info: Option<TicketInfo>,  //根据projectid获取的项目详情
 
-    pub show_screen_info: bool, //开启显示场次窗口（获取到project信息后）
+    pub show_screen_info: Option<i64>, //开启显示场次窗口（获取到project信息后）
 
-    
+    pub selected_screen_index: Option<usize>,  // 当前选中的场次索引
+    pub selected_screen_id: Option<i64>,       // 当前选中的场次ID
+    pub selected_ticket_id: Option<i64>,       // 当前选中的票种ID
+
+    pub ticket_info_last_request_time: Option<std::time::Instant>, // 上次请求的时间
+
                                    
                                     }
 
@@ -254,7 +259,11 @@ impl Myapp{
             selected_account_uid: None,
             bilibiliticket_list: Vec::new(),
             ticket_info: None,
-            show_screen_info: false,
+            show_screen_info: None,
+            selected_screen_index: None,
+            selected_screen_id: None,
+            selected_ticket_id: None,
+            ticket_info_last_request_time: None,
 
         };
         // 初始化每个账号的 client
@@ -367,14 +376,35 @@ impl Myapp{
                         log::info!("账号 {} 订单请求成功", order_result.account_id);
                     } else {    
                         log::error!("账号 {} 订单请求失败", order_result.account_id);
+                        
                     }
                 }
                 TaskResult::GetTicketInfoResult(order_result) => {
                     if order_result.success{
-                        self.ticket_info = Some(order_result.ticket_info.clone());
-                        log::debug!("获取project信息成功: {:?}", order_result.ticket_info);
+                        let inforesponse = match order_result.ticket_info {
+                            Some(ref info) => info,
+                            None => {
+                                log::error!("获取project信息失败: {}", order_result.message);
+                                continue;
+                            }
+                        };
+
+                        let project_info = inforesponse.data.clone();
+                        let uid = order_result.uid.clone();
+                        if let Some(bilibili_ticket) = self.bilibiliticket_list
+                          .iter_mut()
+                         .find(|ticket| ticket.uid == uid){
+                            bilibili_ticket.project_info = Some(project_info.clone());
+                            log::debug!("获取project信息成功: {:?}", project_info);
+                         }else{
+                            log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", uid);
+                            self.show_screen_info = None;
+                            continue;
+                         }
+                        
                     }else{
                         log::error!("获取project信息失败: {}", order_result.message);
+                        self.show_screen_info = None; 
                     }
 
                 }
@@ -594,18 +624,67 @@ impl eframe::App for Myapp{
             
         }
 
-        //开始抢票？弹出窗口
+        /* //开始抢票？弹出窗口
         if self.bilibiliticket_list.len() > 0{
-            let mut new_ticket = self.bilibiliticket_list.pop().unwrap();
-            windows::grab_ticket::show(self, ctx, &mut new_ticket);
-        }
-
-        /* //开启场次窗口
-        if self.show_screen_info {
-            if let Some(ticket_info) = &self.ticket_info {
-                windows::screen_info::show(self, ctx, ticket_info);
+            if let Some(ticket) = self.bilibiliticket_list.first_mut() {
+                windows::grab_ticket::show(self, ctx, ticket);
             }
         } */
+
+        //开启场次窗口
+        if self.show_screen_info.is_some() {
+            let account_id = self.show_screen_info.clone().unwrap();
+            /* log::debug!("账号id:{}", account_id);
+            
+           
+            log::debug!("当前列表长度: {}", self.bilibiliticket_list.len());
+            for (i, ticket) in self.bilibiliticket_list.iter().enumerate() {
+                log::debug!("列表项 #{}: uid={}", i, ticket.uid);
+            } */
+            
+            
+            if let Some(bilibili_ticket) = self.bilibiliticket_list
+                .iter_mut()
+                .find(|ticket| ticket.uid == account_id)
+            {
+                let should_request = bilibili_ticket.project_info.is_none() && match self.ticket_info_last_request_time{
+                    Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(999999999),
+                    None => true,
+                };
+                
+                if should_request {
+                    log::info!("提交获取{}project请求 ", self.ticket_id);
+                    if let Some(client) = &bilibili_ticket.session {
+                        let request = TaskRequest::GetTicketInfoRequest(GetTicketInfoRequest{
+                            task_id: "".to_string(),
+                            uid: bilibili_ticket.uid.clone(),
+                            project_id: self.ticket_id.clone(),
+                            client: client.clone(),
+                        });
+                        match self.task_manager.submit_task(request) {
+                            Ok(task_id) => {
+                                log::info!("提交获取project请求，任务ID: {}", task_id);
+                                self.is_loading = true;
+                                self.ticket_info_last_request_time = Some(std::time::Instant::now());
+                                windows::screen_info::show(self, ctx, account_id);
+                            },
+                            Err(e) => {
+                                log::error!("提交获取project请求失败: {}", e);
+                            }
+                        }
+                    } else {
+                        log::error!("账号 {} 的客户端未初始化", bilibili_ticket.account.name);
+                    }
+                } else {
+                    
+                    windows::screen_info::show(self, ctx, account_id);
+                }
+            } else {
+                
+                log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", account_id);
+                self.show_screen_info = None;
+            }
+        }
 
         
     }
