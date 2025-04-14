@@ -263,7 +263,7 @@ impl TaskManager for TaskManagerImpl {
                                     let project_id = get_ticketinfo_req.project_id.clone();
                                     tokio::spawn(async move{
                                         log::debug!("正在获取project{}",task_id);
-                                        let response  = get_project(client, project_id);
+                                        let response  = get_project(client, &project_id).await;
                                         let success = response.is_ok();
                                         let ticket_info = match &response{
                                             Ok(info) => {info.clone()},
@@ -275,10 +275,10 @@ impl TaskManager for TaskManagerImpl {
                                         let message = match &response{
                                             Ok(info) => {
                                                 log::debug!("项目{}获取成功",info.name);
-                                                format!("项目{}获取成功",info.name);
+                                                format!("项目{}获取成功",info.name)
                                             }
                                             Err(e) => {
-                                                e.to_string();
+                                                e.to_string()
                                             }
                                         };
                                         let task_result = TaskResult::GetTicketInfoResult(GetTicketInfoResult{

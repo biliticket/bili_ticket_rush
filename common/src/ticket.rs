@@ -93,7 +93,7 @@ impl BilibiliTicket{
 
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct TicketInfo {
     pub id: String,
     pub name: String,
@@ -115,7 +115,7 @@ pub struct TicketInfo {
 
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct ScreenInfo {
     pub sale_flag: SaleFlag,
     pub id: usize,
@@ -133,13 +133,13 @@ pub struct ScreenInfo {
     pub show_date: String, //展示信息
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct SaleFlag{
     pub number: usize, //售票标志位
     pub display_name: String, //售票状态
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct ScreenTicketInfo{
     pub saleStart : usize, //开售时间(时间戳)   eg：1720260000
     pub saleEnd : usize, //截止时间(时间戳)
@@ -161,7 +161,7 @@ pub struct ScreenTicketInfo{
 
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct DescribeList{
     pub r#type: u8,  // 使用 r# 前缀处理 Rust 关键字
     pub list: Vec<ModuleItem>,

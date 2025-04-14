@@ -18,7 +18,7 @@ use common::taskmanager::{*};
 use common::show_orderlist::OrderResponse;
 use common::taskmanager::GetAllorderRequest;
 use common::taskmanager::TaskRequest;
-use common::ticket::BilibiliTicket;
+use common::ticket::{*};
 
 use backend::taskmanager::TaskManagerImpl;
 
@@ -129,6 +129,10 @@ pub struct Myapp{
     pub selected_account_uid: Option<i64>, // 记录被选择账号的UID
 
     pub bilibiliticket_list: Vec<BilibiliTicket>, // 用于存储多个抢票实例
+
+    pub ticket_info: Option<TicketInfo>,  //根据projectid获取的项目详情
+
+    pub show_screen_info: bool, //开启显示场次窗口（获取到project信息后）
 
     
                                    
@@ -249,6 +253,8 @@ impl Myapp{
             grab_mode: 0,
             selected_account_uid: None,
             bilibiliticket_list: Vec::new(),
+            ticket_info: None,
+            show_screen_info: false,
 
         };
         // 初始化每个账号的 client
@@ -293,49 +299,12 @@ impl Myapp{
         let results = self.task_manager.get_results();
         
         // 存储需要记录的日志消息
-        let mut pending_logs = Vec::new();
-        let mut account_updates = Vec::new();
+        let mut pending_logs: Vec<String> = Vec::new();
+        let mut account_updates: Vec<String> = Vec::new();
         
         for result in results {
             match result {
-                // 处理票务任务结果
-                TaskResult::TicketResult(ticket_result) => {
-                    // 获取任务ID和账号ID
-                    let task_id = ticket_result.task_id.clone();
-                    let account_id = ticket_result.account_id.clone();
-                    
-                    // 更新任务状态
-                    if let Some(task) = self.account_manager.active_tasks.get_mut(&task_id) {
-                        match &ticket_result.result {
-                            Ok(ticket_result_data) => {
-                                // 更新任务状态
-                                task.status = TaskStatus::Completed(ticket_result_data.success);
-                                
-                                // 直接克隆值而非引用
-                                task.result = Some(ticket_result_data.clone());
-                                
-                                // 准备日志，但不立即添加
-                                let message = if ticket_result_data.success {
-                                    format!("抢票成功! 订单号: {}", 
-                                        ticket_result_data.order_id.as_ref().unwrap_or(&String::new()))
-                                } else {
-                                    format!("抢票未成功: {}", 
-                                        ticket_result_data.message.as_ref().unwrap_or(&String::new()))
-                                };
-                                
-                                pending_logs.push(message);
-                            },
-                            Err(error) => {
-                                // 更新失败状态
-                                task.status = TaskStatus::Failed(error.clone());
-                                pending_logs.push(format!("任务失败: {}", error));
-                            }
-                        }
-                        
-                        // 将账号添加到待更新列表
-                        account_updates.push(account_id);
-                    }
-                },
+                
                 
                 //处理qrcode登录结果
                 TaskResult::QrCodeLoginResult(qrcode_result) => {
@@ -399,6 +368,15 @@ impl Myapp{
                     } else {    
                         log::error!("账号 {} 订单请求失败", order_result.account_id);
                     }
+                }
+                TaskResult::GetTicketInfoResult(order_result) => {
+                    if order_result.success{
+                        self.ticket_info = Some(order_result.ticket_info.clone());
+                        log::debug!("获取project信息成功: {:?}", order_result.ticket_info);
+                    }else{
+                        log::error!("获取project信息失败: {}", order_result.message);
+                    }
+
                 }
             }
         }
@@ -621,6 +599,13 @@ impl eframe::App for Myapp{
             let mut new_ticket = self.bilibiliticket_list.pop().unwrap();
             windows::grab_ticket::show(self, ctx, &mut new_ticket);
         }
+
+        /* //开启场次窗口
+        if self.show_screen_info {
+            if let Some(ticket_info) = &self.ticket_info {
+                windows::screen_info::show(self, ctx, ticket_info);
+            }
+        } */
 
         
     }
