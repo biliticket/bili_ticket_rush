@@ -45,32 +45,7 @@ impl TaskManager for TaskManagerImpl {
                             
                             // 根据任务类型处理
                             match request {
-                                TaskRequest::TicketRequest(ticket_req) => {
-                                    // 注意: 从 ticket_req 获取 account_id (不是从request)
-                                    let account_id = ticket_req.account_id.clone();
-                                    
-                                    tokio::spawn(async move {
-                                        // 传递 &ticket_req 而不是 &request
-                                        let result = match perform_ticket_grab(&ticket_req).await {
-                                            Ok(ticket_result) => Ok(ticket_result),
-                                            Err(e) => Err(e.to_string()),
-                                        };
-                                        
-                                        log::info!("任务完成 ID: {}, 结果: {}", 
-                                            task_id, 
-                                            if let Ok(ref r) = result { "成功" } else { "失败" }
-                                        );
-                                        
-                                        // 使用正确的 TaskResult 枚举变体
-                                        let task_result = TaskResult::TicketResult(TaskTicketResult {
-                                            task_id,
-                                            account_id,
-                                            result,
-                                        });
-                                        
-                                        let _ = result_tx.send(task_result).await;
-                                    });
-                                },
+                                
                                 TaskRequest::QrCodeLoginRequest(qrcode_req) => {
                                     tokio::spawn(async move {
                                         // 二维码登录逻辑
@@ -247,7 +222,7 @@ impl TaskManager for TaskManagerImpl {
                                 TaskRequest::GetAllorderRequest(get_order_req) => {
                                     let client = get_order_req.client.clone();
                                     let result_tx = result_tx.clone();
-                                    let task_id = uuid::Uuid::new_v4().to_string();
+                                    let task_id = get_order_req.task_id;
                                     let account_id = get_order_req.account_id.clone();
                                     let cookies = get_order_req.cookies.clone();
                                     tokio::spawn(async move{
@@ -281,6 +256,41 @@ impl TaskManager for TaskManagerImpl {
                                         let _ = result_tx.send(task_result).await;
                                     });
                                 }
+                                TaskRequest::GetTicketInfoRequest(get_ticketinfo_req) => {
+                                    let client = get_ticketinfo_req.client.clone();
+                                    let task_id = get_ticketinfo_req.task_id.clone();
+                                    let result_tx = result_tx.clone();
+                                    let project_id = get_ticketinfo_req.project_id.clone();
+                                    tokio::spawn(async move{
+                                        log::debug!("正在获取project{}",task_id);
+                                        let response  = get_project(client, project_id);
+                                        let success = response.is_ok();
+                                        let ticket_info = match &response{
+                                            Ok(info) => {info.clone()},
+                                            Err(e) => {
+                                                log::error!("获取项目时失败，原因：{}",e);
+                                                return;
+                                            }
+                                        };
+                                        let message = match &response{
+                                            Ok(info) => {
+                                                log::debug!("项目{}获取成功",info.name);
+                                                format!("项目{}获取成功",info.name);
+                                            }
+                                            Err(e) => {
+                                                e.to_string();
+                                            }
+                                        };
+                                        let task_result = TaskResult::GetTicketInfoResult(GetTicketInfoResult{
+                                            task_id : task_id.clone(),
+                                            ticket_info : ticket_info.clone(),
+                                            success : success,
+                                            message : message.clone(),
+
+                                        });
+                                        let _ = result_tx.send(task_result).await;
+                                    });
+                                }
                             }
                         },
                         TaskMessage::CancelTask(_task_id) => {
@@ -307,21 +317,7 @@ impl TaskManager for TaskManagerImpl {
         
         // 根据请求类型创建相应的任务
         match &request {
-            TaskRequest::TicketRequest(ticket_req) => {
-                log::info!("提交票务任务 ID: {}, 票ID: {}", task_id, ticket_req.ticket_id);
-                // 创建票务任务
-                let task = TicketTask {
-                    task_id: task_id.clone(),
-                    account_id: ticket_req.account_id.clone(),
-                    ticket_id: ticket_req.ticket_id.clone(),
-                    status: TaskStatus::Pending,
-                    start_time: Some(std::time::Instant::now()),
-                    result: None,
-                };
-                
-                // 保存任务
-                self.running_tasks.insert(task_id.clone(), Task::TicketTask(task));
-            },
+            
             TaskRequest::QrCodeLoginRequest(qrcode_req) => {
                 log::info!("提交二维码登录任务 ID: {}", task_id);
                 // 创建二维码登录任务
@@ -398,6 +394,17 @@ impl TaskManager for TaskManagerImpl {
                 // 保存任务
                 self.running_tasks.insert(task_id.clone(), Task::GetAllorderRequestTask(task));
             }
+            TaskRequest::GetTicketInfoRequest(get_ticketinfo_req) => {
+                log::info!("{}",task_id);
+                let task = GetTicketInfoTask{
+                    task_id : task_id.clone(),
+                    project_id: get_ticketinfo_req.project_id.clone(),
+                    status: TaskStatus::Running,
+                    start_time: Some(std::time::Instant::now()),
+                    client: get_ticketinfo_req.client.clone(), 
+                };
+                self.running_tasks.insert(task_id.clone(),Task::GetTicketInfoTask(task));
+            }
 
         }
         
@@ -435,12 +442,13 @@ impl TaskManager for TaskManagerImpl {
     fn get_task_status(&self, task_id: &str) -> Option<TaskStatus> {
         if let Some(task) = self.running_tasks.get(task_id) {
             match task {
-                Task::TicketTask(t) => Some(t.status.clone()),
+                
                 Task::QrCodeLoginTask(t) => Some(t.status.clone()),
                 Task::LoginSmsRequestTask(t) => Some(t.status.clone()),
                 Task::PushTask(t) => Some(t.status.clone()),
                 Task::SubmitLoginSmsRequestTask(t) => Some(t.status.clone()),
                 Task::GetAllorderRequestTask(t) => Some(t.status.clone()),
+                Task::GetTicketInfoTask(t) => Some(t.status.clone()),
             }
         } else {
             None

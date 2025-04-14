@@ -13,9 +13,4 @@ pub mod ticket;
 pub use record_log::LOG_COLLECTOR;
 pub use record_log::init as init_logger;
 
-#[derive(Clone)]
-pub struct TicketInfo {
-    pub id: String,
-    pub name: String,
-    pub price: f64,
-}
+

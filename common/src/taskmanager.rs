@@ -1,14 +1,14 @@
 use std::time::Instant;
-use crate::push::PushConfig;
-use crate::TicketInfo;
-use crate::utility::CustomConfig;
 use reqwest::Client;
+use crate::push::PushConfig;
+use crate::utility::CustomConfig;
 use crate::show_orderlist::OrderResponse;
+use crate::ticket::{*};
 
 
 
 // 任务状态枚举
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum TaskStatus {
     Pending,
     Running,
@@ -28,35 +28,65 @@ pub struct TicketResult {
 
 // 任务信息
 pub enum Task {
-    TicketTask(TicketTask),
+    
     QrCodeLoginTask(QrCodeLoginTask),
     LoginSmsRequestTask(LoginSmsRequestTask),
     PushTask(PushTask),
     SubmitLoginSmsRequestTask(SubmitLoginSmsRequestTask),
     GetAllorderRequestTask(GetAllorderRequest),
+    GetTicketInfoTask(GetTicketInfoTask),
     
 }
 
 // 任务请求枚举
 pub enum TaskRequest {
-    TicketRequest(TicketRequest),
+    
     QrCodeLoginRequest(QrCodeLoginRequest),
     LoginSmsRequest(LoginSmsRequest),
     PushRequest(PushRequest),
     SubmitLoginSmsRequest(SubmitLoginSmsRequest),
     GetAllorderRequest(GetAllorderRequest),
+    GetTicketInfoRequest(GetTicketInfoRequest),
 }
 
 // 任务结果枚举
 #[derive(Clone)]
 pub enum TaskResult {
-    TicketResult(TaskTicketResult),
+    
     QrCodeLoginResult(TaskQrCodeLoginResult),
     LoginSmsResult(LoginSmsRequestResult),
     PushResult(PushRequestResult),
     SubmitSmsLoginResult(SubmitSmsLoginResult),
     GetAllorderRequestResult(GetAllorderRequestResult),
+    GetTicketInfoResult(GetTicketInfoResult),
 }
+
+//请求project_id票详情
+#[derive(Clone,Debug)]
+pub struct GetTicketInfoRequest {
+    pub task_id : String,
+    pub project_id : String,
+    pub client: Client,
+
+}
+
+#[derive(Clone,Debug)]
+pub struct GetTicketInfoResult {
+    pub task_id : String,
+    pub ticket_info: TicketInfo,
+    pub success: bool,
+    pub message : String,
+}
+
+#[derive(Clone,Debug)]
+pub struct GetTicketInfoTask {
+    pub task_id : String,
+    pub project_id : String,
+    pub status: TaskStatus,
+    pub start_time : Option<Instant>,
+    pub client: Client,
+}
+
 
 #[derive(Clone)]
 pub struct PushRequest{

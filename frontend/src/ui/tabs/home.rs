@@ -74,11 +74,11 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
         
         //底部状态文本
         ui.add_space(30.0);
-        let status_text = match app.is_loading {
+       /*  let status_text = match app.is_loading {
             true => egui::RichText::new(&app.running_status).color(egui::Color32::from_rgb(255, 165, 0)),
             false => egui::RichText::new("等待开始...").color(egui::Color32::GRAY),
         };
-        ui.label(status_text);
+        ui.label(status_text); */
     });
 }
 
@@ -218,21 +218,21 @@ fn grab_mode_selection(ui: &mut egui::Ui, app: &mut Myapp) {
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 12.0;
             
-            // 第一种模式 - 定时抢票
+            // 第一种模式 - 自动抢票（推荐）
             let selected = app.grab_mode == 0;
             if mode_selection_button(ui, "🎫 自动抢票（推荐）", 
                 "自动检测开票时间抢票", selected).clicked() {
                 app.grab_mode = 0;
             }
             
-            // 第二种模式 - 实时监控
+            // 第二种模式 - 直接抢票
             let selected = app.grab_mode == 1;
             if mode_selection_button(ui, "⚡ 直接抢票", 
                 "直接开始尝试下单（适合已开票项目！，未开票项目使用会导致冻结账号！）", selected).clicked() {
                 app.grab_mode = 1;
             }
             
-            // 第三种模式 - 预约抢票
+            // 第三种模式 - 捡漏模式
             let selected = app.grab_mode == 2;
             if mode_selection_button(ui, "🔄 捡漏模式", 
                 "对于已开票项目，监测是否出现余票并尝试下单", selected).clicked() {
