@@ -123,6 +123,7 @@ pub struct TicketInfo {
     pub sale_flag: String, //售票状态
     pub is_free: bool,
     pub performance_desc: Option<DescribeList>, //基础信息
+    pub id_bind: usize, //是否绑定
 
 
 }
@@ -144,7 +145,7 @@ pub struct ScreenInfo {
     pub sale_start: usize, //开售时间
     pub sale_flag_number: usize, //售票标志位
     pub show_date: String, //展示信息
-    pub is_bind: usize, //是否绑定
+    
 }
 
 #[derive(Clone,Debug,Deserialize,Serialize)]

@@ -142,6 +142,8 @@ pub struct Myapp{
 
     pub confirm_ticket_info: Option<String>, //确认抢票信息（购票人，预填手机号）
 
+    pub selected_buyer_id: Option<i64>, // 选中的购票人ID
+
                                    
                                     }
 
@@ -267,6 +269,7 @@ impl Myapp{
             selected_ticket_id: None,
             ticket_info_last_request_time: None,
             confirm_ticket_info: None,
+            selected_buyer_id: None,
 
         };
         // 初始化每个账号的 client
@@ -737,6 +740,33 @@ impl eframe::App for Myapp{
                 .iter_mut()
                 .find(|ticket| ticket.uid == confirm_uid)
             {
+                let should_request = bilibili_ticket.all_buyer_info.is_none() && match self.ticket_info_last_request_time{
+                    Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(5),
+                    None => true,
+                };
+                if should_request{
+                    log::info!("提交获取购票人信息请求");
+                    if let Some(client) = &bilibili_ticket.session {
+                        let request = TaskRequest::GetBuyerInfoRequest(GetBuyerInfoRequest{
+                            task_id: "".to_string(),
+                            uid: bilibili_ticket.uid.clone(),
+                            client: client.clone(),
+                        });
+                        match self.task_manager.submit_task(request) {
+                            Ok(task_id) => {
+                                log::info!("提交获取购票人信息请求，任务ID: {}", task_id);
+                                self.is_loading = true;
+                                self.ticket_info_last_request_time = Some(std::time::Instant::now());
+                                
+                            },
+                            Err(e) => {
+                                log::error!("提交获取购票人信息请求失败: {}", e);
+                            }
+                        }
+                    } else {
+                        log::error!("账号 {} 的客户端未初始化", bilibili_ticket.account.name);
+                    }
+                }
                 
                 windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());
             } else {
