@@ -583,10 +583,10 @@ impl eframe::App for Myapp{
 
         //检测是否有更新账号开关
         if let Some(account_switch) = &self.account_switch {
-            log::info!("检测到账号开关: {}", account_switch.uid);
+            log::debug!("检测到账号开关: {}", account_switch.uid);
             if let Some(account) = self.account_manager.accounts.iter_mut().find(|a| a.uid == account_switch.uid.parse::<i64>().unwrap_or(-1)) {
                 account.is_active = account_switch.switch;
-                log::info!("账号 {} 开关已更新", account_switch.uid);
+                log::debug!("账号 {} 开关已更新", account_switch.uid);
             } else {
                 log::error!("未找到账号 {}", account_switch.uid);
             }
