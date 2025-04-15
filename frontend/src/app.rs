@@ -411,6 +411,37 @@ impl Myapp{
                     }
 
                 }
+                TaskResult::GetBuyerInfoResult(get_buyerinfo_result)=>{
+                    if get_buyerinfo_result.success{
+                        let response = match get_buyerinfo_result.buyer_info {
+                            Some(ref info) => info,
+                            None => {
+                                log::error!("获取购票人信息失败: {}", get_buyerinfo_result.message);
+                                continue;
+                            }
+                        };
+                        if response.errno != 0{
+                            log::error!("获取购票人信息失败: {:?}", response);
+                            continue;
+                        }
+                        let buyer_info = response.data.clone();
+                        let uid = get_buyerinfo_result.uid.clone();
+                        if let Some(bilibili_ticket) = self.bilibiliticket_list
+                          .iter_mut()
+                         .find(|ticket| ticket.uid == uid){
+                            bilibili_ticket.all_buyer_info = Some(buyer_info.clone());
+                            log::debug!("获取购票人信息成功: {:?}", buyer_info);
+                         }else{
+                            log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", uid);
+                            self.show_screen_info = None;
+                            continue;
+                         }
+                        
+                    }else{
+                        log::error!("获取购票人信息失败: {}", get_buyerinfo_result.message);
+                        self.show_screen_info = None; 
+                    }
+                }
             }
         }
         

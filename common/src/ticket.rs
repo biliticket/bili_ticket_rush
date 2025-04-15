@@ -27,6 +27,7 @@ pub struct BilibiliTicket{
     pub screen_id: String,
 
     pub project_info : Option<TicketInfo>, //项目详情
+    pub all_buyer_info: Option<BuyerInfoData>, //所有购票人信息
     pub buyer_info: Option<BuyerInfo>,
 
 }
@@ -93,6 +94,7 @@ impl BilibiliTicket{
             screen_id: String::new(),
             project_info: None,
             buyer_info: None,
+            all_buyer_info: None,
 
         };
         log::debug!("新建抢票对象：{:?}",new);

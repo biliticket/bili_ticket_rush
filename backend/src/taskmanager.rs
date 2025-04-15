@@ -293,6 +293,43 @@ impl TaskManager for TaskManagerImpl {
                                         let _ = result_tx.send(task_result).await;
                                     });
                                 }
+                                TaskRequest::GetBuyerInfoRequest(get_buyerinfo_req)=>{
+                                    let client = get_buyerinfo_req.client.clone();
+                                    let task_id = get_buyerinfo_req.task_id.clone();
+                                    let result_tx = result_tx.clone();
+                                    let uid = get_buyerinfo_req.uid.clone();
+                                    tokio::spawn(async move{
+                                        log::debug!("正在获取购票人信息{}",task_id);
+                                        let response  = get_buyer_info(client).await;
+                                        let success = response.is_ok();
+                                        let buyer_info = match &response{
+                                            Ok(info) => {Some(info.clone())},
+                                            Err(e) => {
+                                                log::error!("获取购票人信息失败，原因：{}",e);
+                                                None
+                                            }
+                                        };
+                                        let message = match &response{
+                                            Ok(info) => {
+                                                //log::debug!("项目{}请求成功",info.errno);
+                                                format!("购票人信息请求成功")
+                                            }
+                                            Err(e) => {
+                                                e.to_string()
+                                            }
+                                        };
+                                        let task_result = TaskResult::GetBuyerInfoResult(GetBuyerInfoResult{
+                                            task_id : task_id.clone(),
+                                            uid: uid.clone(),
+                                            buyer_info : buyer_info.clone(),
+                                            success : success,
+                                            message : message.clone(),
+
+                                        });
+                                        let _ = result_tx.send(task_result).await;
+                                        
+                                    });
+                                }
                             }
                         },
                         TaskMessage::CancelTask(_task_id) => {
@@ -407,6 +444,22 @@ impl TaskManager for TaskManagerImpl {
                 };
                 self.running_tasks.insert(task_id.clone(),Task::GetTicketInfoTask(task));
             }
+            TaskRequest::GetBuyerInfoRequest(get_buyerinfo_req) => {
+                log::info!("提交获取购票人信息任务 ID: {}", task_id);
+                
+                //创建任务
+                let task = GetBuyerInfoTask {
+                    uid: get_buyerinfo_req.uid.clone(),
+                    task_id: task_id.clone(),
+                    client: get_buyerinfo_req.client.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                    
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::GetBuyerInfoTask(task));
+            }
 
         }
         
@@ -451,6 +504,7 @@ impl TaskManager for TaskManagerImpl {
                 Task::SubmitLoginSmsRequestTask(t) => Some(t.status.clone()),
                 Task::GetAllorderRequestTask(t) => Some(t.status.clone()),
                 Task::GetTicketInfoTask(t) => Some(t.status.clone()),
+                Task::GetBuyerInfoTask(t) => Some(t.status.clone()),
             }
         } else {
             None

@@ -36,6 +36,7 @@ pub enum Task {
     SubmitLoginSmsRequestTask(SubmitLoginSmsRequestTask),
     GetAllorderRequestTask(GetAllorderRequest),
     GetTicketInfoTask(GetTicketInfoTask),
+    GetBuyerInfoTask(GetBuyerInfoTask),
     
 }
 
@@ -48,6 +49,7 @@ pub enum TaskRequest {
     SubmitLoginSmsRequest(SubmitLoginSmsRequest),
     GetAllorderRequest(GetAllorderRequest),
     GetTicketInfoRequest(GetTicketInfoRequest),
+    GetBuyerInfoRequest(GetBuyerInfoRequest),
 }
 
 // 任务结果枚举
@@ -60,8 +62,32 @@ pub enum TaskResult {
     SubmitSmsLoginResult(SubmitSmsLoginResult),
     GetAllorderRequestResult(GetAllorderRequestResult),
     GetTicketInfoResult(GetTicketInfoResult),
+    GetBuyerInfoResult(GetBuyerInfoResult),
+}
+//获取购票人信息
+#[derive(Clone,Debug)]
+pub struct GetBuyerInfoRequest {
+    pub uid : i64,
+    pub task_id : String,
+    pub client: Arc<Client>,
 }
 
+#[derive(Clone,Debug)]
+pub struct GetBuyerInfoResult{
+    pub task_id : String,
+    pub uid : i64,
+    pub buyer_info: Option<BuyerInfoResponse>,
+    pub success: bool,
+    pub message : String,
+}
+#[derive(Clone,Debug)]
+pub struct GetBuyerInfoTask {
+    pub uid : i64,
+    pub task_id : String,
+    pub status: TaskStatus,
+    pub start_time : Option<Instant>,
+    pub client: Arc<Client>,
+}
 //请求project_id票详情
 #[derive(Clone,Debug)]
 pub struct GetTicketInfoRequest {

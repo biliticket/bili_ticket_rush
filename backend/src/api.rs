@@ -1,11 +1,51 @@
-use common::taskmanager::*;
 use common::http_utils::request_get;
-use common::ticket::InfoResponse;
+use common::ticket::{InfoResponse,BuyerInfoResponse};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
 use std::sync::Arc;
-//这里实现抢票api
+
+pub async fn get_buyer_info(client: Arc<Client>) -> Result<BuyerInfoResponse,String>{
+    let req = client.get("https://show.bilibili.com/api/ticket/buyer/list");
+    let response = req.send().await;
+    match response {
+        Ok(resp)=>{
+            if resp.status().is_success(){
+                match tokio::task::block_in_place(||{
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    rt.block_on(resp.text())
+                }){
+                    Ok(text) => {
+                        log::debug!("获取购票人信息：{}",text);
+                        match serde_json::from_str::<BuyerInfoResponse>(&text){
+                            Ok(buyer_info) => {
+                                return Ok(buyer_info);
+                            }
+                            Err(e) => {
+                                log::error!("获取购票人信息json解析失败：{}",e);
+                                return Err(format!("获取购票人信息json解析失败：{}",e))
+                            }
+
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("获取购票人信息失败：{}",e);
+                        return Err(format!("获取购票人信息失败：{}",e))
+                    }
+
+                }
+            }
+            else{
+                
+                log::debug!("请求响应失败: {:?}", resp);
+                return Err(format!("请求响应失败: {}", resp.status()));
+            }
+        }
+        Err(e) => {
+            Err(format!("请求失败: {}", e))
+        }
+    }
+}
 
 pub async fn get_project(client: Arc<Client>, project_id : &str) -> Result<InfoResponse,String>{
     let req = client.get(format!("https://show.bilibili.com/api/ticket/project/getV2?id={}",project_id));
