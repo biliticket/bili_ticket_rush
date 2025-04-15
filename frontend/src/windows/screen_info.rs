@@ -127,20 +127,25 @@ pub fn show(
                                     
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                         let button_text = if ticket.clickable { "选择" } else { "不可选" };
-                                        let button_enabled = ticket.clickable;
+                                        let button_enabled = true/* ticket.clickable */;
                                         
                                         if ui.add_enabled(
                                             button_enabled,
                                             egui::Button::new(button_text)
                                         ).clicked() {
                                             // 使用正确的类型赋值
+                                            if !ticket.clickable{
+                                                log::error!("请注意！该票种目前不可售！但是会尝试下单，如果该票持续不可售，多次下单不可售票种可能会被b站拉黑")
+                                            }
                                             app.selected_screen_id = Some(selected_screen.id as i64);
                                             app.selected_ticket_id = Some(ticket.id as i64);
                                             app.show_screen_info = None;
+                                            bilibili_ticket.screen_id = selected_screen.id.to_string();
+                                            log::debug!("{}, {} , {}",selected_screen.id,ticket.id,ticket.project_id);
                                             
                                             // 将选中的票种ID保存到项目ID中，准备抢票
                                             app.ticket_id = ticket.project_id.to_string();
-                                            
+                                            app.confirm_ticket_info= Some(bilibili_ticket.uid.to_string().clone());
                                             log::info!("已选择: {} [{}]", &ticket.desc, ticket.id);
                                         }
                                         
@@ -189,30 +194,18 @@ pub fn show(
                         }
                     }
                     
-                    /* // 显示场馆信息 (如果存在)
-                    if let Some(venue) = &ticket_data.venue_info {
-                        ui.label(format!(
-                            "场馆地址: {}{}{}", 
-                            venue.province_name.as_deref().unwrap_or(""), 
-                            venue.city_name.as_deref().unwrap_or(""),
-                            venue.name
-                        ));
-                        
-                        if let Some(address) = &venue.address_detail {
-                            ui.label(format!("具体地址: {}", address));
-                        }
-                    } */
+                   
                 });
             });
         });
         
         // 底部按钮
         ui.separator();
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+        /* ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
             if ui.button("关闭窗口").clicked() {
                 app.show_screen_info = None;
             }
-        });
+        }); */
     });
     if !window_open{app.show_screen_info = None;
     bilibili_ticket.project_info = None;}

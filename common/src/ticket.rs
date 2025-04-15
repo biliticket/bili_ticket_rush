@@ -27,6 +27,7 @@ pub struct BilibiliTicket{
     pub screen_id: String,
 
     pub project_info : Option<TicketInfo>, //项目详情
+    pub buyer_info: Option<BuyerInfo>,
 
 }
 
@@ -91,6 +92,7 @@ impl BilibiliTicket{
             project_id: project_id.to_string(),
             screen_id: String::new(),
             project_info: None,
+            buyer_info: None,
 
         };
         log::debug!("新建抢票对象：{:?}",new);
@@ -140,6 +142,7 @@ pub struct ScreenInfo {
     pub sale_start: usize, //开售时间
     pub sale_flag_number: usize, //售票标志位
     pub show_date: String, //展示信息
+    pub is_bind: usize, //是否绑定
 }
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
@@ -213,4 +216,27 @@ pub struct InfoResponse{
     pub errtag: i32,
     pub msg: String,
     pub data: TicketInfo,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BuyerInfo{
+    pub id: i64,
+    pub uid: i64,
+    pub personal_id: String,
+    pub name: String,
+    pub tel: String,
+    pub id_type: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BuyerInfoResponse{
+    pub errno: i32,
+    pub errtag: i32,
+    pub msg: String,
+    pub data: BuyerInfoData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BuyerInfoData{
+    pub list: Vec<BuyerInfo>,
 }

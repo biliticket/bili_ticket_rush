@@ -140,6 +140,8 @@ pub struct Myapp{
 
     pub ticket_info_last_request_time: Option<std::time::Instant>, // 上次请求的时间
 
+    pub confirm_ticket_info: Option<String>, //确认抢票信息（购票人，预填手机号）
+
                                    
                                     }
 
@@ -264,6 +266,7 @@ impl Myapp{
             selected_screen_id: None,
             selected_ticket_id: None,
             ticket_info_last_request_time: None,
+            confirm_ticket_info: None,
 
         };
         // 初始化每个账号的 client
@@ -648,7 +651,7 @@ impl eframe::App for Myapp{
                 .find(|ticket| ticket.uid == account_id)
             {
                 let should_request = bilibili_ticket.project_info.is_none() && match self.ticket_info_last_request_time{
-                    Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(999999999),
+                    Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(5),
                     None => true,
                 };
                 
@@ -682,6 +685,31 @@ impl eframe::App for Myapp{
             } else {
                 
                 log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", account_id);
+                self.show_screen_info = None;
+            }
+        }
+        //确认信息窗口
+        if self.confirm_ticket_info.is_some() {
+            let confirm_uid = match self.confirm_ticket_info.clone() {
+                Some(uid) => {
+                    uid.parse::<i64>().unwrap_or(0)
+                }
+                None => {
+                    log::error!("确认信息窗口未找到账号ID，可能已被移除");
+                    self.show_screen_info = None;
+                    return;
+                }
+            };
+            
+            
+            if let Some(bilibili_ticket) = self.bilibiliticket_list
+                .iter_mut()
+                .find(|ticket| ticket.uid == confirm_uid)
+            {
+                
+                windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());
+            } else {
+                log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", confirm_uid);
                 self.show_screen_info = None;
             }
         }
