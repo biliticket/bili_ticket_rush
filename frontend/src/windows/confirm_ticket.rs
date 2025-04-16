@@ -48,10 +48,10 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
     // 创建窗口
     egui::Window::new("确认购票信息")
         .open(&mut open)
-        .collapsible(false)
-        .resizable(false)
-        .min_width(500.0)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .collapsible(true)
+        .resizable(true)
+        .default_width(500.0)
+        //.anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(10.0, 15.0);
 
