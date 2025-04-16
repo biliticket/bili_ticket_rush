@@ -94,15 +94,34 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                         }
                     }
                 });
+            let id_bind = match biliticket.project_info.clone(){
+                Some(project) => project.id_bind,
+                None => 9,
+            };
+            match id_bind{
+                0 =>{
+                    ui.add_space(10.0);
+                    ui.heading("输入联系人");
+                    ui.add_space(5.0);
 
-            // 购票人选择部分
-            ui.add_space(10.0);
-            ui.heading("选择购票人");
-            ui.add_space(5.0);
+                    ui.horizontal(|ui|{
+                        
+                        common_input(ui, "请输入联系人姓名", &mut biliticket.nobind_name, "请输入联系人姓名",false);
+                        ui.add_space(10.0);
+                        common_input(ui, "请输入联系人手机号", &mut biliticket.nobind_tel, "请输入联系人手机号",true);
+                        ui.add_space(10.0);
+                    });
 
-            if buyers.is_empty() {
-                // 空列表处理代码不变...
-            } else {
+                }
+                1|2 =>{
+                    // 购票人选择部分
+                ui.add_space(10.0);
+                ui.heading("选择购票人");
+                ui.add_space(5.0);
+
+                if buyers.is_empty() {
+               
+                } else {
                 egui::ScrollArea::vertical()
                     .max_height(300.0)
                     .show(ui, |ui| {
@@ -192,6 +211,13 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                         }
                     });
             }
+                }
+                _ =>{
+                    ui.add_space(10.0);
+                    ui.label("该项目不支持选择购票人（未知状态码），请尝试直接购票！");
+                }
+            }
+            
 
             // 底部按钮区域
             ui.add_space(15.0);
@@ -201,7 +227,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.add_enabled(
-                        app.selected_buyer_id.is_some(),
+                        app.selected_buyer_id.is_some() || biliticket.nobind_tel.is_some(),
                         egui::Button::new("确认购票")
                             .fill(Color32::from_rgb(59, 130, 246))
                             .min_size(Vec2::new(100.0, 36.0))
@@ -209,8 +235,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                         if let Some(buyer_id) = app.selected_buyer_id {
                             log::info!("确认购票，选择的购票人ID: {}", buyer_id);
                             
-                            /* // 将此账号加入抢票队列
-                            app.grab_tickets.push(biliticket.uid); */
+                            
                             
                             // 关闭窗口
                             app.confirm_ticket_info = None;
@@ -241,4 +266,48 @@ fn mask_id(id: &str) -> String {
     let mask = "*".repeat(mask_len.min(6));
     
     format!("{}{}{}", visible_prefix, mask, visible_suffix)
+}
+
+pub fn common_input(
+    ui: &mut egui::Ui, 
+    title: &str,
+    text: &mut Option<String>,
+    hint: &str,
+    open_filter: bool,
+
+
+) -> bool{
+    if text.is_none() {
+        *text = Some(String::new());
+    }
+    let text_ref = text.as_mut().unwrap();
+    ui.label(
+        egui::RichText::new(title)
+              .size(15.0)                               
+              .color(egui::Color32::from_rgb(0,0,0))  
+
+              
+    );
+    ui.add_space(8.0);
+    let input = egui::TextEdit::singleline( text_ref)
+                .hint_text(hint)//提示
+                .desired_rows(1)//限制1行       
+                .min_size(egui::vec2(120.0, 35.0));
+                
+                
+    let response = ui.add(input);
+    if response.changed(){
+        if open_filter{
+            *text_ref = text_ref.chars()//过滤非法字符
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '@' || *c == '.' || *c == '-' || *c == '_')
+            .collect();
+        }
+        else{
+            *text_ref = text_ref.chars()//过滤非法字符
+            .collect();
+        };
+            
+    }
+    response.changed()
+
 }

@@ -740,10 +740,18 @@ impl eframe::App for Myapp{
                 .iter_mut()
                 .find(|ticket| ticket.uid == confirm_uid)
             {
-                let should_request = bilibili_ticket.all_buyer_info.is_none() && match self.ticket_info_last_request_time{
+                let mut should_request = bilibili_ticket.all_buyer_info.is_none() && match self.ticket_info_last_request_time{
                     Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(5),
                     None => true,
                 };
+                let id_bind = match bilibili_ticket.project_info.clone(){
+                    Some(proj_info) => proj_info.id_bind,
+                    None => 0,
+                };
+                if id_bind == 0{
+                    self.is_loading = false;
+                    should_request = false;
+                }
                 if should_request{
                     log::info!("提交获取购票人信息请求");
                     if let Some(client) = &bilibili_ticket.session {

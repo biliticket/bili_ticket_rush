@@ -28,7 +28,10 @@ pub struct BilibiliTicket{
 
     pub project_info : Option<TicketInfo>, //项目详情
     pub all_buyer_info: Option<BuyerInfoData>, //所有购票人信息
-    pub buyer_info: Option<BuyerInfo>,
+    pub buyer_info: Option<BuyerInfo>,  //购买人信息（实名票）
+
+    pub nobind_name: Option<String>, //不实名制展出的姓名
+    pub nobind_tel: Option<String>, //不实名制展出的电话
 
 }
 
@@ -95,6 +98,8 @@ impl BilibiliTicket{
             project_info: None,
             buyer_info: None,
             all_buyer_info: None,
+            nobind_name: None,
+            nobind_tel: None,
 
         };
         log::debug!("新建抢票对象：{:?}",new);
@@ -124,6 +129,8 @@ pub struct TicketInfo {
     pub is_free: bool,
     pub performance_desc: Option<DescribeList>, //基础信息
     pub id_bind: usize, //是否绑定
+
+    
 
 
 }
