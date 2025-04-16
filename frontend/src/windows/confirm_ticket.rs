@@ -114,9 +114,26 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
 
                 }
                 1|2 =>{
-                    // 购票人选择部分
+                    
+                
                 ui.add_space(10.0);
-                ui.heading("选择购票人");
+                 
+               if id_bind == 2 {
+                          let selected_count = app.selected_buyer_list.as_ref().map_or(0, |list| list.len());
+    
+                           ui.horizontal(|ui| {
+                              ui.heading("选择购票人");
+                              ui.add_space(5.0);
+                              ui.label(RichText::new(format!("(已选 {} 人)", selected_count))
+                              .color(if selected_count > 0 {
+                                    Color32::from_rgb(74, 222, 128)
+                                } else {
+                                   Color32::DARK_GRAY
+                              }));
+                          });
+                } else {
+                     ui.heading("选择购票人");
+                }
                 ui.add_space(5.0);
 
                 if buyers.is_empty() {
@@ -136,7 +153,13 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                             .spacing([10.0, 10.0])
                             .show(ui, |ui| {
                                 for (index, buyer) in buyers.iter().enumerate() {
-                                    let is_selected = app.selected_buyer_id == Some(buyer.id);
+                                    // 判断是单选还是多选模式
+                                    let is_multi_select = id_bind == 2;
+                                    
+                                    // 检查该购票人是否被选中 - 对单选和多选都使用 selected_buyer_list
+                                    let is_selected = app.selected_buyer_list.as_ref()
+                                        .map_or(false, |list| list.iter().any(|b| b.id == buyer.id));
+                                    
                                     let card_color = if is_selected {
                                         Color32::from_rgb(236, 252, 243) // 选中状态的浅绿色
                                     } else {
@@ -165,17 +188,48 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                 };
                                                 
                                                 ui.horizontal(|ui| {
-                                                    // 添加一个明确的选择按钮
-                                                    let select_button = if is_selected {
-                                                        ui.add(egui::Button::new("✓").fill(Color32::from_rgb(74, 222, 128)))
+                                                    // 添加不同样式的选择按钮
+                                                    let select_button = if is_multi_select {
+                                                        // 多选模式：显示复选框样式
+                                                        if is_selected {
+                                                            ui.add(egui::Button::new("☑").fill(Color32::from_rgb(74, 222, 128)))
+                                                        } else {
+                                                            ui.add(egui::Button::new("☐").fill(Color32::TRANSPARENT))
+                                                        }
                                                     } else {
-                                                        ui.add(egui::Button::new("○").fill(Color32::TRANSPARENT))
+                                                        // 单选模式：显示单选框样式
+                                                        if is_selected {
+                                                            ui.add(egui::Button::new("✓").fill(Color32::from_rgb(74, 222, 128)))
+                                                        } else {
+                                                            ui.add(egui::Button::new("○").fill(Color32::TRANSPARENT))
+                                                        }
                                                     };
                                                     
+                                                    // 处理选择按钮点击
                                                     if select_button.clicked() {
-                                                        log::debug!("选择购票人: {}", buyer.name);
-                                                        app.selected_buyer_id = Some(buyer.id);
-                                                        biliticket.buyer_info = Some(buyer.clone());
+                                                        if is_multi_select {
+                                                            // 多选模式：切换选中状态
+                                                            if app.selected_buyer_list.is_none() {
+                                                                app.selected_buyer_list = Some(Vec::new());
+                                                            }
+                                                            
+                                                            let buyer_list = app.selected_buyer_list.as_mut().unwrap();
+                                                            
+                                                            // 如果已经选中，则移除；否则添加
+                                                            if let Some(pos) = buyer_list.iter().position(|b| b.id == buyer.id) {
+                                                                buyer_list.remove(pos);
+                                                                log::debug!("移除购票人: {}", buyer.name);
+                                                            } else {
+                                                                buyer_list.push(buyer.clone());
+                                                                log::debug!("添加购票人: {}", buyer.name);
+                                                            }
+                                                        } else {
+                                                            // 单选模式：替换当前选择的购票人
+                                                            log::debug!("选择购票人: {}", buyer.name);
+                                                            //app.selected_buyer_id = Some(buyer.id); // 保持单选ID兼容
+                                                            app.selected_buyer_list = Some(vec![buyer.clone()]); // 使用List，但只有一个
+                                                            biliticket.buyer_info = Some(vec![buyer.clone()]);
+                                                        }
                                                     }
                                                     
                                                     ui.vertical(|ui| {
@@ -226,19 +280,48 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
             
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // 根据模式决定按钮启用条件
+                    let button_enabled = match id_bind {
+                        0 => biliticket.nobind_tel.is_some() && biliticket.nobind_name.is_some(),
+                        1 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
+                        2 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
+                        _ => false,
+                    };
+                    
                     if ui.add_enabled(
-                        app.selected_buyer_id.is_some() || biliticket.nobind_tel.is_some(),
+                        button_enabled,
                         egui::Button::new("确认购票")
                             .fill(Color32::from_rgb(59, 130, 246))
                             .min_size(Vec2::new(100.0, 36.0))
                     ).clicked() {
-                        if let Some(buyer_id) = app.selected_buyer_id {
-                            log::info!("确认购票，选择的购票人ID: {}", buyer_id);
-                            
-                            
-                            
-                            // 关闭窗口
-                            app.confirm_ticket_info = None;
+                        match id_bind {
+                            0 => {
+                                // 已有代码...
+                            }
+                            1 => {
+                                if let Some(ref buyer_list) = app.selected_buyer_list {
+                                    if !buyer_list.is_empty() {
+                                        let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
+                                        log::info!("确认单选购票，选择的购票人IDs: {:?}", ids);
+                                        // 关闭窗口
+                                        app.confirm_ticket_info = None;
+                                    }
+                                }
+                            }
+                            2 => {
+                                // 多选购票处理
+                                if let Some(ref buyer_list) = app.selected_buyer_list {
+                                    if !buyer_list.is_empty() {
+                                        let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
+                                        log::info!("确认多选购票，选择的购票人IDs: {:?}", ids);
+                                        // 关闭窗口
+                                        app.confirm_ticket_info = None;
+                                    }
+                                }
+                            }
+                            _ => {
+                                log::error!("未知的购票人绑定状态: {}", id_bind);
+                            }
                         }
                     }
                     
