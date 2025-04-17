@@ -142,7 +142,7 @@ pub struct Myapp{
 
     pub confirm_ticket_info: Option<String>, //确认抢票信息（购票人，预填手机号）
 
-    pub selected_buyer_id: Option<i64>, // 选中的购票人ID
+    pub selected_buyer_list: Option<Vec<BuyerInfo>>, // 选中的购票人ID
 
                                    
                                     }
@@ -269,7 +269,7 @@ impl Myapp{
             selected_ticket_id: None,
             ticket_info_last_request_time: None,
             confirm_ticket_info: None,
-            selected_buyer_id: None,
+            selected_buyer_list: None,
 
         };
         // 初始化每个账号的 client
@@ -536,9 +536,9 @@ impl eframe::App for Myapp{
                 let elapsed = start_time.elapsed().as_secs_f32();
                 
                 // 横幅在屏幕上停留2秒，然后在0.5秒内淡出
-                if elapsed < 2.5 {
+                if elapsed < 4.5 {
                     // 如果超过2秒，开始淡出
-                    if elapsed > 2.0 {
+                    if elapsed > 4.0 {
                         self.error_banner_opacity = 1.0 - (elapsed - 2.0) * 2.0; // 0.5秒内从1.0淡到0
                     }
                     

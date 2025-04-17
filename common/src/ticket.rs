@@ -28,7 +28,7 @@ pub struct BilibiliTicket{
 
     pub project_info : Option<TicketInfo>, //项目详情
     pub all_buyer_info: Option<BuyerInfoData>, //所有购票人信息
-    pub buyer_info: Option<BuyerInfo>,  //购买人信息（实名票）
+    pub buyer_info: Option<Vec<BuyerInfo>>,  //购买人信息（实名票）
 
     pub nobind_name: Option<String>, //不实名制展出的姓名
     pub nobind_tel: Option<String>, //不实名制展出的电话
@@ -236,6 +236,19 @@ pub struct BuyerInfo{
     pub name: String,
     pub tel: String,
     pub id_type: i64,
+    pub is_default: i64,
+    #[serde(default)]
+    pub id_card_front: String,
+    #[serde(default)]
+    pub id_card_back: String,
+    #[serde(default)]
+    pub verify_status: i64,
+    #[serde(default)]
+    pub isBuyerInfoVerified: bool,
+    #[serde(default)]
+    pub isBuyerValid: bool,
+    
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

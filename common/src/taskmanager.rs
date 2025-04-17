@@ -37,7 +37,7 @@ pub enum Task {
     GetAllorderRequestTask(GetAllorderRequest),
     GetTicketInfoTask(GetTicketInfoTask),
     GetBuyerInfoTask(GetBuyerInfoTask),
-    
+    GrabTicketTask(GrabTicketTask),    
 }
 
 // 任务请求枚举
@@ -50,6 +50,7 @@ pub enum TaskRequest {
     GetAllorderRequest(GetAllorderRequest),
     GetTicketInfoRequest(GetTicketInfoRequest),
     GetBuyerInfoRequest(GetBuyerInfoRequest),
+    GrabTicketRequest(GrabTicketRequest),
 }
 
 // 任务结果枚举
@@ -63,6 +64,39 @@ pub enum TaskResult {
     GetAllorderRequestResult(GetAllorderRequestResult),
     GetTicketInfoResult(GetTicketInfoResult),
     GetBuyerInfoResult(GetBuyerInfoResult),
+    GrabTicketResult(GrabTicketResult),
+}
+//抢票请求
+#[derive(Clone,Debug)]
+pub struct GrabTicketRequest {
+    pub task_id: String,
+    pub uid: i64,
+    pub project_id : String,
+    pub screen_id : String,
+    pub ticket_id: String,
+    pub buyer_info: Vec<BuyerInfo>,
+    pub client: Arc<Client>,
+    pub biliticket: BilibiliTicket,
+    pub grab_mode: u8,
+    pub status: TaskStatus,
+    pub start_time: Option<Instant>,
+}
+#[derive(Clone,Debug)]
+pub struct GrabTicketTask {
+    pub task_id: String,
+    pub biliticket: BilibiliTicket,
+    pub client: Arc<Client>,
+    pub start_time: Option<Instant>,
+    
+
+}
+#[derive(Clone,Debug)]
+pub struct  GrabTicketResult {
+    pub task_id: String,
+    pub uid : i64,
+    pub success: bool,
+    pub message:String,
+    pub order_id: Option<String>,
 }
 //获取购票人信息
 #[derive(Clone,Debug)]

@@ -330,6 +330,114 @@ impl TaskManager for TaskManagerImpl {
                                         
                                     });
                                 }
+                                TaskRequest::GrabTicketRequest(grab_ticket_req)=>{
+                                    let project_id = grab_ticket_req.project_id.clone();
+                                    let screen_id = grab_ticket_req.screen_id.clone();
+                                    let ticket_id = grab_ticket_req.ticket_id.clone();
+                                    let buyer_info = grab_ticket_req.buyer_info.clone();
+                                    let client = grab_ticket_req.client.clone();
+                                    let task_id = grab_ticket_req.task_id.clone();
+                                    let result_tx = result_tx.clone();
+                                    let uid = grab_ticket_req.uid.clone();
+                                    let mode = grab_ticket_req.grab_mode.clone();
+                                    tokio::spawn(async move{
+                                        log::debug!("开始分析抢票任务：{}",task_id);
+                                        match mode {
+                                            0 => {
+                                                log::debug!("自动抢票模式");
+                                                let countdown = get_countdown().await;
+                                                log::info!("距离抢票时间还有{}秒",countdown);
+                                                match countdown {
+                                                    Ok(seconds) => {
+                                                        if seconds > 0 {
+                                                            loop{
+                                                                log::info!("项目尚未开票，距离抢票时间还有{}秒", seconds);
+                                                                if seconds <= 300.0{
+                                                                    break;
+                                                                }
+                                                                tokio::time::sleep(tokio::time::Duration::from_secs_f32(secsonds)).await;
+                                                            };
+                                                            //获取token
+                                                            log::info!("获取抢票token...");
+                                                            let try_time = 0;
+                                                            loop{
+                                                                if try_time < 3{
+                                                                    let token = get_token().await;
+
+                                                                }else{
+                                                                    log::warn!("获取token多次失败，使用备选方案");
+                                                                    let token = get_token_backup().await;
+
+                                                                }
+                                                                
+                                                                if token.is_ok(){
+                                                                    log::info!("获取抢票token成功！");
+                                                                    break;
+                                                                }else{
+                                                                    log::error!("获取抢票token失败！尝试次数：{}",try_time);
+                                                                    try_time += 1;
+                                                                    if try_time >= 3{
+                                                                        
+                                                                        break;
+                                                                    }
+                                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                                    continue;
+                                                                    }
+                                                            }; 
+                                                            if token.is_ok(){
+                                                                loop{
+                                                                    let result = grab_ticket().await;
+                                                                    let success = result.is_ok();
+                                                                    if success{
+                                                                        grab_ticket_success();
+                                                                        break;
+                                                                    }
+                                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                                }
+                                                            }else{
+                                                                log::error!("获取抢票token失败，无法继续抢票！");
+                                                                
+                                                            }   
+                                                                
+                                                                
+
+                                                            
+                                                        }
+                                                    }
+                                                }
+
+                                            }
+                                            1 => {
+                                                log::debug!("直接抢票模式");
+                                                loop {
+                                                    let result = grab_ticket().await;
+                                                    let success = result.is_ok();
+                                                    if success{
+                                                        grab_ticket_success();
+                                                        break;
+                                                    }
+                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                }
+
+                                            }
+                                            2=> {
+                                                log::debug!("捡漏模式");
+                                                loop {
+                                                    let result = grab_ticket().await;
+                                                    let success = result.is_ok();
+                                                    if success{
+                                                        grab_ticket_success();
+                                                        break;
+                                                    }
+                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                }
+                                            }
+                                            _=> {
+                                                log::error!("未知模式");
+                                            }
+                                        }
+                                    });
+                                }
                             }
                         },
                         TaskMessage::CancelTask(_task_id) => {
