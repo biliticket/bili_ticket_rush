@@ -33,6 +33,8 @@ pub struct BilibiliTicket{
     pub nobind_name: Option<String>, //不实名制展出的姓名
     pub nobind_tel: Option<String>, //不实名制展出的电话
 
+    pub select_ticket_id : Option<String>,
+
 }
 
 impl BilibiliTicket{
@@ -100,6 +102,7 @@ impl BilibiliTicket{
             all_buyer_info: None,
             nobind_name: None,
             nobind_tel: None,
+            select_ticket_id: None,
 
         };
         log::debug!("新建抢票对象：{:?}",new);

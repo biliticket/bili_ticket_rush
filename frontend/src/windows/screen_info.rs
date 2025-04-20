@@ -143,8 +143,10 @@ pub fn show(
                                             bilibili_ticket.screen_id = selected_screen.id.to_string();
                                             log::debug!("{}, {} , {}",selected_screen.id,ticket.id,ticket.project_id);
                                             
+
                                             // 将选中的票种ID保存到项目ID中，准备抢票
                                             app.ticket_id = ticket.project_id.to_string();
+                                            bilibili_ticket.select_ticket_id = Some(ticket.id.to_string());
                                             app.confirm_ticket_info= Some(bilibili_ticket.uid.to_string().clone());
                                             log::info!("已选择: {} [{}]", &ticket.desc, ticket.id);
                                         }

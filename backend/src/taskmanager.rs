@@ -343,7 +343,7 @@ impl TaskManager for TaskManagerImpl {
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
                                         match mode {
-                                            0 => {
+                                            /* 0 => {
                                                 log::debug!("自动抢票模式");
                                                 let countdown = get_countdown().await;
                                                 log::info!("距离抢票时间还有{}秒",countdown);
@@ -406,21 +406,29 @@ impl TaskManager for TaskManagerImpl {
                                                     }
                                                 }
 
-                                            }
+                                            } */
                                             1 => {
                                                 log::debug!("直接抢票模式");
-                                                loop {
-                                                    let result = grab_ticket().await;
-                                                    let success = result.is_ok();
-                                                    if success{
-                                                        grab_ticket_success();
-                                                        break;
+                                            
+                                                let token = match get_ticket_token(client,&project_id,&screen_id,&ticket_id).await{
+                                                    Ok(token) => token,
+                                                    Err(e) => {
+                                                        log::error!("获取token失败，原因：{}",e);
+                                                        "".to_string()
                                                     }
-                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                };
+                                                log::debug!("token:{}",token);
+                                                /* if !token.clone().is_ok(){
+                                                    log::error!("尝试其他获取token方式");
+                                                    token = get_ticket_token_backup().await;
+                                                } */
+                                                loop {
+                                                    
+                                                   
                                                 }
 
                                             }
-                                            2=> {
+                                            /* 2=> {
                                                 log::debug!("捡漏模式");
                                                 loop {
                                                     let result = grab_ticket().await;
@@ -431,7 +439,7 @@ impl TaskManager for TaskManagerImpl {
                                                     }
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                                 }
-                                            }
+                                            } */
                                             _=> {
                                                 log::error!("未知模式");
                                             }
@@ -568,6 +576,26 @@ impl TaskManager for TaskManagerImpl {
                 // 保存任务
                 self.running_tasks.insert(task_id.clone(), Task::GetBuyerInfoTask(task));
             }
+            TaskRequest::GrabTicketRequest(grab_ticket_req) => {
+                log::info!("提交抢票任务 ID: {}", task_id);
+                
+               /*  // 创建抢票任务
+                let task = GrabTicketTask {
+                    task_id: task_id.clone(),
+                    project_id: grab_ticket_req.project_id.clone(),
+                    screen_id: grab_ticket_req.screen_id.clone(),
+                    ticket_id: grab_ticket_req.ticket_id.clone(),
+                    buyer_info: grab_ticket_req.buyer_info.clone(),
+                    client: grab_ticket_req.client.clone(),
+                    status: TaskStatus::Pending,
+                    start_time: Some(std::time::Instant::now()),
+                    uid: grab_ticket_req.uid.clone(),
+                    grab_mode: grab_ticket_req.grab_mode.clone(),
+                };
+                
+                // 保存任务
+                self.running_tasks.insert(task_id.clone(), Task::GrabTicketTask(task)); */
+            }
 
         }
         
@@ -613,6 +641,7 @@ impl TaskManager for TaskManagerImpl {
                 Task::GetAllorderRequestTask(t) => Some(t.status.clone()),
                 Task::GetTicketInfoTask(t) => Some(t.status.clone()),
                 Task::GetBuyerInfoTask(t) => Some(t.status.clone()),
+                Task::GrabTicketTask(t) => Some(t.status.clone()),
             }
         } else {
             None

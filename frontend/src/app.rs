@@ -445,6 +445,9 @@ impl Myapp{
                         self.show_screen_info = None; 
                     }
                 }
+                TaskResult::GrabTicketResult(grab_ticket_result)=>{
+                    log::debug!("抢票结果: {:?}", grab_ticket_result);
+                }
             }
         }
         

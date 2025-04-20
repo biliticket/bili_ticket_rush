@@ -1,9 +1,11 @@
 use crate::app::Myapp;
-use common::ticket::BilibiliTicket;
+use common::ticket::{*};
+use common::taskmanager::{GrabTicketRequest, TaskStatus, TaskRequest};
 use eframe::egui;
 use egui::{Color32, RichText, Vec2, Stroke};
 
 pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
+    
     let mut open = app.confirm_ticket_info.is_some();
     if !open {
         return;
@@ -17,6 +19,10 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
             return;
         }
     };
+    //TODO 调整借用
+    let biliticket_uid = biliticket.uid;
+    let biliticket_project_id = biliticket.project_info.as_ref().map(|p| p.id.to_string());
+    let biliticket_session = biliticket.session.clone();
     app.is_loading = false;
      // 查找当前选择的场次和票种信息
      let (screen_info, ticket_info) = match &biliticket.project_info {
@@ -298,27 +304,47 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                             0 => {
                                 // 已有代码...
                             }
-                            1 => {
+                            1 | 2 => {
                                 if let Some(ref buyer_list) = app.selected_buyer_list {
                                     if !buyer_list.is_empty() {
                                         let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
-                                        log::info!("确认单选购票，选择的购票人IDs: {:?}", ids);
+                                        log::info!("确认购票，选择的购票人IDs: {:?}", ids);
+                                        if let Some(screen) = screen_info {
+                                            if let Some(ticket) = ticket_info {
+                                                // 提交抢票任务
+                                                let grab_ticket_request = GrabTicketRequest {
+                                                    task_id: "".to_string(),
+                                                    uid: biliticket_uid,
+                                                    project_id: biliticket_project_id.clone().unwrap_or_default(),
+                                                    screen_id: screen.id.to_string(),
+                                                    ticket_id: ticket.id.to_string(),
+                                                    buyer_info: buyer_list.clone(),
+                                                    grab_mode: app.grab_mode,
+                                                    status: TaskStatus::Pending,
+                                                    start_time: None,
+                                                    client: biliticket_session.unwrap(),
+                                                    // 避免克隆整个 biliticket
+                                                    // biliticket: biliticket.clone(),
+                                                };
+                                                
+                                                // 提交到任务管理器
+                                                match app.task_manager.submit_task(TaskRequest::GrabTicketRequest(grab_ticket_request)) {
+                                                    Ok(task_id) => {
+                                                        log::info!("提交抢票任务成功，任务ID: {}", task_id);
+                                                        app.confirm_ticket_info = None;
+                                                    },
+                                                    Err(e) => {
+                                                        log::error!("提交抢票任务失败: {}", e);
+                                                    }
+                                                }
+                                            }
+                                        }
                                         // 关闭窗口
                                         app.confirm_ticket_info = None;
                                     }
                                 }
                             }
-                            2 => {
-                                // 多选购票处理
-                                if let Some(ref buyer_list) = app.selected_buyer_list {
-                                    if !buyer_list.is_empty() {
-                                        let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
-                                        log::info!("确认多选购票，选择的购票人IDs: {:?}", ids);
-                                        // 关闭窗口
-                                        app.confirm_ticket_info = None;
-                                    }
-                                }
-                            }
+                            
                             _ => {
                                 log::error!("未知的购票人绑定状态: {}", id_bind);
                             }

@@ -76,7 +76,7 @@ pub struct GrabTicketRequest {
     pub ticket_id: String,
     pub buyer_info: Vec<BuyerInfo>,
     pub client: Arc<Client>,
-    pub biliticket: BilibiliTicket,
+    //pub biliticket: BilibiliTicket,
     pub grab_mode: u8,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
@@ -85,6 +85,7 @@ pub struct GrabTicketRequest {
 pub struct GrabTicketTask {
     pub task_id: String,
     pub biliticket: BilibiliTicket,
+    pub status: TaskStatus,
     pub client: Arc<Client>,
     pub start_time: Option<Instant>,
     

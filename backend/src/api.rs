@@ -1,5 +1,5 @@
 use common::http_utils::request_get;
-use common::ticket::{InfoResponse,BuyerInfoResponse};
+use common::ticket::{InfoResponse,BuyerInfoResponse,BilibiliTicket};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
@@ -176,4 +176,75 @@ pub async fn poll_qrcode_login(qrcode_key: &str,user_agent: Option<&str>) ->QrCo
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 }
 QrCodeLoginStatus::Expired
+}
+
+
+pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,String>{
+    
+    /* let project_id = match biliticket.project_info.clone(){
+        Some(info) => info.id.to_string(),
+        None => return Err("项目ID不存在".to_string())
+    };
+    let screen_id = biliticket.screen_id.clone();
+
+    let ticket_id = match biliticket.select_ticket_id.clone(){
+        Some(id) => id,
+        None => return Err("票ID不存在".to_string())
+    }; */
+
+    let params = serde_json::json!({
+        "project_id": project_id,
+        "screen_id": screen_id,
+        "sku_id": ticket_id,
+        "count": 1,
+        "order_type": 1,
+        "token": "",
+        "requestSource": "pc-new",
+        "newRisk": "true",
+    });
+    
+    let url = format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id);
+    let response = client.post(url)
+        .json(&params)
+        .send()
+        .await;
+    match response {
+        Ok(resp) => {
+            if resp.status().is_success(){
+                match tokio::task::block_in_place(||{
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    rt.block_on(resp.json::<serde_json::Value>())
+                }){
+                    Ok(json) => {
+                        log::debug!("获取票token：{}",json);
+                        let code = json["errno"].as_i64().unwrap_or(-1);
+                        let msg = json["msg"].as_str().unwrap_or("未知错误");
+                        
+                        if code == 0 {
+                            // 从响应中提取token
+                            if let Some(token) = json["data"]["token"].as_str() {
+                                return Ok(token.to_string());
+                            } else {
+                                return Err("响应中未找到token".to_string());
+                            }
+                        } else {
+                            return Err(format!("获取token失败: {} (code: {})", msg, code));
+                        }
+                },
+                Err(e) => {
+                    log::error!("解析票务token响应失败: {}", e);
+                    return Err(format!("{}", e));
+                }
+            }
+            }else{
+                log::error!("获取票token失败，响应状态码：{}",resp.status());
+                return Err(format!("{}",resp.status()));
+            }
+        }
+        Err(e) => {
+            log::error!("获取票token失败，错误信息：{}",e);
+            return Err(format!("{}",e));
+        }
+    }
+
 }
