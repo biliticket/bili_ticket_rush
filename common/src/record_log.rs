@@ -114,7 +114,7 @@ impl log::Log for CollectorLogger{
     
     fn log(&self,record: &Record){
         if self.enabled(record.metadata()){
-            let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+            let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S:%3f");
             let log_message = format!("[{}] {}: {}", 
                 timestamp, record.level(), record.args());
 
