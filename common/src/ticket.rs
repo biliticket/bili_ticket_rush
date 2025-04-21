@@ -10,6 +10,16 @@ use crate::account::Account;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 
+//确认订单结构体
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct ConfirmTicketResult{
+    pub count : i32,
+    pub pay_money: i64,
+    
+}
+
+//获取token响应结构体
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TokenRiskParam {
     pub code : i32,

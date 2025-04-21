@@ -1,5 +1,5 @@
 use common::http_utils::request_get;
-use common::ticket::{InfoResponse,BuyerInfoResponse,TokenRiskParam};
+use common::ticket::{*};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
@@ -308,4 +308,27 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
         }
     }
 
+}
+
+pub async fn confirm_ticket_order(client:Arc<Client>,project_id : &str,token: &str) -> Result<ConfirmTicketResult, String> {
+    let url = format!("https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&voucher=&project_id={}&requestSource=pc-new",token,project_id);
+    let response = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!("请求失败: {}", response.status()));
+    }
+    let text = response.text()
+        .await
+        .map_err(|e| format!("获取响应文本失败: {}", e))?;
+    log::debug!("确认订单响应：{}", text);
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("解析响应文本失败: {}", e))?;
+    if json["errno"]!=0 {
+        return Err(format!("确认订单失败: {}", json["msg"].as_str().unwrap_or("未知错误")));
+    }
+    let confirm_result = serde_json::from_value(json["data"].clone())
+        .map_err(|e| format!("解析确认订单结果失败: {}", e))?;
+    Ok(confirm_result)
 }

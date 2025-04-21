@@ -422,6 +422,17 @@ impl TaskManager for TaskManagerImpl {
                                                         Ok(token) => {
                                                             //获取token成功！
                                                             log::info!("获取抢票token成功！:{}",token);
+                                                            match confirm_ticket_order(client.clone(), &project_id,&token).await{
+                                                                Ok(confirm_result) => {
+                                                                    log::info!("确认订单成功！准备下单");
+                                                                    break;
+
+                                                                }
+                                                                Err(e) => {
+                                                                    log::error!("确认订单失败: {}", e);
+                                                                    
+                                                                }
+                                                            }
                                                             break;
                                                             //抢票逻辑
 
