@@ -323,7 +323,9 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     status: TaskStatus::Pending,
                                                     start_time: None,
                                                     client: biliticket_session.unwrap(),
-                                                    // 避免克隆整个 biliticket
+                                                    custom_config: biliticket.config.clone(),
+                                                    csrf: biliticket.account.csrf.clone(),
+                                                    //避免克隆整个 biliticket
                                                     // biliticket: biliticket.clone(),
                                                 };
                                                 

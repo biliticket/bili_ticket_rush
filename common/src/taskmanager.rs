@@ -80,6 +80,8 @@ pub struct GrabTicketRequest {
     pub grab_mode: u8,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
+    pub custom_config: CustomConfig,
+    pub csrf: String ,
 }
 #[derive(Clone,Debug)]
 pub struct GrabTicketTask {

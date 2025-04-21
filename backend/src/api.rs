@@ -1,5 +1,5 @@
 use common::http_utils::request_get;
-use common::ticket::{InfoResponse,BuyerInfoResponse,BilibiliTicket};
+use common::ticket::{InfoResponse,BuyerInfoResponse,TokenRiskParam};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
@@ -179,18 +179,9 @@ QrCodeLoginStatus::Expired
 }
 
 
-pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,String>{
+pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,TokenRiskParam>{
     
-    /* let project_id = match biliticket.project_info.clone(){
-        Some(info) => info.id.to_string(),
-        None => return Err("项目ID不存在".to_string())
-    };
-    let screen_id = biliticket.screen_id.clone();
-
-    let ticket_id = match biliticket.select_ticket_id.clone(){
-        Some(id) => id,
-        None => return Err("票ID不存在".to_string())
-    }; */
+    
 
     let params = serde_json::json!({
         "project_id": project_id,
@@ -220,30 +211,100 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
                         let code = json["errno"].as_i64().unwrap_or(-1);
                         let msg = json["msg"].as_str().unwrap_or("未知错误");
                         
-                        if code == 0 {
-                            // 从响应中提取token
-                            if let Some(token) = json["data"]["token"].as_str() {
+                        match code {
+                            0 => {
+                                let token = json["data"]["token"].as_str().unwrap_or("");
                                 return Ok(token.to_string());
-                            } else {
-                                return Err("响应中未找到token".to_string());
                             }
-                        } else {
-                            return Err(format!("获取token失败: {} (code: {})", msg, code));
+                            -401 => {
+                                log::info!("需要进行人机验证");
+                                let mid = json["data"]["ga_data"]["riskParams"]["mid"].as_str().unwrap_or("");
+                                let decision_type = json["data"]["ga_data"]["riskParams"]["decision_type"].as_str().unwrap_or("");
+                                let buvid = json["data"]["ga_data"]["riskParams"]["buvid"].as_str().unwrap_or("");
+                                let ip = json["data"]["ga_data"]["riskParams"]["ip"].as_str().unwrap_or("");
+                                let scene = json["data"]["ga_data"]["riskParams"]["scene"].as_str().unwrap_or("");
+                                let ua = json["data"]["ga_data"]["riskParams"]["ua"].as_str().unwrap_or("");
+                                let v_voucher = json["data"]["ga_data"]["riskParams"]["v_voucher"].as_str().unwrap_or("");
+                                let risk_param = json["data"]["ga_data"]["riskParams"].clone();
+                                let token_risk_param = TokenRiskParam {
+                                    code: code as i32,
+                                    message: msg.to_string(),
+                                    mid: Some(mid.to_string()),
+                                    decision_type: Some(decision_type.to_string()),
+                                    buvid: Some(buvid.to_string()),
+                                    ip: Some(ip.to_string()),
+                                    scene: Some(scene.to_string()),
+                                    ua: Some(ua.to_string()),
+                                    v_voucher: Some(v_voucher.to_string()),
+                                    risk_param: Some(risk_param.clone()),
+                                };
+                                log::debug!("{:?}", token_risk_param);
+                                return Err(token_risk_param);
+                            }
+                            _ => {
+                                log::error!("获取token失败，未知错误码：{}，错误信息：{}，请提issue修复此问题", code, msg);
+                                log::error!("{:?}", json);
+                                return Err(TokenRiskParam {
+                                    code: code as i32,
+                                    message: msg.to_string(),
+                                    mid: None,
+                                    decision_type: None,
+                                    buvid: None,
+                                    ip: None,
+                                    scene: None,
+                                    ua: None,
+                                    v_voucher: None,
+                                    risk_param: None,
+                                });
+                            }
                         }
                 },
                 Err(e) => {
                     log::error!("解析票务token响应失败: {}", e);
-                    return Err(format!("{}", e));
+                    return Err(TokenRiskParam{
+                        code: 999 as i32,
+                        message: e.to_string(),
+                        mid: None,
+                        decision_type: None,
+                        buvid: None,
+                        ip: None,
+                        scene: None,
+                        ua: None,
+                        v_voucher: None,
+                        risk_param: None,
+                    })
                 }
             }
             }else{
-                log::error!("获取票token失败，响应状态码：{}",resp.status());
-                return Err(format!("{}",resp.status()));
+                log::error!("获取票token失败，服务器不期待响应，响应状态码：{}",resp.status());
+                return Err(TokenRiskParam{
+                    code: 999 as i32,
+                    message: resp.status().to_string(),
+                    mid: None,
+                    decision_type: None,
+                    buvid: None,
+                    ip: None,
+                    scene: None,
+                    ua: None,
+                    v_voucher: None,
+                    risk_param: None,
+                });
             }
         }
         Err(e) => {
             log::error!("获取票token失败，错误信息：{}",e);
-            return Err(format!("{}",e));
+            return Err(TokenRiskParam{
+                code: 999 as i32,
+                message: e.to_string(),
+                mid: None,
+                decision_type: None,
+                buvid: None,
+                ip: None,
+                scene: None,
+                ua: None,
+                v_voucher: None,
+                risk_param: None,
+            });
         }
     }
 

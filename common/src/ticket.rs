@@ -10,6 +10,20 @@ use crate::account::Account;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TokenRiskParam {
+    pub code : i32,
+    pub message: String,
+    pub mid : Option<String>,
+    pub decision_type : Option<String>,
+    pub buvid : Option<String>,
+    pub ip : Option<String>,
+    pub scene: Option<String>,
+    pub ua: Option<String>,
+    pub v_voucher: Option<String>,
+    pub risk_param: Option<Value>,
+}
+
 #[derive(Debug, Clone)]
 pub struct BilibiliTicket{
     pub uid : i64, //UID
