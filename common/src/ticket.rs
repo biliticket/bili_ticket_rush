@@ -10,6 +10,17 @@ use crate::account::Account;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 
+//成功下单结构体
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct SubmitOrderResult{
+    #[serde(rename = "orderId")]
+    pub order_id: i128,
+    #[serde(rename = "orderCreateTime")]
+    pub order_create_time: i64,
+    #[serde(rename = "token")]
+    pub order_token: String,
+}
+
 //确认订单结构体
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct ConfirmTicketResult{

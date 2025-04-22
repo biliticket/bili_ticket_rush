@@ -4,6 +4,9 @@ use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
 use std::sync::Arc;
+use serde_json::{json, Value};
+use rand::{thread_rng, Rng};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub async fn get_buyer_info(client: Arc<Client>) -> Result<BuyerInfoResponse,String>{
     let req = client.get("https://show.bilibili.com/api/ticket/buyer/list");
@@ -331,4 +334,173 @@ pub async fn confirm_ticket_order(client:Arc<Client>,project_id : &str,token: &s
     let confirm_result = serde_json::from_value(json["data"].clone())
         .map_err(|e| format!("解析确认订单结果失败: {}", e))?;
     Ok(confirm_result)
+}
+
+pub async fn create_order(
+    client: Arc<Client>,
+    project_id: &str,
+    token: &str,
+    //confirm_result: ConfirmTicketResult,
+    biliticket: &BilibiliTicket,
+    is_mobile: bool,
+    need_retry: bool,
+    fast_mode: bool,
+    screen_size: Option<(u32, u32)> // 可选参数：(宽度,高度)
+) -> Result<Value, i32> {
+    let url = format!("https://show.bilibili.com/api/ticket/order/createV2?project_id={}", project_id);
+    
+    // 选择适当的位置类型
+    let position_type = if need_retry && is_mobile {
+        ClickPositionType::RetryButton
+    } else if is_mobile {
+        ClickPositionType::MobileConfirm
+    } else {
+        ClickPositionType::PcConfirm
+    };
+    
+    // 提取屏幕尺寸（如果提供）
+    let (width, height) = screen_size.unwrap_or((1080, 2400));
+    
+    // 生成点击位置
+    let click_position = random_click_position(
+        position_type, 
+        fast_mode,
+        Some(width),
+        Some(height)
+    ).await.to_string();
+
+    let data = json!({
+        "project_id": project_id,
+        "screen_id": biliticket.screen_id.clone(),
+        "token": token,
+        "buyer_info": biliticket.buyer_info.clone(),
+        "clickPosition": click_position,
+        "newRisk": true,
+        "requestSource": "neul-next",
+        "deviceId": "",
+        "pay_money":999,
+        "count": 999,
+        "timestamp": 999,
+
+
+    });
+    let response = client.post(&url)
+        .json(&data)
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("请求失败: {}", e);
+            412
+        })?;
+    let text = response
+        .text()
+        .await
+        .map_err(|e| {
+            log::error!("获取响应文本失败: {}", e);
+            412
+        })?;
+    let value = serde_json::from_str(&text)
+        .map_err(|e| {
+            log::error!("解析响应文本失败: {}", e);
+            412
+        })?;
+    
+    Ok(value)
+}    
+
+
+/// 点击位置类型枚举
+#[derive(Debug, Clone, Copy)]
+pub enum ClickPositionType {
+    /// PC端确认下单按钮位置
+    PcConfirm,
+    /// 手机端确认下单按钮位置
+    MobileConfirm,
+    /// "再试一次"按钮位置（屏幕中间）
+    RetryButton,
+}
+
+/// 生成随机点击位置
+/// 
+/// # 参数
+/// * `position_type` - 位置类型：PC/手机/重试按钮
+/// * `fast_mode` - 时间间隔模式：true为快模式(0.8-4.6秒)，false为慢模式(4-12秒)
+/// * `screen_width` - (可选)手机屏幕宽度，用于计算比例坐标，默认1080
+/// * `screen_height` - (可选)手机屏幕高度，用于计算比例坐标，默认2400
+/// 
+pub async fn random_click_position(
+    position_type: ClickPositionType, 
+    fast_mode: bool,
+    screen_width: Option<u32>,
+    screen_height: Option<u32>
+) -> Value {
+    let mut rng = thread_rng();
+    
+    // 获取手机屏幕尺寸（默认使用常见尺寸1080x2400）
+    let mobile_width = screen_width.unwrap_or(1080);
+    let mobile_height = screen_height.unwrap_or(2400);
+    
+    // 根据不同设备/按钮类型确定基准坐标和偏移范围
+    let (base_x, base_y, offset_range) = match position_type {
+        ClickPositionType::PcConfirm => {
+            // PC端确认下单按钮位置(右侧中下部)
+            (1131, 636, 10)
+        },
+        ClickPositionType::MobileConfirm => {
+            // 手机端确认下单按钮位置(右下角)
+            // 使用比例计算：x在屏幕宽度的0.55-0.9之间，y在屏幕底部附近
+            let x_ratio = rng.gen_range(0.55..0.9);
+            let y_ratio = rng.gen_range(0.9..0.95);
+            
+            let x = (mobile_width as f32 * x_ratio) as i32;
+            let y = (mobile_height as f32 * y_ratio) as i32;
+            
+            (x, y, mobile_width.min(20) as i32 / 4) // 偏移范围根据屏幕宽度按比例缩放
+        },
+        ClickPositionType::RetryButton => {
+            // 手机版"再试一次"按钮位置(屏幕中间靠下)
+            // x坐标在屏幕宽度的1/3到2/3之间，y坐标在屏幕高度的2/3左右
+            let x_ratio = rng.gen_range(0.33..0.67); // 屏幕宽度的2/6到4/6之间
+            let y_ratio = rng.gen_range(0.6..0.7);   // 屏幕高度的2/3左右
+            
+            let x = (mobile_width as f32 * x_ratio) as i32;
+            let y = (mobile_height as f32 * y_ratio) as i32;
+            
+            (x, y, mobile_width.min(30) as i32 / 4) // 偏移较大，因为这是个大按钮
+        }
+    };
+    
+    // 生成随机偏移
+    let offset_x = rng.gen_range(-offset_range..=offset_range);
+    let offset_y = rng.gen_range(-offset_range..=offset_range);
+    
+    // 计算最终坐标
+    let final_x = base_x + offset_x;
+    let final_y = base_y + offset_y;
+    
+    // 获取当前时间戳
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    
+    // 根据模式生成不同的延迟时间
+    let random_delay = if fast_mode {
+        // 快模式：0.8-4.6秒
+        rng.gen_range(800..4600)
+    } else {
+        // 慢模式：4-12秒
+        rng.gen_range(4000..12000)
+    };
+    
+    // 计算起始时间
+    let origin = now - random_delay;
+    
+    // 构建JSON对象
+    json!({
+        "x": final_x,
+        "y": final_y,
+        "origin": origin,
+        "now": now
+    })
 }

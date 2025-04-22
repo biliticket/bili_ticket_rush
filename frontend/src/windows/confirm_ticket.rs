@@ -10,22 +10,38 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
     if !open {
         return;
     }
-    let biliticket = match app.bilibiliticket_list.iter_mut()
-    .find(|biliticket| biliticket.uid == *uid){
-        Some(biliticket) => biliticket,
+    let biliticket_index = match app.bilibiliticket_list.iter().position(|bt| bt.uid == *uid) {
+        Some(index) => index,
         None => {
-            log::error!("没有找到uid为{}的抢票信息",uid);
+            log::error!("没有找到uid为{}的抢票信息", uid);
             app.confirm_ticket_info = None;
             return;
         }
     };
-    //TODO 调整借用
-    let biliticket_uid = biliticket.uid;
-    let biliticket_project_id = biliticket.project_info.as_ref().map(|p| p.id.to_string());
-    let biliticket_session = biliticket.session.clone();
+    let biliticket_uid;
+    let biliticket_project_id;
+    let biliticket_session;
+    let id_bind;
+    let screen_info: Option<ScreenInfo>;
+    let ticket_info: Option<ScreenTicketInfo>;
+    let buyers;
+    
+
     app.is_loading = false;
+    {
+        let biliticket = &app.bilibiliticket_list[biliticket_index];
+        
+        biliticket_uid = biliticket.uid;
+        biliticket_project_id = biliticket.project_info.as_ref().map(|p| p.id.to_string());
+        biliticket_session = biliticket.session.clone();
+        
+        id_bind = match &biliticket.project_info {
+            Some(project) => project.id_bind,
+            None => 9,
+        };
+    
      // 查找当前选择的场次和票种信息
-     let (screen_info, ticket_info) = match &biliticket.project_info {
+     let (screen, ticket) = match &biliticket.project_info {
         Some(project) => {
             let screen = project.screen_list.iter().find(|s| 
                 s.id.to_string() == biliticket.screen_id);
@@ -34,23 +50,31 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                 let ticket = screen.ticket_list.iter().find(|t| 
                     t.id == app.selected_ticket_id.unwrap_or(-1) as usize);
                 
-                (Some(screen), ticket)
+                (Some(screen.clone()), ticket.cloned())
             } else {
                 (None, None)
             }
         },
         None => (None, None)
     };
+    screen_info = screen;
+    ticket_info = ticket;
+    
 
     // 获取购票人列表
-    let buyers = match &biliticket.all_buyer_info {
+    let buyers_in = match &biliticket.all_buyer_info {
         Some(data) => &data.list,
         None => {
             //log::error!("购票人列表未加载，请先获取购票人信息");
             &Vec::new() // 返回空列表
         }
     };
-
+    buyers = buyers_in.clone();
+  }
+    let screen_info_display = screen_info.clone();
+    let screen_info_button = screen_info.clone();
+    let ticket_info_display = ticket_info.clone();
+    
     // 创建窗口
     egui::Window::new("确认购票信息")
         .open(&mut open)
@@ -80,15 +104,16 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                 .inner_margin(12.0)
                 .show(ui, |ui| {
                     // 显示项目名称
+                    let biliticket = &app.bilibiliticket_list[biliticket_index];
                     if let Some(project) = &biliticket.project_info {
                         ui.label(RichText::new(&project.name).strong().size(16.0));
                     }
 
                     // 显示场次和票种信息
-                    if let Some(screen) = screen_info {
+                    if let Some(screen) = screen_info_display {
                         ui.label(RichText::new(format!("场次: {}", &screen.name)).size(14.0));
                         
-                        if let Some(ticket) = ticket_info {
+                        if let Some(ticket) = ticket_info_display {
                             ui.horizontal(|ui| {
                                 ui.label(format!("票种: {}", &ticket.desc));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -100,10 +125,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                         }
                     }
                 });
-            let id_bind = match biliticket.project_info.clone(){
-                Some(project) => project.id_bind,
-                None => 9,
-            };
+            
             match id_bind{
                 0 =>{
                     ui.add_space(10.0);
@@ -111,7 +133,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                     ui.add_space(5.0);
 
                     ui.horizontal(|ui|{
-                        
+                        let biliticket = &mut app.bilibiliticket_list[biliticket_index];
                         common_input(ui, "请输入联系人姓名", &mut biliticket.nobind_name, "请输入联系人姓名",false);
                         ui.add_space(10.0);
                         common_input(ui, "请输入联系人手机号", &mut biliticket.nobind_tel, "请输入联系人手机号",true);
@@ -234,6 +256,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                             log::debug!("选择购票人: {}", buyer.name);
                                                             //app.selected_buyer_id = Some(buyer.id); // 保持单选ID兼容
                                                             app.selected_buyer_list = Some(vec![buyer.clone()]); // 使用List，但只有一个
+                                                            let biliticket = &mut app.bilibiliticket_list[biliticket_index];
                                                             biliticket.buyer_info = Some(vec![buyer.clone()]);
                                                         }
                                                     }
@@ -287,6 +310,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // 根据模式决定按钮启用条件
+                    let biliticket = &app.bilibiliticket_list[biliticket_index];
                     let button_enabled = match id_bind {
                         0 => biliticket.nobind_tel.is_some() && biliticket.nobind_name.is_some(),
                         1 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
@@ -309,7 +333,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                     if !buyer_list.is_empty() {
                                         let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
                                         log::info!("确认购票，选择的购票人IDs: {:?}", ids);
-                                        if let Some(screen) = screen_info {
+                                        if let Some(screen) = screen_info_button {
                                             if let Some(ticket) = ticket_info {
                                                 // 提交抢票任务
                                                 let grab_ticket_request = GrabTicketRequest {
@@ -323,10 +347,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     status: TaskStatus::Pending,
                                                     start_time: None,
                                                     client: biliticket_session.unwrap(),
-                                                    custom_config: biliticket.config.clone(),
-                                                    csrf: biliticket.account.csrf.clone(),
-                                                    //避免克隆整个 biliticket
-                                                    // biliticket: biliticket.clone(),
+                                                    biliticket: biliticket.clone(),
                                                 };
                                                 
                                                 // 提交到任务管理器

@@ -341,8 +341,8 @@ impl TaskManager for TaskManagerImpl {
                                     let result_tx = result_tx.clone();
                                     let uid = grab_ticket_req.uid.clone();
                                     let mode = grab_ticket_req.grab_mode.clone();
-                                    let custon_config = grab_ticket_req.custom_config.clone();
-                                    let csrf = grab_ticket_req.csrf.clone();
+                                    let custon_config = grab_ticket_req.biliticket.config.clone();
+                                    let csrf = grab_ticket_req.biliticket.account.csrf.clone();
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
                                         match mode {
@@ -414,6 +414,12 @@ impl TaskManager for TaskManagerImpl {
                                                 log::debug!("直接抢票模式");
                                                 let mut token_retry_count = 0;
                                                 const MAX_TOKEN_RETRY: i8 = 5; 
+                                                let mut confirm_order_retry_count = 0;
+                                                const MAX_CONFIRM_ORDER_RETRY: i8 = 4;
+                                                let mut order_retry_count = 0;
+                                                let need_retry = false;
+                                                
+                                                
                                                 //抢票主循环
                                                 loop{
 
@@ -422,17 +428,80 @@ impl TaskManager for TaskManagerImpl {
                                                         Ok(token) => {
                                                             //获取token成功！
                                                             log::info!("获取抢票token成功！:{}",token);
-                                                            match confirm_ticket_order(client.clone(), &project_id,&token).await{
-                                                                Ok(confirm_result) => {
-                                                                    log::info!("确认订单成功！准备下单");
-                                                                    break;
-
-                                                                }
-                                                                Err(e) => {
-                                                                    log::error!("确认订单失败: {}", e);
+                                                            loop{
+                                                                match confirm_ticket_order(client.clone(), &project_id,&token).await{
+                                                                    Ok(confirm_result) => {
+                                                                        log::info!("确认订单成功！准备下单");
+                                                                        loop{
+                                                                            if order_retry_count >= 3{
+                                                                                let need_retry = true;
+                                                                            }
+                                                                            match create_order(client.clone(), &project_id, &token,&grab_ticket_req.biliticket,false,need_retry,false,None).await{
+                                                                                Ok(order_result) => {
+                                                                                    log::info!("下单成功！订单信息{:?}",order_result);
+                                                                                    let task_result = TaskResult::GrabTicketResult(GrabTicketResult{
+                                                                                        task_id: task_id.clone(),
+                                                                                        uid,
+                                                                                        success: true,
+                                                                                        message: "抢票成功".to_string(),
+                                                                                        order_id: Some("123456".to_string()),
+                                                                                    });
+                                                                                    let _ = result_tx.send(task_result).await;
+                                                                                    break;
+                                                                                }
+                                                                                Err(e) => {
+                                                                                    /* match e {
+                                                                                        100001 => {
+                                                                                            log::info!("b站限速，正常现象");
+                                                                                        }
+                                                                                        100009 =>{
+                                                                                            log::info!("当前票种库存不足");
+                                                                                        }
+                                                                                        3 => {
+                                                                                            log::info!("抢票速度过快，即将被硬控5秒");
+                                                                                            log::info!("暂停4.8秒");
+                                                                                            tokio::time::sleep(tokio::time::Duration::from_secs_f32(4.8)).await;
+                                                                                        }
+                                                                                        100041 => {
+                                                                                            log::info!("token失效，即将重新获取token");
+                                                                                            break;
+                                                                                        }
+                                                                                        100017 | 100016 =>{
+                                                                                            log::info!("当前项目/类型/场次已停售");
+                                                                                            break;
+                                                                                        }
+                                                                                        _ => {
+                                                                                            log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题",e);
+                                                                                        }
+                                                                                    } */
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        break;
+    
+                                                                    }
+                                                                    Err(e) => {
+                                                                        log::error!("确认订单失败，原因：{}  正在重试...", e);
+                                                                        
+                                                                    }
                                                                     
                                                                 }
+                                                                confirm_order_retry_count +=1;
+                                                                if confirm_order_retry_count >= MAX_CONFIRM_ORDER_RETRY {
+                                                                    log::error!("确认订单失败，已达最大重试次数");
+                                                                    let task_result = TaskResult::GrabTicketResult(GrabTicketResult{
+                                                                        task_id: task_id.clone(),
+                                                                        uid,
+                                                                        success: false,
+                                                                        message: "确认订单失败，已达最大重试次数".to_string(),
+                                                                        order_id: None,
+                                                                    });
+                                                                    let _ = result_tx.send(task_result).await;
+                                                                    break;
+                                                                }
+
                                                             }
+                                                            
                                                             break;
                                                             //抢票逻辑
 
