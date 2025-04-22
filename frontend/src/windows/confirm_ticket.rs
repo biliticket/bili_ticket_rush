@@ -74,7 +74,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
     let screen_info_display = screen_info.clone();
     let screen_info_button = screen_info.clone();
     let ticket_info_display = ticket_info.clone();
-    
+
     // 创建窗口
     egui::Window::new("确认购票信息")
         .open(&mut open)
@@ -333,6 +333,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                     if !buyer_list.is_empty() {
                                         let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
                                         log::info!("确认购票，选择的购票人IDs: {:?}", ids);
+                                        
                                         if let Some(screen) = screen_info_button {
                                             if let Some(ticket) = ticket_info {
                                                 // 提交抢票任务
@@ -349,7 +350,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     client: biliticket_session.unwrap(),
                                                     biliticket: biliticket.clone(),
                                                 };
-                                                
+                                                log::debug!("提交抢票任务: {:?}", grab_ticket_request);
                                                 // 提交到任务管理器
                                                 match app.task_manager.submit_task(TaskRequest::GrabTicketRequest(grab_ticket_request)) {
                                                     Ok(task_id) => {

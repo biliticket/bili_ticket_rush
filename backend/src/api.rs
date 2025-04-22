@@ -193,7 +193,7 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
         "count": 1,
         "order_type": 1,
         "token": "",
-        "requestSource": "pc-new",
+        "requestSource": "neul-next",
         "newRisk": "true",
     });
     
@@ -314,7 +314,7 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
 }
 
 pub async fn confirm_ticket_order(client:Arc<Client>,project_id : &str,token: &str) -> Result<ConfirmTicketResult, String> {
-    let url = format!("https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&voucher=&project_id={}&requestSource=pc-new",token,project_id);
+    let url = format!("https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&voucher=&project_id={}&requestSource=neul-next",token,project_id);
     let response = client.get(&url)
         .send()
         .await
@@ -340,8 +340,9 @@ pub async fn create_order(
     client: Arc<Client>,
     project_id: &str,
     token: &str,
-    //confirm_result: ConfirmTicketResult,
+    confirm_result: &ConfirmTicketResult,
     biliticket: &BilibiliTicket,
+    buyer_info: &Vec<BuyerInfo>,
     is_mobile: bool,
     need_retry: bool,
     fast_mode: bool,
@@ -369,21 +370,37 @@ pub async fn create_order(
         Some(height)
     ).await.to_string();
 
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let count = confirm_result.count.clone();
+    let pay_money = confirm_result.pay_money.clone();
+
+    let ticket_id = match biliticket.select_ticket_id.clone() {
+        Some(id) => id,
+        None => return Err(999), 
+    };
+    let ticket_id_int = ticket_id.parse::<i64>().map_err(|_| 999)?;
+
     let data = json!({
-        "project_id": project_id,
-        "screen_id": biliticket.screen_id.clone(),
+        "project_id": project_id.parse::<i64>().unwrap_or(0),
+        "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+        "sku_id": ticket_id_int, 
         "token": token,
-        "buyer_info": biliticket.buyer_info.clone(),
+        "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
         "clickPosition": click_position,
         "newRisk": true,
-        "requestSource": "neul-next",
-        "deviceId": "",
-        "pay_money":999,
-        "count": 999,
-        "timestamp": 999,
-
-
+        "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
+        "deviceId": biliticket.device_id.clone(),
+        "pay_money": pay_money,
+        "count": count,
+        "timestamp": timestamp,
+        "order_type": 1, 
     });
+
+    log::debug!("抢票data ：{:?}", data);
     let response = client.post(&url)
         .json(&data)
         .send()
@@ -399,12 +416,17 @@ pub async fn create_order(
             log::error!("获取响应文本失败: {}", e);
             412
         })?;
-    let value = serde_json::from_str(&text)
+    let value: Value = serde_json::from_str(&text)
         .map_err(|e| {
             log::error!("解析响应文本失败: {}", e);
             412
         })?;
-    
+    log::info!("{:?}", value);
+    if value["errno"] != 0{
+        
+        return Err(value["errno"].as_i64().unwrap_or(412) as i32);
+
+    }
     Ok(value)
 }    
 

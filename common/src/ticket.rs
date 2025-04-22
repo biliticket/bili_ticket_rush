@@ -70,6 +70,10 @@ pub struct BilibiliTicket{
 
     pub select_ticket_id : Option<String>,
 
+    pub pay_money: Option<i64>, //支付金额
+    pub count: Option<i32>, //购买数量
+    pub device_id: String, //设备id
+
 }
 
 impl BilibiliTicket{
@@ -119,6 +123,8 @@ impl BilibiliTicket{
                                         }
                                     };
         let captcha_type = config.captcha_mode;      
+
+        let device_id = create_new_device_id();
            
         let new = Self{
             uid: account.uid.clone(),
@@ -138,6 +144,9 @@ impl BilibiliTicket{
             nobind_name: None,
             nobind_tel: None,
             select_ticket_id: None,
+            pay_money: None,
+            count: None,
+            device_id: device_id,
 
         };
         log::debug!("新建抢票对象：{:?}",new);
@@ -300,4 +309,12 @@ pub struct BuyerInfoResponse{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuyerInfoData{
     pub list: Vec<BuyerInfo>,
+}
+
+pub fn create_new_device_id() -> String {
+    use rand::{thread_rng, Rng};
+    
+    let mut rng = thread_rng();
+    let random_bytes: [u8; 16] = rng.gen();
+    format!("{:032x}", u128::from_le_bytes(random_bytes))
 }

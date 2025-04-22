@@ -343,8 +343,10 @@ impl TaskManager for TaskManagerImpl {
                                     let mode = grab_ticket_req.grab_mode.clone();
                                     let custon_config = grab_ticket_req.biliticket.config.clone();
                                     let csrf = grab_ticket_req.biliticket.account.csrf.clone();
+                                    
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
+                                       
                                         match mode {
                                             /* 0 => {
                                                 log::debug!("自动抢票模式");
@@ -417,7 +419,7 @@ impl TaskManager for TaskManagerImpl {
                                                 let mut confirm_order_retry_count = 0;
                                                 const MAX_CONFIRM_ORDER_RETRY: i8 = 4;
                                                 let mut order_retry_count = 0;
-                                                let need_retry = false;
+                                                let mut need_retry = false;
                                                 
                                                 
                                                 //抢票主循环
@@ -432,11 +434,12 @@ impl TaskManager for TaskManagerImpl {
                                                                 match confirm_ticket_order(client.clone(), &project_id,&token).await{
                                                                     Ok(confirm_result) => {
                                                                         log::info!("确认订单成功！准备下单");
+                                                                        
                                                                         loop{
                                                                             if order_retry_count >= 3{
-                                                                                let need_retry = true;
+                                                                                need_retry = true;
                                                                             }
-                                                                            match create_order(client.clone(), &project_id, &token,&grab_ticket_req.biliticket,false,need_retry,false,None).await{
+                                                                            match create_order(client.clone(), &project_id, &token,&confirm_result,&grab_ticket_req.biliticket,&buyer_info,false,need_retry,false,None).await{
                                                                                 Ok(order_result) => {
                                                                                     log::info!("下单成功！订单信息{:?}",order_result);
                                                                                     let task_result = TaskResult::GrabTicketResult(GrabTicketResult{
@@ -450,7 +453,7 @@ impl TaskManager for TaskManagerImpl {
                                                                                     break;
                                                                                 }
                                                                                 Err(e) => {
-                                                                                    /* match e {
+                                                                                    match e {
                                                                                         100001 => {
                                                                                             log::info!("b站限速，正常现象");
                                                                                         }
@@ -470,12 +473,18 @@ impl TaskManager for TaskManagerImpl {
                                                                                             log::info!("当前项目/类型/场次已停售");
                                                                                             break;
                                                                                         }
+                                                                                        83000004 => {
+                                                                                            log::error!("没有配置购票人信息！请重新配置");
+                                                                                            break;
+                                                                                        }
                                                                                         _ => {
                                                                                             log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题",e);
                                                                                         }
-                                                                                    } */
+                                                                                    }
                                                                                 }
                                                                             }
+                                                                            order_retry_count +=1;
+                                                                            tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.22)).await;
                                                                         }
                                                                         break;
     
