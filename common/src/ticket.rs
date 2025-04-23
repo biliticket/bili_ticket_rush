@@ -89,11 +89,19 @@ impl BilibiliTicket{
 
 
     ) -> Self{
+        let mut finally_ua = String::new();
+        if config.custom_ua != "" {
+            log::info!("使用自定义UA：{}",config.custom_ua);
+            finally_ua.push_str(&config.custom_ua);
+        }else{
+            log::info!("使用默认UA：{}",ua);
+            finally_ua.push_str(ua);
+        }
         let mut headers = header::HeaderMap::new();
         match HeaderValue::from_str(&account.cookie){
             Ok(ck_value) => {
                 headers.insert(header::COOKIE, ck_value);
-                match HeaderValue::from_str(ua){
+                match HeaderValue::from_str(&finally_ua){
                     Ok(ua_value) => {
                         headers.insert(header::USER_AGENT,ua_value);
                     }

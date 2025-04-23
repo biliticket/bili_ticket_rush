@@ -439,7 +439,7 @@ impl TaskManager for TaskManagerImpl {
                                                                             if order_retry_count >= 3{
                                                                                 need_retry = true;
                                                                             }
-                                                                            match create_order(client.clone(), &project_id, &token,&confirm_result,&grab_ticket_req.biliticket,&buyer_info,false,need_retry,false,None).await{
+                                                                            match create_order(client.clone(), &project_id, &token,&confirm_result,&grab_ticket_req.biliticket,&buyer_info,true,need_retry,false,None).await{
                                                                                 Ok(order_result) => {
                                                                                     log::info!("下单成功！订单信息{:?}",order_result);
                                                                                     let task_result = TaskResult::GrabTicketResult(GrabTicketResult{
@@ -475,6 +475,10 @@ impl TaskManager for TaskManagerImpl {
                                                                                         }
                                                                                         83000004 => {
                                                                                             log::error!("没有配置购票人信息！请重新配置");
+                                                                                            break;
+                                                                                        }
+                                                                                        100079 => {
+                                                                                            log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
                                                                                             break;
                                                                                         }
                                                                                         _ => {
