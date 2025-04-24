@@ -28,8 +28,19 @@ jobs:
     - name: Build Debug
       if: matrix.debug == 'debug'
       run: cargo build --verbose
+    - name: Copy artifacts on windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir -p target/output
+        cp target/${{matrix.debug}}/frontend.exe target/output/${{ matrix.debug }}-${{ matrix.build }}.exe
+        cp target/${{matrix.debug}}/frontend.pdb target/output/${{ matrix.debug }}-${{ matrix.build }}.pdb
+    - name: Copy artifacts on other systems
+      if: matrix.os != 'windows-latest'
+      run: |
+        mkdir -p target/output
+        cp target/${{matrix.debug}}/frontend target/output/${{ matrix.debug }}-${{ matrix.build }}
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
           name: ${{ matrix.debug }}-${{ matrix.build }}
-          path: target/${{matrix.debug}}
+          path: target/output
