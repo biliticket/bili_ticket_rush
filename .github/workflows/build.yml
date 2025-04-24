@@ -1,22 +1,35 @@
-name: Rust
+name: Build
 
 on:
   push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
-env:
-  CARGO_TERM_COLOR: always
+  workflow_dispatch:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        debug: [debug, release]
+        include:
+          - os: windows-latest
+            build: BiliTicketRush-${{github.ref_name}}-Windows
+          - os: ubuntu-latest
+            build: BiliTicketRush-${{github.ref_name}}-Linux
+    runs-on: ${{ matrix.os }}
+    env:
+      debug: ${{ matrix.debug }}
+      CARGO_TERM_COLOR: always
     steps:
     - uses: actions/checkout@v4
-    - name: Build
+    - name: Build Release
+      if: matrix.debug == 'release'
+      run: cargo build --verbose --release
+    - name: Build Debug
+      if: matrix.debug == 'debug'
       run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: ${{ matrix.debug }}-${{ matrix.build }}
+          path: bili_ticket_rush/target/${{matrix.debug}}
