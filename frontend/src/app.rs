@@ -176,7 +176,18 @@ impl Myapp{
             },
             Err(e) => {
                 log::error!("配置文件加载失败: {}", e);
-                Config::new()
+                let cfg =Config::new();
+                match cfg.save_config() {
+                    Ok(_) => {
+                        log::info!("配置文件保存成功");
+                    },
+                    Err(e) => {
+                        log::error!("配置文件保存失败: {}", e);
+                    }
+                    
+                }
+                cfg
+                
             }
         };
         
