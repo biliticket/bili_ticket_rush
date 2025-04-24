@@ -32,4 +32,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
           name: ${{ matrix.debug }}-${{ matrix.build }}
-          path: bili_ticket_rush/target/${{matrix.debug}}
+          path: target/${{matrix.debug}}
