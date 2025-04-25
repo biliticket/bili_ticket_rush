@@ -207,17 +207,20 @@ fn load_user_avatar(ctx: &egui::Context, app: &Myapp, account: &Account) ->Optio
                 Some(texture)
             } 
             else {
-                // 如果加载失败，记录日志
-                println!("无法加载用户头像: {}", avatar_url);
+                // // 如果加载失败，记录日志
+                // println!("无法加载用户头像: {}", avatar_url);
                 // 用户也可以在这里添加一个日志
                 log::error!("无法加载头像: {}", avatar_url);
                 None
             }
         } 
         else {
+            log::debug!("无法加载头像: 无头像URL");
             None
         }
-    } else { 
+    } else {
+        // 这里有日志，会在没登录的时候显示一堆
+        // log::debug!("无法加载头像: 用户未登录");
         None
     }
 }
