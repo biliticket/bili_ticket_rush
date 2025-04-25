@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        debug: [debug, release]
+        include:
+          - os: windows-latest
+            build: BiliTicketRush-${{github.ref_name}}-Windows
+          - os: ubuntu-latest
+            build: BiliTicketRush-${{github.ref_name}}-Linux
+    runs-on: ${{ matrix.os }}
+    env:
+      debug: ${{ matrix.debug }}
+      CARGO_TERM_COLOR: always
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build Release
+      if: matrix.debug == 'release'
+      run: cargo build --verbose --release
+    - name: Build Debug
+      if: matrix.debug == 'debug'
+      run: cargo build --verbose
+    - name: Copy artifacts on windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir -p target/output
+        cp target/${{matrix.debug}}/frontend.exe target/output/${{ matrix.debug }}-${{ matrix.build }}.exe
+        cp target/${{matrix.debug}}/frontend.pdb target/output/${{ matrix.debug }}-${{ matrix.build }}.pdb
+    - name: Copy artifacts on other systems
+      if: matrix.os != 'windows-latest'
+      run: |
+        mkdir -p target/output
+        cp target/${{matrix.debug}}/frontend target/output/${{ matrix.debug }}-${{ matrix.build }}
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: ${{ matrix.debug }}-${{ matrix.build }}
+          path: target/output
