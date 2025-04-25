@@ -13,9 +13,9 @@ jobs:
         debug: [debug, release]
         include:
           - os: windows-latest
-            build: BiliTicketRush-${{github.ref_name}}-Windows
+            build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Windows
           - os: ubuntu-latest
-            build: BiliTicketRush-${{github.ref_name}}-Linux
+            build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Linux
     runs-on: ${{ matrix.os }}
     env:
       debug: ${{ matrix.debug }}
