@@ -3,7 +3,7 @@ use reqwest::Client;
 use crate::http_utils::{request_get_sync,request_post_sync};
 use serde_json;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize,Debug)]
 pub struct Account{
     pub uid: i64,  //UID
     pub name: String,   //昵称
@@ -14,10 +14,10 @@ pub struct Account{
     pub account_status: String,  //账号状态
     pub vip_label: String, //大会员，对应/nav请求中data['vip_label']['text']
     pub is_active: bool, //该账号是否启动抢票
+    pub avatar_url: Option<String>, //头像地址
     #[serde(skip)] 
     pub client: Option<reqwest::Client>,
 }
-
 
 
 pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, String>{
@@ -50,6 +50,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             account_status: "空闲".to_string(),
             vip_label: data["vip_label"]["text"].as_str().unwrap_or("").to_string(),
             is_active: true,
+            avatar_url: Some(data["face"].as_str().unwrap_or("").to_string()),
             client: Some(client.clone()),
         };
         account.ensure_client();
