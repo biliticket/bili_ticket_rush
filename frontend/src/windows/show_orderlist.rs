@@ -234,9 +234,9 @@ fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
                 mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
             });
             ctx.request_repaint();
-        }else{ 
+        }else{
             ctx.memory_mut(|mem| {
-                log::error!("加载图片失败_ui: {}", url);
+                log::warn!("加载图片失败_ui,retrying: {}", url);
                 mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
             });
         }

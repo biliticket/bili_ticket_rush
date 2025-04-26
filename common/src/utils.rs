@@ -247,8 +247,15 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: 
                             Default::default()
                         ))
                     }
-                    Err(err) =>{ 
-                        log::error!("加载图片至内存失败: {}", err);
+                    Err(err) =>{
+                        log::warn!("加载图片至内存失败: {}，url:{}", err,url);
+                        // 这里可以选择将错误信息写入文件
+                        // let file_path = format!("./error_image_{}.png", name.replace("/", "_").replace(":", "_"));
+                        // if let Err(e) = write_bytes_to_file(&file_path, &bytes) {
+                        //     log::error!("写入错误图片失败: {}", e);
+                        // } else {
+                        //     log::info!("错误图片已保存至: {}", file_path);
+                        // }
                         None
                     },
                 }
