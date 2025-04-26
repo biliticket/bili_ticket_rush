@@ -217,6 +217,7 @@ fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
     }
 
     // 标记为正在加载
+    log::debug!("<正在加载图片>: {}", url);
     ctx.memory_mut(|mem| mem.data.insert_temp(egui::Id::new(format!("loading_{}", url)), true));
 
     // 启动异步加载线程
@@ -226,13 +227,18 @@ fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
         // 这里应该实现实际的图片加载逻辑
         // 示例：
 
-        if let Some(texture)=load_texture_from_url(&ctx, &app_client, &url, app_ua, &url){
+        if let Some(texture)=load_texture_from_url(&ctx, &app_client, &(url.clone()+"@74w_74h.jpeg"), app_ua, &url){
             ctx.memory_mut(|mem| {
                 log::debug!("加载图片成功: {}", url);
                 mem.data.insert_temp(egui::Id::new(&url), texture);
                 mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
             });
             ctx.request_repaint();
+        }else{ 
+            ctx.memory_mut(|mem| {
+                log::error!("加载图片失败_ui: {}", url);
+                mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
+            });
         }
 
         });
