@@ -11,7 +11,7 @@ eframe = { version = "0.23.0", features = ["default"] }
 egui = "0.31.0"
 
 # log
-log = "0.4"
+log = "0.4.27"
 env_logger = "0.9"
 chrono = "0.4"
 once_cell = "1.8"
@@ -27,5 +27,4 @@ base64 = "0.13"
 lazy_static = "1.4"
 
 #captcha
-#biliTicker_gt = { git = "https://github.com/Amorter/biliTicker_gt"}
-#bili_ticket_gt_python = { path = "G:/大学软件/BiliTicketGUI/biliTicker_gt"}
+bili_ticket_gt = { git = "https://github.com/Amorter/biliTicker_gt",branch = "rust"}

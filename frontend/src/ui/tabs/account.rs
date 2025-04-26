@@ -215,7 +215,7 @@ fn load_user_avatar(ctx: &egui::Context, app: &Myapp, account: &Account) ->Optio
             }
         } 
         else {
-            log::debug!("无法加载头像: 无头像URL");
+            //log::debug!("无法加载头像: 无头像URL");
             None
         }
     } else {

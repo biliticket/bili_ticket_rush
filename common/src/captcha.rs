@@ -1,20 +1,43 @@
-/* use bili_ticket_gt_python::slide::Slide;
-use bili_ticket_gt_python::click::Click;
-use bili_ticket_gt_python::abstraction::{Api, GenerateW, Test};
 
- */
 use reqwest::Client;
 use serde_json::json;
 use std::sync::Arc;
+use bili_ticket_gt::click::Click;
 use crate::{account::Account, ticket::TokenRiskParam, utility::CustomConfig};
 
 pub async fn captcha(custom_config: CustomConfig, gt: &str, challenge: &str, referer: &str, captcha_type:usize) -> Result<String, String> {
     // 0:本地打码  1：ttocr
     match custom_config.captcha_mode {
         0 => {
-            // 本地打码
-            
-            Err("暂不支持本地打码，请使用其它方式".to_string())
+            match captcha_type{
+                32 => {
+                    Err("本地打码暂不支持三代滑块".to_string())
+                }
+                33 => { //三代点字
+                    let gt_clone = gt.to_string();
+                    let challenge_clone = challenge.to_string();
+                    let validate = tokio::task::spawn_blocking(move || {
+                        let mut click = Click::default();
+                        click.simple_match_retry(&gt_clone, &challenge_clone)
+                    }).await
+                    .map_err(|e| format!("任务执行出错：{}",e))?
+                    .map_err(|e| format!("验证码模块出错：{}",e))?;
+                
+                    
+                    
+                    log::info!("验证码识别结果: {:?}", validate);
+                    Ok(serde_json::to_string(&json!({
+                        "challenge": challenge,
+                        "validate": validate,
+                        "seccode": format!("{}|jordan", validate),
+                    })).map_err(|e| format!("序列化JSON失败: {}", e))?)
+
+
+                }
+                _ => {
+                    return Err("无效的验证码类型".to_string());
+                }
+            }
         },
         1 => {
             // ttocr
@@ -90,12 +113,7 @@ pub async fn captcha(custom_config: CustomConfig, gt: &str, challenge: &str, ref
     }
 }
 
-pub fn captcha_sync(custom_config: &CustomConfig, gt: &str, challenge: &str, referer: &str, captcha_type:usize) -> Result<String, String> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| format!("无法创建运行时: {}", e))?;
-    
-    rt.block_on(captcha(custom_config.clone(), gt, challenge, referer, captcha_type))
-}
+
 
 
 pub async fn handle_risk_verification(client: Arc<Client>,risk_param: TokenRiskParam,custom_config: &CustomConfig,csrf: &str) -> Result<(), String> {
