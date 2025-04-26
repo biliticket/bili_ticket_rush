@@ -3,7 +3,8 @@ use reqwest::Client;
 use crate::http_utils::{request_get_sync,request_post_sync};
 use serde_json;
 
-#[derive(Clone, Serialize, Deserialize,Debug)]
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Account{
     pub uid: i64,  //UID
     pub name: String,   //昵称
@@ -15,8 +16,28 @@ pub struct Account{
     pub vip_label: String, //大会员，对应/nav请求中data['vip_label']['text']
     pub is_active: bool, //该账号是否启动抢票
     pub avatar_url: Option<String>, //头像地址
+    #[serde(skip)]
+    pub avatar_texture: Option<eframe::egui::TextureHandle>, //头像地址
     #[serde(skip)] 
     pub client: Option<reqwest::Client>,
+}
+impl std::fmt::Debug for Account{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Account")
+            .field("uid", &self.uid)
+            .field("name", &self.name)
+            .field("level", &self.level)
+            .field("cookie", &self.cookie)
+            .field("csrf", &self.csrf)
+            .field("is_login", &self.is_login)
+            .field("account_status", &self.account_status)
+            .field("vip_label", &self.vip_label)
+            .field("is_active", &self.is_active)
+            .field("avatar_url", &self.avatar_url)
+            .field("avatar_texture", &"SKipped")
+            .field("client", &self.client)
+            .finish()
+    }
 }
 
 
@@ -51,6 +72,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             vip_label: data["vip_label"]["text"].as_str().unwrap_or("").to_string(),
             is_active: true,
             avatar_url: Some(data["face"].as_str().unwrap_or("").to_string()),
+            avatar_texture: None,
             client: Some(client.clone()),
         };
         account.ensure_client();
