@@ -2,10 +2,7 @@ use crate::app::{Myapp, OrderData};
 use eframe::egui::{self, RichText};
 use egui::{Image, TextureHandle};
 use serde::{Deserialize, Serialize};
-use common::account::Account;
-use common::http_utils::request_get_sync;
-
-
+use common::utils::load_texture_from_url;
 
 pub fn show(
     app: &mut Myapp,
@@ -73,7 +70,7 @@ pub fn show(
                                             let inner_response = ui.centered_and_justified(|ui| {
                                                 ui.label("图片加载中...")
                                             });
-                                            request_image_async(ctx.clone(), image_url);
+                                            request_image_async(ctx.clone(), app,image_url);
                                             inner_response.inner
                                         }
                                     });
@@ -203,7 +200,7 @@ fn get_image_texture<'a>(ctx: &'a egui::Context, url: &str) -> Option<&'a Textur
 }
 
 // 辅助函数：异步请求图片
-fn request_image_async(ctx: egui::Context, url: String) {
+fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
     // 避免重复请求
     if ctx.memory(|mem| mem.data.get_temp::<bool>(egui::Id::new(format!("loading_{}", url))).is_some()) {
         return;
@@ -216,21 +213,21 @@ fn request_image_async(ctx: egui::Context, url: String) {
     std::thread::spawn(move || {
         // 这里应该实现实际的图片加载逻辑
         // 示例：
-        /*
-        if let Ok(bytes) = download_image(&url) {
-            if let Some(image) = load_image_from_bytes(&bytes) {
-                ctx.memory_mut(|mem| {
-                    let texture = ctx.load_texture(url.clone(), image);
-                    mem.data.insert_temp(egui::Id::new(&url), texture);
-                    mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
-                });
-                ctx.request_repaint();
-            }
-        }
-        */
         
-        // 为了示例，假设加载成功
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        ctx.request_repaint();
-    });
+        if let Some(texture)=load_texture_from_url(&ctx, &app.client, &url, app.default_ua.clone(), &url){
+            ctx.memory_mut(|mem| {
+                mem.data.insert_temp(egui::Id::new(&url), texture);
+                mem.data.remove::<bool>(egui::Id::new(format!("loading_{}", url)));
+            });
+            ctx.request_repaint();
+        }
+            
+        });
+        
+        
+        
+        
+        // // 为了示例，假设加载成功
+        // std::thread::sleep(std::time::Duration::from_secs(1));
+        // ctx.request_repaint();
 }

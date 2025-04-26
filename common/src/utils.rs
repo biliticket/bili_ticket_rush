@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::ops::{Index, IndexMut};
+use reqwest::Client;
 use serde_json::{Value, json, Map};
 use crate::account::Account;
 use crate::http_utils::request_get_sync;
@@ -215,10 +216,10 @@ pub fn load_texture_from_path(ctx: &eframe::egui::Context, path: &str, name: &st
     }
 }
 
-pub fn load_texture_from_url(ctx: &eframe::egui::Context, account: &Account, url: &String, ua:String, name: &str) -> Option<eframe::egui::TextureHandle> {
+pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: &String, ua:String, name: &str) -> Option<eframe::egui::TextureHandle> {
 
     //这里不需要传入Cookie
-    match request_get_sync(account.client.as_ref().unwrap(), url,Some(ua),None) {
+    match request_get_sync(client, url,Some(ua),None) {
         Ok(resp) => {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_result = rt.block_on(async {
