@@ -45,7 +45,7 @@ pub struct TokenRiskParam {
     pub risk_param: Option<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone,Debug)]
 pub struct BilibiliTicket{
     pub uid : i64, //UID
     pub method : u8,

@@ -3,6 +3,7 @@ use std::io;
 use std::ops::{Index, IndexMut};
 use serde_json::{Value, json, Map};
 use crate::account::Account;
+use crate::http_utils::request_get_sync;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 
@@ -29,10 +30,10 @@ impl Config{
         let json_str= serde_json::to_string_pretty(&self.data)?;
         fs::write("./config.json",json_str)
     }
-    
+
 
     //添加账号
-    pub fn add_account(&mut self, account: &Account) -> io::Result<()>{  
+    pub fn add_account(&mut self, account: &Account) -> io::Result<()>{
         if !self["accounts"].is_array(){  //不存在则创建
             self["accounts"]= json!([]);
         }
@@ -56,7 +57,7 @@ impl Config{
         else{
             Ok(Vec::new())
         }
-    } 
+    }
 
     //账号更新（Account更新后调用这个保存,uid唯一寻找标识）
     pub fn update_account(&mut self, account: &Account) ->io::Result<bool>{
@@ -125,7 +126,7 @@ impl Config{
             }
         }
     }
-    
+
 }
 
 impl Index<&str> for Config{
@@ -141,7 +142,7 @@ impl Index<&str> for Config{
     }
 }
 
-// 实现索引修改 
+// 实现索引修改
 impl IndexMut<&str> for Config {
     fn index_mut(&mut self, key: &str) -> &mut Self::Output {
         if let Value::Object(ref mut map) = self.data {
@@ -151,7 +152,7 @@ impl IndexMut<&str> for Config {
             let mut map = Map::new();
             map.insert(key.to_string(), Value::Null);
             self.data = Value::Object(map);
-            
+
             if let Value::Object(ref mut map) = self.data {
                 map.get_mut(key).unwrap()
             } else {
@@ -164,14 +165,14 @@ impl IndexMut<&str> for Config {
 pub fn save_config(config: &mut Config, push_config: Option<&PushConfig>, custon_config: Option<&CustomConfig>, account: Option<Account>) -> Result<bool, String> {
     if let Some(push_config) = push_config {
         config["push_config"] = serde_json::to_value(push_config).unwrap();
-    } 
+    }
     if let Some(custon_config) = custon_config {
         config["custom_config"] = serde_json::to_value(custon_config).unwrap();
     }
     if let Some(account) = account {
         config.add_account(&account).unwrap();
     }
-    
+
 
     match config.save_config(){
         Ok(_) => {
@@ -184,4 +185,64 @@ pub fn save_config(config: &mut Config, push_config: Option<&PushConfig>, custon
         }
     }
 
+}
+pub fn load_texture_from_path(ctx: &eframe::egui::Context, path: &str, name: &str) -> Option<eframe::egui::TextureHandle> {
+    use std::io::Read;
+
+    match std::fs::File::open(path) {
+        Ok(mut file) => {
+            let mut bytes = Vec::new();
+            if file.read_to_end(&mut bytes).is_ok() {
+                match image::load_from_memory(&bytes) {
+                    Ok(image) => {
+                        let size = [image.width() as usize, image.height() as usize];
+                        let image_buffer = image.to_rgba8();
+                        let pixels = image_buffer.as_flat_samples();
+
+                        Some(ctx.load_texture(
+                            name,
+                            eframe::egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
+                            Default::default()
+                        ))
+                    }
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    }
+}
+
+pub fn load_texture_from_url(ctx: &eframe::egui::Context, account: &Account, url: &String, ua:String, name: &str) -> Option<eframe::egui::TextureHandle> {
+
+    //这里不需要传入Cookie
+    match request_get_sync(account.client.as_ref().unwrap(), url,Some(ua),None) {
+        Ok(resp) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let bytes_result = rt.block_on(async {
+                resp.bytes().await
+            });
+            if let Ok(bytes)= bytes_result {
+                match image::load_from_memory(&bytes) {
+                    Ok(image) => {
+                        let size = [image.width() as usize, image.height() as usize];
+                        let image_buffer = image.to_rgba8();
+                        let pixels = image_buffer.as_flat_samples();
+
+                        Some(ctx.load_texture(
+                            name,
+                            eframe::egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
+                            Default::default()
+                        ))
+                    }
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    }
 }

@@ -1,15 +1,12 @@
-use std::io::Bytes;
-use std::ptr::null;
 use eframe::egui;
-use rand::rngs::adapter::ReseedingRng;
-use crate::{app::{AccountSwitch, Myapp}, windows::show_orderlist};
+use crate::{app::{AccountSwitch, Myapp}};
 use common::account::{Account , signout_account};
-use common::http_utils::request_get_sync;
+use common::utils::load_texture_from_url;
 
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
     ui.separator();
-    let example_account = Account{
+    let mut example_account = Account{
         uid: 0,
         name: "请登录账号".to_string(),
         vip_label: "未登录，请登录账号".to_string(),
@@ -20,6 +17,9 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         account_status: "未登录".to_string(),
         is_active: false,
         avatar_url: None,
+        
+        avatar_texture:None,
+        
         client: None,
     };
 
@@ -27,8 +27,8 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     // 加载默认头像
     load_default_avatar(ui.ctx(),app);
 
-    let account_to_show = app.account_manager.accounts.first().unwrap_or(&example_account);
-    if let Some(texture) = &load_user_avatar(ui.ctx(), app, account_to_show) {
+    let account_to_show = app.account_manager.accounts.first_mut().unwrap_or(&mut example_account);
+    if let Some(texture) = &load_user_avatar(ui.ctx(), app.default_ua.clone(), account_to_show) {
         show_user(
             ui,
             texture,account_to_show,
@@ -40,7 +40,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
             &mut app.show_orderlist_window,
             );
 }
-    else { 
+    else {
         // 如果头像加载失败，显示默认头像
         if let Some(texture) = &app.default_avatar_texture {
             show_user(
@@ -138,74 +138,20 @@ fn draw_user_avatar(ui: &mut egui::Ui, texture: &egui::TextureHandle, size: f32)
 
     response
 }
-fn load_texture_from_path(ctx: &egui::Context, path: &str, name: &str) -> Option<egui::TextureHandle> {
-    use std::io::Read;
 
-    match std::fs::File::open(path) {
-        Ok(mut file) => {
-            let mut bytes = Vec::new();
-            if file.read_to_end(&mut bytes).is_ok() {
-                match image::load_from_memory(&bytes) {
-                    Ok(image) => {
-                        let size = [image.width() as usize, image.height() as usize];
-                        let image_buffer = image.to_rgba8();
-                        let pixels = image_buffer.as_flat_samples();
-
-                        Some(ctx.load_texture(
-                            name,
-                            egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
-                            Default::default()
-                        ))
-                    }
-                    Err(_) => None,
-                }
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    }
-}
-fn load_texture_from_url(ctx: &egui::Context, account: &Account,url: &String, ua:String,name: &str) -> Option<egui::TextureHandle> {
-
-    match request_get_sync(account.client.as_ref().unwrap(), url,Some(ua),Some(&account.cookie)) {
-        Ok(resp) => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_result = rt.block_on(async {
-                resp.bytes().await
-            });
-            if let Ok(bytes)= bytes_result {
-                match image::load_from_memory(&bytes) {
-                    Ok(image) => {
-                        let size = [image.width() as usize, image.height() as usize];
-                        let image_buffer = image.to_rgba8();
-                        let pixels = image_buffer.as_flat_samples();
-
-                        Some(ctx.load_texture(
-                            name,
-                            egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
-                            Default::default()
-                        ))
-                    }
-                    Err(_) => None,
-                }
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    }
-}
-
-fn load_user_avatar(ctx: &egui::Context, app: &Myapp, account: &Account) ->Option<egui::TextureHandle> {
+fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Option<egui::TextureHandle> {
     // 如果用户已登录且提供了头像路径，尝试加载
+    if let Some(texture) = &account.avatar_texture {
+        return Some(texture.clone());
+    }
     if account.is_login {
         if let Some(avatar_url) = &account.avatar_url {
             // 尝试加载用户头像
-            let texture_option = load_texture_from_url(ctx, account, avatar_url, app.default_ua.clone(), "user_avatar");
+            let texture_option = load_texture_from_url(ctx, account, avatar_url, ua, "user_avatar");
+            account.avatar_texture= texture_option.clone();
             if let Some(texture) = texture_option {
                 Some(texture)
-            } 
+            }
             else {
                 // // 如果加载失败，记录日志
                 // println!("无法加载用户头像: {}", avatar_url);
@@ -213,7 +159,7 @@ fn load_user_avatar(ctx: &egui::Context, app: &Myapp, account: &Account) ->Optio
                 log::error!("无法加载头像: {}", avatar_url);
                 None
             }
-        } 
+        }
         else {
             log::debug!("无法加载头像: 无头像URL");
             None
