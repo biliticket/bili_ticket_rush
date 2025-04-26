@@ -161,7 +161,7 @@ fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Op
             }
         }
         else {
-            log::debug!("无法加载头像: 无头像URL");
+            //log::debug!("无法加载头像: 无头像URL");
             None
         }
     } else {
