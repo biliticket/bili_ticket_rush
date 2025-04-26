@@ -192,7 +192,9 @@ pub fn save_config(config: &mut Config, push_config: Option<&PushConfig>, custon
 pub fn load_texture_from_path(ctx: &eframe::egui::Context, path: &str, name: &str) -> Option<eframe::egui::TextureHandle> {
     use std::io::Read;
 
+
     match File::open(path) {
+
         Ok(mut file) => {
             let mut bytes = Vec::new();
             if file.read_to_end(&mut bytes).is_ok() {
@@ -218,6 +220,7 @@ pub fn load_texture_from_path(ctx: &eframe::egui::Context, path: &str, name: &st
     }
 }
 
+
 fn write_bytes_to_file(file_path: &str, bytes: &[u8]) -> io::Result<()> {
     let mut file = File::create(file_path)?; // 创建文件
     file.write_all(bytes)?; // 写入字节流
@@ -229,6 +232,7 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: 
 
     //这里不需要传入Cookie
     match request_get_sync(client, url,Some(ua),None) {
+
         Ok(resp) => {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_result = rt.block_on(async {
@@ -247,6 +251,7 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: 
                             Default::default()
                         ))
                     }
+
                     Err(err) =>{
                         log::warn!("加载图片至内存失败: {}，url:{}", err,url);
                         // 这里可以选择将错误信息写入文件
@@ -258,6 +263,7 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: 
                         // }
                         None
                     },
+
                 }
             } else {
                 None

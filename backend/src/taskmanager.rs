@@ -104,7 +104,7 @@ impl TaskManager for TaskManagerImpl {
                                     tokio::spawn(async move{
                                         log::info!("开始发送短信验证码 ID: {}", task_id);
 
-                                        let result = async{
+                                       
                                             log::info!("开始发送短信验证码 ID: {}", task_id);
                                             let response = send_loginsms(&phone, &client, custom_config).await;
                                             log::info!("开始发送短信验证码 ID: {}", task_id);
@@ -130,7 +130,7 @@ impl TaskManager for TaskManagerImpl {
 
                                             let _ = result_tx.send(task_result).await;
 
-                                        }.await;
+                                        
                                         
 
 
