@@ -3,6 +3,7 @@ use reqwest::Client;
 use crate::http_utils::{request_get_sync,request_post_sync};
 use serde_json;
 
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Account{
     pub uid: i64,  //UID
@@ -38,6 +39,7 @@ impl std::fmt::Debug for Account{
             .finish()
     }
 }
+
 
 pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, String>{
     log::info!("添加账号: {}", cookie);

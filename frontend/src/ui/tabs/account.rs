@@ -1,3 +1,5 @@
+use std::io::Bytes;
+use std::ptr::null;
 use eframe::egui;
 use crate::{app::{AccountSwitch, Myapp}};
 use common::account::{Account , signout_account};
@@ -17,16 +19,13 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         account_status: "未登录".to_string(),
         is_active: false,
         avatar_url: None,
-        
         avatar_texture:None,
-        
         client: None,
     };
 
 
     // 加载默认头像
     load_default_avatar(ui.ctx(),app);
-
     let account_to_show = app.account_manager.accounts.first_mut().unwrap_or(&mut example_account);
     if let Some(texture) = &load_user_avatar(ui.ctx(), app.default_ua.clone(), account_to_show) {
         show_user(
@@ -152,6 +151,7 @@ fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Op
             if let Some(texture) = texture_option {
                 Some(texture)
             }
+
             else {
                 // // 如果加载失败，记录日志
                 // println!("无法加载用户头像: {}", avatar_url);
@@ -159,6 +159,10 @@ fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Op
                 log::error!("无法加载头像: {}", avatar_url);
                 None
             }
+        } 
+        else {
+            log::debug!("无法加载头像: 无头像URL");
+            None
         }
         else {
             log::debug!("无法加载头像: 无头像URL");
