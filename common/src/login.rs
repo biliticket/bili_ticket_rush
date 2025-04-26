@@ -1,5 +1,6 @@
 use crate::account::add_account;
 use crate::account::Account;
+use crate::captcha::LocalCaptcha;
 use crate::http_utils::{request_get,request_post,request_get_sync};
 use serde_json::json;
 use crate::utility::CustomConfig;
@@ -63,7 +64,7 @@ pub fn password_login(username: &str, password: &str) -> Result<String, String> 
     Err("暂不支持账号密码登录".to_string())
 }
 
-pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomConfig) -> Result<String, String> {
+pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomConfig,local_captcha: LocalCaptcha) -> Result<String, String> {
         
         let response = request_get(
             client,
@@ -90,7 +91,7 @@ pub async fn send_loginsms(phone: &str, client: &Client, custom_config: CustomCo
         let challenge = json["data"]["geetest"]["challenge"].as_str().unwrap_or("");
         let token = json["data"]["token"].as_str().unwrap_or("");
         let referer = "https://passport.bilibili.com/x/passport-login/captcha";
-        match captcha(custom_config.clone(), gt, challenge, referer, 33).await {
+        match captcha(custom_config.clone(), gt, challenge, referer, 33,local_captcha).await {
             Ok(result_str) => {
                 log::info!("验证码识别成功: {}", result_str);
                 let result: serde_json::Value = serde_json::from_str(&result_str).map_err(|e| e.to_string())?;

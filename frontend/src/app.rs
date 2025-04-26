@@ -15,6 +15,7 @@ use common::utility::CustomConfig;
 use common::push::{*};
 use common::login::LoginInput;
 use common::taskmanager::{*};
+use common::captcha::LocalCaptcha;
 use common::show_orderlist::OrderResponse;
 use common::taskmanager::GetAllorderRequest;
 use common::taskmanager::TaskRequest;
@@ -86,11 +87,6 @@ pub struct Myapp{
     //登录用发送短信任务id
     pub pending_sms_task_id: Option<String>,
 
-   /*  //账号1 client
-    pub client1: Option<Client>,
-    //账号2 client
-    pub client2: Option<Client>, */
-
     //默认ua
     pub default_ua: String,
 
@@ -144,7 +140,7 @@ pub struct Myapp{
 
     pub selected_buyer_list: Option<Vec<BuyerInfo>>, // 选中的购票人ID
 
-                                   
+    pub local_captcha: LocalCaptcha, // 本地打码实例                               
                                     }
 
 
@@ -281,6 +277,7 @@ impl Myapp{
             ticket_info_last_request_time: None,
             confirm_ticket_info: None,
             selected_buyer_list: None,
+            local_captcha: LocalCaptcha::new(),
 
         };
         // 初始化每个账号的 client

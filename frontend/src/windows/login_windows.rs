@@ -361,6 +361,7 @@ pub fn phone_input(
 
 ) -> bool{
     let ua = &app.default_ua;
+    let local_captcha = app.local_captcha.clone();
     let custom_config = app.custom_config.clone();
     let client = 
     ui.label(
@@ -396,6 +397,7 @@ pub fn phone_input(
             phone: app.login_input.phone.clone(),
             client: app.client.clone(),
             custom_config: custom_config.clone(),
+            local_captcha: local_captcha.clone(),
         };  
         let request = common::taskmanager::TaskRequest::LoginSmsRequest(sms_req);
         match app.task_manager.submit_task(request) {

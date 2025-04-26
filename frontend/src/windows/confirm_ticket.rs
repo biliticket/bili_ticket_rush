@@ -311,6 +311,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // 根据模式决定按钮启用条件
                     let biliticket = &app.bilibiliticket_list[biliticket_index];
+                    let local_captcha = app.local_captcha.clone();
                     let button_enabled = match id_bind {
                         0 => biliticket.nobind_tel.is_some() && biliticket.nobind_name.is_some(),
                         1 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
@@ -349,6 +350,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     start_time: None,
                                                     client: biliticket_session.unwrap(),
                                                     biliticket: biliticket.clone(),
+                                                    local_captcha: local_captcha.clone(),
                                                 };
                                                 log::debug!("提交抢票任务: {:?}", grab_ticket_request);
                                                 // 提交到任务管理器

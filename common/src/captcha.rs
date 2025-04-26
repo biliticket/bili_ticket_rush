@@ -1,23 +1,68 @@
-
+use std::fmt;
 use reqwest::Client;
 use serde_json::json;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use bili_ticket_gt::click::Click;
-use crate::{account::Account, ticket::TokenRiskParam, utility::CustomConfig};
+use bili_ticket_gt::slide::Slide;
+use crate::{ ticket::TokenRiskParam, utility::CustomConfig};
 
-pub async fn captcha(custom_config: CustomConfig, gt: &str, challenge: &str, referer: &str, captcha_type:usize) -> Result<String, String> {
+#[derive(Clone)]  
+pub struct LocalCaptcha{
+    click: Option<Arc<Mutex<Click>>>,
+    slide: Option<Arc<Mutex<Slide>>>,
+}
+
+//Debug trait
+impl fmt::Debug for LocalCaptcha {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LocalCaptcha")
+            .field("click", &if self.click.is_some() { "Some(Click)" } else { "None" })
+            .field("slide", &if self.slide.is_some() { "Some(Slide)" } else { "None" })
+            .finish()
+    }
+}
+
+impl LocalCaptcha {
+    pub fn new() -> Self {
+        LocalCaptcha {
+            click: Some(Arc::new(Mutex::new(Click::default()))), //初始化点击对象
+            slide: None, //暂时先不初始化滑块，疑似出现滑块概率极低
+        }
+    }
+}
+pub async fn captcha(
+    custom_config: CustomConfig, 
+    gt: &str, 
+    challenge: &str,    
+    referer: &str,  // referer（ttocr打码使用）
+    captcha_type:usize, // 33对应三代点字 32对应三代滑块
+    local_captcha: LocalCaptcha,  //本地打码需要传入实例结构体
+) 
+    -> Result<String, String> {
     // 0:本地打码  1：ttocr
     match custom_config.captcha_mode {
         0 => {
             match captcha_type{
                 32 => {
+                    let mut slide = match local_captcha.slide {
+                        Some(c) =>c,
+                        None => {
+                            return Err("本地打码需要传入slide对象".to_string());
+                        }
+                    };
                     Err("本地打码暂不支持三代滑块".to_string())
                 }
                 33 => { //三代点字
+                    let click_mutex = match &local_captcha.click {
+                        Some(c) =>Arc::clone(c),
+                        None => {
+                            return Err("本地打码需要传入click对象".to_string());
+                        }
+                    };
                     let gt_clone = gt.to_string();
                     let challenge_clone = challenge.to_string();
                     let validate = tokio::task::spawn_blocking(move || {
-                        let mut click = Click::default();
+                        let mut click = click_mutex.lock().unwrap();
                         click.simple_match_retry(&gt_clone, &challenge_clone)
                     }).await
                     .map_err(|e| format!("任务执行出错：{}",e))?
@@ -116,7 +161,13 @@ pub async fn captcha(custom_config: CustomConfig, gt: &str, challenge: &str, ref
 
 
 
-pub async fn handle_risk_verification(client: Arc<Client>,risk_param: TokenRiskParam,custom_config: &CustomConfig,csrf: &str) -> Result<(), String> {
+pub async fn handle_risk_verification(
+    client: Arc<Client>,
+    risk_param: TokenRiskParam,
+    custom_config: &CustomConfig,
+    csrf: &str,
+    local_captcha: LocalCaptcha,
+) -> Result<(), String> {
     let risk_params_value = match &risk_param.risk_param {
         Some(value) => value,
         None => return Err("风控参数为空".to_string()),
@@ -167,7 +218,9 @@ pub async fn handle_risk_verification(client: Arc<Client>,risk_param: TokenRiskP
                 gt, 
                 challenge, 
                 "https://api.bilibili.com/x/gaia-vgate/v1/validate", 
-                33 // 点选类型
+                33 ,// 点选类型
+                local_captcha,
+
             ).await?;
             
             

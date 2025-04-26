@@ -1,10 +1,12 @@
 use std::time::Instant;
 use reqwest::Client;
 use std::sync::Arc;
+use crate::ticket::{*};
+use crate::captcha::LocalCaptcha;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 use crate::show_orderlist::OrderResponse;
-use crate::ticket::{*};
+
 
 
 
@@ -80,6 +82,8 @@ pub struct GrabTicketRequest {
     pub grab_mode: u8,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
+    
+    pub local_captcha: LocalCaptcha,
     
 }
 #[derive(Clone,Debug)]
@@ -273,6 +277,7 @@ pub struct LoginSmsRequest {
     pub phone: String,
     pub client: Client,
     pub custom_config: CustomConfig,
+    pub local_captcha: LocalCaptcha,
 }
 
 pub struct SubmitLoginSmsRequest {
