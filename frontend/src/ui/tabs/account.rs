@@ -147,7 +147,9 @@ fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Op
     if account.is_login {
         if let Some(avatar_url) = &account.avatar_url {
             // 尝试加载用户头像
-            let texture_option = load_texture_from_url(ctx, account, avatar_url, ua, "user_avatar");
+
+            let texture_option = load_texture_from_url(ctx, account.client.as_ref().unwrap(), avatar_url, ua, "user_avatar");
+
             account.avatar_texture= texture_option.clone();
             if let Some(texture) = texture_option {
                 Some(texture)
