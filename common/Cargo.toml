@@ -25,6 +25,8 @@ reqwest = { version="0.11.22", features=["json", "blocking", "cookies"]}
 base64 = "0.13"
 
 lazy_static = "1.4"
+image = "0.25"
 
 #captcha
 bili_ticket_gt = { git = "https://github.com/Amorter/biliTicker_gt",branch = "rust"}
+
