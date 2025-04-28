@@ -1,6 +1,7 @@
 use std::u32;
 
 use eframe::egui;
+use eframe::egui::Widget;
 use crate::app::Myapp;
 use common::account::{Account};
 use common::taskmanager::{TaskStatus, TicketRequest, TaskManager_debug};
@@ -162,7 +163,11 @@ fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
         // 如果没有账号，显示提示
         if app.account_manager.accounts.is_empty() {
             ui.label(egui::RichText::new("未登录账号").color(egui::Color32::RED).italics());
-            if ui.button(egui::RichText::new("去登录").size(14.0).color(egui::Color32::BLUE)).clicked() {
+            ui.add_space(8.0);
+            if egui::Button::new(egui::RichText::new("去登录").size(14.0).color(egui::Color32::BLUE))
+                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色 
+                .ui(ui)
+                .clicked() {
                 app.show_login_windows = true;
             }
         } else {
