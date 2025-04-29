@@ -30,3 +30,11 @@ image = "0.25"
 #captcha
 bili_ticket_gt = { git = "https://github.com/Amorter/biliTicker_gt",branch = "rust"}
 
+md5 = "0.7.0"
+
+uuid = { version = "1.0", features = ["v4", "fast-rng"] }
+
+hmac = "0.12.1"
+sha2 = "0.10.7"
+hex = "0.4.3"
+cookie = "0.16" 

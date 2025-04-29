@@ -1,67 +1,273 @@
 use reqwest::{Client, Response ,header, RequestBuilder};
+use reqwest::cookie::Jar;
+use cookie::Cookie;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex}; //?有用到吗
-use serde_json::Value;
+use rand::seq::SliceRandom;
+use crate::web_ck_obfuscated::{*};
+
+
+#[derive(Debug, Clone)]
+pub struct AppData {
+    pub brand: String,
+    pub model: String,
+    pub buvid: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct WebData {
+    pub browser_version: String,
+    pub os_version: String,
+    pub ua: String, 
+    pub buvid3: String,
+    pub buvid4: String,
+    pub b_nut: String,
+    pub buvid_fp: String,
+    pub _uuid: String,
+    pub bili_ticket: String,
+    pub bili_ticket_expires: String,
+
+}
+
 
 #[derive(Debug, Clone)]
 pub struct CookieManager {
-    client: Arc<Client>,
-    cookies: Arc<Mutex<HashMap<String, String>>>,
+    client: Arc<reqwest::Client>,
+    create_type: usize,
+    app_data: Option<AppData>,
+    web_data: Option<WebData>,
+    pub cookies: CookiesData,
+    
+}
+
+#[derive(Debug, Clone)]
+pub struct CookiesData {
+    pub cookies_map: Arc<Mutex<HashMap<String, String>>>,
+    pub cookie_jar : Arc<Mutex<Jar>>,
+}
+
+impl CookiesData {
+    pub fn insert(&self, key: String, value: String) {
+        self.cookies_map.lock().unwrap().insert(key.clone(), value.clone());
+        let cookie = Cookie::build(&key, value)
+            .domain(".bilibili.com")
+            .path("/")
+            .finish();
+        self.cookie_jar.lock().unwrap().add_cookie_str(&cookie.to_string(), &"https://bilibili.com".parse().unwrap());
+    }
+
+    pub fn clear(&self) {
+        self.cookies_map.lock().unwrap().clear();
+        *self.cookie_jar.lock().unwrap() = Jar::default();
+    }
 }
 
 impl CookieManager {
-    pub fn new(original_cookie : &str , user_agent: Option<&str>) -> Self {
-        let cookies = Self::parse_cookie_string(original_cookie);
+    pub async fn new(
+        original_cookie : &str , 
+        user_agent: Option<&str>,
+        create_type: usize, //0：默认网页浏览器 1：app
 
-        let client_builder = Client::builder()
+    ) -> Self {
+
+        let mut cookies = Self::parse_cookie_string(original_cookie);
+        
+        match create_type {
+            0 => {
+
+            //UA部分
+
+                //浏览器
+                let browser_version_list = vec![
+                    //chrome
+                    "Chrome/126.0.6478.55", "Chrome/127.0.6520.0", "Chrome/125.0.6422.61", "Chrome/124.0.6367.60", "Chrome/135.0.0.0",
+                    //edge
+                    "Chrome/126.0.6478.55 Edg/126.0.2578.55", "Chrome/127.0.6520.0 Edg/127.0.2610.0", "Chrome/125.0.6422.61 Edg/125.0.2535.51", "Chrome/124.0.6367.60 Edg/124.0.2478.67", "Chrome/135.0.0.0, Edg/135.0.0.0",
+                    
+                ];
+                let os_version_list = vec![
+                    
+                    "(Windows NT 10.0; Win64; x64)"
+
+                ];
+                let browser_version = browser_version_list.choose(&mut rand::thread_rng())
+                .map(|&s| s.to_string())
+                .unwrap_or_else(|| "Chrome/135.0.0.0".to_string());
+                let os_version = os_version_list.choose(&mut rand::thread_rng())
+                .map(|&s| s.to_string())
+                .unwrap_or_else(|| "(Windows NT 10.0; Win64; x64)".to_string());
+
+                let ua = format!("Mozilla/5.0 {} AppleWebKit/537.36 (KHTML, like Gecko) {} Safari/537.36", os_version, browser_version);
+                log::debug!("UA: {}", ua);
+
+                //！异步改这里，去掉blocking
+                // let client_builder = reqwest::Client::builder()
+                //     .cookie_store(true);
+                let client_builder = reqwest::Client::builder()
             .cookie_store(true);
-        let client = if let Some(ua) = user_agent {
-            client_builder.user_agent(ua)
-        }else{
-            //理论上不应该到这里，到这里需检查是否漏参丢参
-            client_builder.user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.6")
-        }.build().unwrap_or_default();
+                let client = client_builder.user_agent(ua.clone()).build().unwrap_or_default()
+                    ;
 
-        Self { client: (Arc::new(client)), cookies: (Arc::new(Mutex::new(cookies))) }
+            //ck部分
+                let (buvid3,buvid4, b_nut) =gen_buvid3and4(client.clone()).await.unwrap_or_else(|err| 
+                {
+                    log::error!("生成buvid失败: {}", err);
+                    ("".to_string(),"".to_string(), "".to_string())
+                }); 
+                log::debug!("buvid3: {}, buvid4: {}, b_nut: {}", buvid3, buvid4, b_nut);
+                let fp = gen_fp();
+                log::debug!("fp: {}", fp);
+                let _uuid = gen_uuid_infoc();
+                log::debug!("_uuid: {}", _uuid);
+                let (bili_ticket, bili_ticket_expires) = gen_ckbili_ticket(client.clone())
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!("生成bili_ticket失败: {}", err);
+                    ("".to_string(), "".to_string())
+                });
+                cookies.insert("buvid3".to_string(), buvid3.clone());
+                cookies.insert("buvid4".to_string(), buvid4.clone());
+                cookies.insert("b_nut".to_string(), b_nut.clone());
+                cookies.insert("buvid_fp".to_string(), fp.clone());
+                cookies.insert("_uuid".to_string(), _uuid.clone());
+                cookies.insert("bili_ticket".to_string(), bili_ticket.clone());
+                cookies.insert("bili_ticket_expires".to_string(), bili_ticket_expires.clone());
+                cookies.insert("header_theme_version".to_string(), "CLOSE".to_string());
+                cookies.insert("enable_web_push".to_string(), "DISABLE".to_string());
+                cookies.insert("enable_feed_channel".to_string(), "ENABLE".to_string());
+                log::debug!("buvid3: {}, buvid4: {}, b_nut: {}, fp: {}, _uuid: {}, bili_ticket: {}, bili_ticket_expires: {}", buvid3, buvid4, b_nut, fp, _uuid, bili_ticket, bili_ticket_expires);
+
+                let web_data = WebData {
+                    browser_version: browser_version,
+                    os_version: os_version,
+                    ua: ua,
+                    buvid3: buvid3,
+                    buvid4: buvid4,
+                    b_nut: b_nut,
+                    buvid_fp: fp,
+                    _uuid: _uuid,
+                    bili_ticket: bili_ticket,
+                    bili_ticket_expires: bili_ticket_expires,
+                };
+                Self {
+                    client: Arc::new(client),
+                    create_type: create_type,
+                    app_data: None,
+                    web_data: Some(web_data),
+                    cookies: cookies,
+                }
+            }
+            1 => {
+                //app
+                let mut model_list = HashMap::new();
+                model_list.insert("OnePlus", vec!["PKR110", "PJD110", "PJZ110", "PKU110", "PJA110", "PJF110", "PJX110"]);
+                model_list.insert("IQOO", vec!["V2329A", "V2408A", "V2307A", "V2304A", "V2254A"]);
+                model_list.insert("HONOR", vec!["DVD-AN00", "PTP-AN20", "ROD2-W69", "ROD2-W09", "ROL-W00"]);
+                model_list.insert("Vivo", vec!["V2324A", "V2229A", "V2241A", "V2359A", "V2454A", "V2364A", "V2429A", "V2343A", "V2435A"]);
+                model_list.insert("Realme", vec!["RMX5060", "RMX3946", "RMX3948", "RMX5010"]);
+                model_list.insert("OPPO", vec!["PFFM20", "PJJ110", "PJW110", "PKM110", "PHU110"]);
+                // model_list.insert("HUAWEI", vec!["PLU-AL00", "PLA-AL10", "CLS-AL00", "ALN-AL10", "BRA-AL00", "CET-AL00", "VDE-AL00", "ADY-AL00"]);
+                
+                let brands : Vec<&str> = model_list.keys().cloned().collect();
+                let brand = brands.choose(&mut rand::thread_rng())
+                .map(|&s| s.to_string())
+                .unwrap_or("OnePlus".to_string());
+                let model = model_list.get(brand.as_str())
+                .and_then(|models| models.choose(&mut rand::thread_rng())).copied()
+                .unwrap_or_else(|| "V2324A");
+            Self{
+                client: Arc::new(reqwest::Client::builder()
+                    .cookie_store(true)
+                    .user_agent(user_agent.unwrap_or("okhttp/4.9.3"))
+                    .build()
+                    .unwrap_or_default()),
+                create_type: create_type,
+                app_data: Some(AppData {
+                    brand: brand.clone(),
+                    model: model.to_string(),
+                    buvid: "".to_string(),
+                }),
+                web_data: None,
+                cookies: cookies,
+            }
+ 
+            }
+            _ => {
+                //默认浏览器
+                log::warn!("创建类型错误");
+                Self{
+                    client: Arc::new(reqwest::Client::builder()
+                        .cookie_store(true)
+                        .build()
+                        .unwrap_or_default()),
+                    create_type: 0,
+                    app_data: None,
+                    web_data: None,
+                    cookies: cookies,
+                }
+            }
+        }
+        
     }
+
+
 
     //解析cookie字符串 
     //TODO：（ck登录待去多余字符）
-    fn parse_cookie_string(cookie_str: &str) -> HashMap<String,String> {
+    fn parse_cookie_string(cookie_str: &str) -> CookiesData {
         let mut map = HashMap::new();
+        let cookie_jar = Arc::new(Mutex::new(reqwest::cookie::Jar::default()));
         for cookie in cookie_str.split(';') {
             let cookie = cookie.trim();
             if let Some(index) = cookie.find("=") {
                 let (key , value) = cookie.split_at(index);
                 if value.len() >1 {
                     map.insert(key.to_string(), value[1..].to_string());
+                    let cookie = Cookie::build(key, value[1..].to_string())
+                        .domain(".bilibili.com")
+                        .path("/")
+                        .finish();
+                    cookie_jar.lock().unwrap().add_cookie_str(&cookie.to_string() , &"https://bilibili.com".parse().unwrap());
                 }
             }
         }
-        map
+        
+        CookiesData{
+            cookies_map: Arc::new(Mutex::new(map)),
+            cookie_jar: cookie_jar,
+        }
     }
 
     //现有client创建ck管理器 (已封进client的ck无法读取)
-    pub fn from_client(client: Arc<Client>, original_cookie : &str) -> Self {
+    pub fn from_client(client: Arc<reqwest::Client>, original_cookie : &str) -> Self {
         let cookies = Self::parse_cookie_string(original_cookie);
         Self {
             client: client,
-            cookies: Arc::new(Mutex::new(cookies))
+            create_type: 0,
+            app_data: None,
+            web_data: None,
+            cookies: cookies,
         }
     }
 
     //更新单个字段
     pub fn update_cookie(&self, key:&str, value:&str){
-        let mut cookies = self.cookies.lock().unwrap();
-        cookies.insert(key.to_string(), value.to_string());
+        
+        self.cookies.insert(key.to_string(), value.to_string());
         log::debug!("更新Cookie: {}={}", key, value);
     }
 
     //移除某个键对应的值
     pub fn remove_cookie(&self, key:&str) -> bool {
-        let mut cookies = self.cookies.lock().unwrap();
-        let existed = cookies.remove(key).is_some();
+        
+        let existed = self.cookies.cookies_map.lock().unwrap().remove(key).is_some();
         if existed {
+            let expire_cookie = Cookie::build(key, "")
+                .domain(".bilibili.com")
+                .path("/")
+                .max_age(cookie::time::Duration::seconds(-1))
+                .finish();
+            self.cookies.cookie_jar.lock().unwrap().add_cookie_str(&expire_cookie.to_string(), &"https://bilibili.com".parse().unwrap());
             log::debug!("删除Cookie: {}", key);
         } else {
             log::debug!("Cookie不存在: {}", key);
@@ -72,23 +278,117 @@ impl CookieManager {
     //更新大量ck
     pub fn update_cookies(&self, cookies_str: &str) {
         let new_cookies = Self::parse_cookie_string(cookies_str);
-        let mut cookies = self.cookies.lock().unwrap();
-        for(key,value) in new_cookies{
-            cookies.insert(key, value);
+        
+        for(key,value) in new_cookies.cookies_map.lock().unwrap().iter() {
+            self.cookies.insert(key.clone(), value.clone());
         }
         log::debug!("批量更新Cookie: {}", cookies_str);
     }
 
     //清除所有ck
     pub fn clear_all_cookies(&self) {
-        let mut cookies = self.cookies.lock().unwrap();
-        cookies.clear();
+        self.cookies.clear();
         log::debug!("清除所有Cookie");
     }
 
     //获取某个键的值
     pub fn get_cookie(&self, key: &str) -> Option<String> {
-        let cookies = self.cookies.lock().unwrap();
+        let cookies = self.cookies.cookies_map.lock().unwrap();
         cookies.get(key).cloned()
     }
+
+    // 发送 GET 请求
+    pub async fn get(&self, url: &str) -> reqwest::RequestBuilder {
+        let builder = self.client.get(url);
+        self.prepare_request(builder)
+    }
+    
+    // 发送 POST 请求
+    pub async fn post(&self, url: &str) -> reqwest::RequestBuilder {
+        let builder = self.client.post(url);
+        self.prepare_request(builder)
+    }
+
+    // 创建具有自定义标头的请求
+    pub async fn get_with_headers(&self, url: &str, headers: HashMap<&str, &str>) -> reqwest::RequestBuilder {
+        let mut builder = self.get(url).await;
+        for (key, value) in headers {
+            builder = builder.header(key, value);
+        }
+        builder
+    }
+    
+    pub async fn post_with_headers(&self, url: &str, headers: HashMap<&str, &str>) -> reqwest::RequestBuilder {
+        let mut builder = self.post(url).await;
+        for (key, value) in headers {
+            builder = builder.header(key, value);
+        }
+        builder
+    }
+    
+    // 临时覆盖 UA
+    pub async fn with_custom_ua(&self, builder: reqwest::RequestBuilder, ua: &str) -> reqwest::RequestBuilder {
+        builder.header(reqwest::header::USER_AGENT, ua)
+    }
+
+    fn prepare_request(&self, mut builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        // 1. 先添加所有 cookie - 覆盖内部 cookie_store 的值
+        let cookies = self.cookies.cookies_map.lock().unwrap();
+        
+        if !cookies.is_empty() {
+            let cookie_header = cookies.iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join("; ");
+                
+            builder = builder.header(reqwest::header::COOKIE, cookie_header);
+        }
+        
+        // 2. 根据创建类型添加其他头
+        let builder = match self.create_type {
+            0 => {
+                // Web 请求头
+                if let Some(web_data) = &self.web_data {
+                    builder
+                        .header("User-Agent", &web_data.ua)
+                        .header("Referer", "https://show.bilibili.com/")
+                        .header("Origin", "https://show.bilibili.com")
+                } else {
+                    builder
+                }
+            },
+            1 => {
+                // App 请求头
+                if let Some(app_data) = &self.app_data {
+                    builder
+                        .header("x-bili-aurora-zone", "sh")
+                        // 其他 app 相关头
+                } else {
+                    builder
+                }
+            },
+            _ => builder
+        };
+        
+        builder
+    }
+    
+    //处理响应中的 cookie
+    pub async fn execute(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response, reqwest::Error> {
+        let response = request.send().await?;
+        
+        // 从响应中提取并更新 cookies
+        let cookies = response.headers().get_all(reqwest::header::SET_COOKIE) ;
+            for cookie_header in cookies {
+                if let Ok(cookie_str) = cookie_header.to_str() {
+                    log::debug!("从响应中获取到 cookie: {}", cookie_str);
+                    self.update_cookies(cookie_str);
+                }
+            }
+        
+        
+        Ok(response)
+    }
 }
+
+
