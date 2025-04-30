@@ -67,7 +67,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             uid: data["mid"].as_i64().unwrap_or(0),
             name: data["uname"].as_str().unwrap_or("账号信息获取失败，请删除重新登录").to_string(),
             level: data["level_info"]["current_level"].as_i64().unwrap_or(0).to_string(),
-            cookie: cookie.to_string(),
+            cookie: cookie_manager.get_all_cookies(),
             csrf: extract_csrf(cookie),
             is_login: true,
             account_status: "空闲".to_string(),

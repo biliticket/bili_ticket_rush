@@ -1,9 +1,11 @@
-use reqwest::{Client, Response ,header, RequestBuilder};
+
 use reqwest::cookie::Jar;
 use cookie::Cookie;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex}; //?有用到吗
 use rand::seq::SliceRandom;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 use crate::web_ck_obfuscated::{*};
 
 
@@ -114,22 +116,119 @@ impl CookieManager {
                     ;
 
             //ck部分
-                let (buvid3,buvid4, b_nut) =gen_buvid3and4(client.clone()).await.unwrap_or_else(|err| 
-                {
-                    log::error!("生成buvid失败: {}", err);
-                    ("".to_string(),"".to_string(), "".to_string())
-                }); 
-                log::debug!("buvid3: {}, buvid4: {}, b_nut: {}", buvid3, buvid4, b_nut);
-                let fp = gen_fp();
-                log::debug!("fp: {}", fp);
-                let _uuid = gen_uuid_infoc();
-                log::debug!("_uuid: {}", _uuid);
-                let (bili_ticket, bili_ticket_expires) = gen_ckbili_ticket(client.clone())
-                .await
-                .unwrap_or_else(|err| {
-                    log::error!("生成bili_ticket失败: {}", err);
-                    ("".to_string(), "".to_string())
-                });
+                let (buvid3, buvid4, b_nut) = {
+                // 从现有 cookies 中尝试获取值
+                let cookies_map = cookies.cookies_map.lock().unwrap();
+                let existing_buvid3 = cookies_map.get("buvid3").cloned();
+                let existing_buvid4 = cookies_map.get("buvid4").cloned();
+                let existing_b_nut = cookies_map.get("b_nut").cloned();
+                drop(cookies_map); // 释放锁
+                
+                // 只有缺少全部或部分值时才请求生成
+                if existing_buvid3.is_some() && existing_buvid4.is_some() && existing_b_nut.is_some() {
+                    log::debug!("使用现有 buvid: {} {} {}", 
+                        existing_buvid3.as_ref().unwrap(),
+                        existing_buvid4.as_ref().unwrap(),
+                        existing_b_nut.as_ref().unwrap());
+                    (existing_buvid3.unwrap(), existing_buvid4.unwrap(), existing_b_nut.unwrap())
+                } else {
+                    log::debug!("生成新的 buvid");
+                    gen_buvid3and4(client.clone()).await.unwrap_or_else(|err| {
+                        log::error!("生成buvid失败: {}", err);
+                        ("".to_string(), "".to_string(), "".to_string())
+                    })
+                }
+                };
+                
+                let fp = {
+                    let cookies_map = cookies.cookies_map.lock().unwrap();
+                    let existing_fp = cookies_map.get("buvid_fp").cloned();
+                    drop(cookies_map);
+                    
+                    if let Some(fp_value) = existing_fp {
+                        log::debug!("使用现有 fp: {}", fp_value);
+                        fp_value
+                    } else {
+                        let new_fp = gen_fp();
+                        log::debug!("生成新的 fp: {}", new_fp);
+                        new_fp
+                    }
+                };
+                
+                
+                let _uuid = {
+                    let cookies_map = cookies.cookies_map.lock().unwrap();
+                    let existing_uuid = cookies_map.get("_uuid").cloned();
+                    drop(cookies_map);
+                    
+                    if let Some(uuid_value) = existing_uuid {
+                        log::debug!("使用现有 _uuid: {}", uuid_value);
+                        uuid_value
+                    } else {
+                        let new_uuid = gen_uuid_infoc();
+                        log::debug!("生成新的 _uuid: {}", new_uuid);
+                        new_uuid
+                    }
+                };
+                
+                let (bili_ticket, bili_ticket_expires) = {
+                    let cookies_map = cookies.cookies_map.lock().unwrap();
+                    let existing_ticket = cookies_map.get("bili_ticket").cloned();
+                    let existing_expires = cookies_map.get("bili_ticket_expires").cloned();
+                    drop(cookies_map);
+                    
+                    if existing_ticket.is_some() && existing_expires.is_some() {
+                        //验证过期时间
+                        if let Some(expires_str) = &existing_expires {
+                            if let Ok(expires_time) = expires_str.parse::<i64>() {
+                                let current_time = SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64;
+                                
+                                // 未过期，使用已有的
+                                if current_time < expires_time {
+                                    log::debug!("使用现有 bili_ticket (有效期至: {})", expires_time);
+                                    (existing_ticket.unwrap(), existing_expires.unwrap()) // 删除了return关键字
+                                } else {
+                                    log::debug!("bili_ticket 已过期，重新生成");
+                                    // 生成新的
+                                    gen_ckbili_ticket(client.clone())
+                                        .await
+                                        .unwrap_or_else(|err| {
+                                            log::error!("生成bili_ticket失败: {}", err);
+                                            ("".to_string(), "".to_string())
+                                        })
+                                }
+                            } else {
+                                // 解析失败
+                                gen_ckbili_ticket(client.clone())
+                                    .await
+                                    .unwrap_or_else(|err| {
+                                        log::error!("生成bili_ticket失败: {}", err);
+                                        ("".to_string(), "".to_string())
+                                    })
+                            }
+                        } else {
+                            //无过期时间
+                            gen_ckbili_ticket(client.clone())
+                                .await
+                                .unwrap_or_else(|err| {
+                                    log::error!("生成bili_ticket失败: {}", err);
+                                    ("".to_string(), "".to_string())
+                                })
+                        }
+                    } else {
+                        
+                        log::debug!("生成新的 bili_ticket");
+                        gen_ckbili_ticket(client.clone())
+                            .await
+                            .unwrap_or_else(|err| {
+                                log::error!("生成bili_ticket失败: {}", err);
+                                ("".to_string(), "".to_string())
+                            })
+                    }
+                };
                 cookies.insert("buvid3".to_string(), buvid3.clone());
                 cookies.insert("buvid4".to_string(), buvid4.clone());
                 cookies.insert("b_nut".to_string(), b_nut.clone());
@@ -216,7 +315,15 @@ impl CookieManager {
     }
 
 
-
+    pub fn get_all_cookies(&self) -> String {
+        let cookies_map = self.cookies.cookies_map.lock().unwrap();
+        let mut cookie_str = String::new();
+        for (key, value) in cookies_map.iter() {
+            cookie_str.push_str(&format!("{}={}; ", key, value));
+        }
+        cookie_str
+    }
+    
     //解析cookie字符串 
     //TODO：（ck登录待去多余字符）
     fn parse_cookie_string(cookie_str: &str) -> CookiesData {
