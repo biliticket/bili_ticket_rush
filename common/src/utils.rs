@@ -15,6 +15,8 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Pkcs7;
 use aes::Aes128;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 
 #[derive(Clone,Debug)]
 pub struct Config{
@@ -23,11 +25,14 @@ pub struct Config{
 
 impl Config{
     pub fn load_config() -> io::Result<Self>{
-        let content = fs::read_to_string("./config.json")?;
+        let raw_context = fs::read_to_string("./config")?;
+        let content = raw_context.split("%").collect::<Vec<&str>>();
         // base64解码后解密
-        let decoded = BASE64.decode(content.trim())
+        let iv = BASE64.decode(content[0].trim())
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let decrypted = decrypt_data(&decoded)
+        let decoded = BASE64.decode(content[1].trim())
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let decrypted = decrypt_data(iv, &decoded)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let plain_text = String::from_utf8(decrypted)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
@@ -44,10 +49,11 @@ impl Config{
     pub fn save_config(&self) -> io::Result<()> {   //后续上加密
         let json_str = serde_json::to_string_pretty(&self.data)?;
         // 加密后base64编码
-        let encrypted = encrypt_data(json_str.as_bytes())
+        let (iv,encrypted) = encrypt_data(json_str.as_bytes())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        let encoded = BASE64.encode(&encrypted);
-        fs::write("./config.json", encoded)
+        let encoded_iv = BASE64.encode(&iv);  
+        let encoded_encrypted = BASE64.encode(&encrypted);
+        fs::write("./config", encoded_iv+"%" + &*encoded_encrypted)
     }
 
 
@@ -245,8 +251,8 @@ fn write_bytes_to_file(file_path: &str, bytes: &[u8]) -> io::Result<()> {
 
 pub fn load_texture_from_url(ctx: &eframe::egui::Context, cookie_manager: Arc<CookieManager>, url: &String, name: &str) -> Option<eframe::egui::TextureHandle> {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    
-    
+
+
     let bytes = rt.block_on(async {
         // 发送请求
         let resp = match cookie_manager.get(url).await.send().await {
@@ -256,7 +262,7 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, cookie_manager: Arc<Co
                 return None;
             }
         };
-        
+
         // 读取响应体
         match resp.bytes().await {
             Ok(bytes) => Some(bytes),
@@ -266,13 +272,13 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, cookie_manager: Arc<Co
             }
         }
     });
-    
-    
+
+
     let bytes = match bytes {
         Some(b) => b,
         None => return None,
     };
-    
+
     // 处理图像数据
     match image::load_from_memory(&bytes) {
         Ok(image) => {
@@ -293,23 +299,29 @@ pub fn load_texture_from_url(ctx: &eframe::egui::Context, cookie_manager: Arc<Co
     }
 }
 
+
+fn gen_machine_id_bytes_128b()->Vec<u8> {
+    let id: String = machine_uid::get().unwrap();
+    println!("{}", id);
+    id[..16].as_bytes().to_vec()
+
+}
 // 加密函数
-fn encrypt_data(data: &[u8]) -> Result<Vec<u8>, block_modes::BlockModeError> {
+fn encrypt_data(data: &[u8]) -> Result<(Vec<u8>,Vec<u8>), block_modes::BlockModeError> {
     type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-    let key = [0x42; 16]; // 16字节的密钥
-    let iv = [0x24; 16]; // 16字节的IV
-    let cipher = Aes128Cbc::new_from_slices(&key, &iv)
+    let mut iv = [0u8; 16];
+    rand::thread_rng()
+        .fill(&mut iv[..]); // 填充 16 字节的随机数据
+    let cipher = Aes128Cbc::new_from_slices(&gen_machine_id_bytes_128b(), &iv)
         .map_err(|_| block_modes::BlockModeError)?; // 将 InvalidKeyIvLength 转换为 BlockModeError
-    
-    Ok(cipher.encrypt_vec(data))
+
+    Ok((iv.to_vec(), cipher.encrypt_vec(data)))
 }
 
-fn decrypt_data(encrypted: &[u8]) -> Result<Vec<u8>, block_modes::BlockModeError> {
+fn decrypt_data(iv:Vec<u8>,encrypted: &[u8]) -> Result<Vec<u8>, block_modes::BlockModeError> {
     type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-    let key = [0x42; 16];
-    let iv = [0x24; 16];
-    let cipher = Aes128Cbc::new_from_slices(&key, &iv)
+    let cipher = Aes128Cbc::new_from_slices(&gen_machine_id_bytes_128b(), &iv)
         .map_err(|_| block_modes::BlockModeError)?; // 将 InvalidKeyIvLength 转换为 BlockModeError
-    
+
     cipher.decrypt_vec(encrypted)
 }
