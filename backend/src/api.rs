@@ -4,6 +4,7 @@ use common::ticket::{*};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
+use std::collections::HashMap;
 use std::sync::Arc;
 use serde_json::{json, Value};
 use rand::{thread_rng, Rng};
@@ -363,6 +364,13 @@ pub async fn create_order(
         ClickPositionType::PcConfirm
     };
     
+    let risk_header = format!("platform/{} uid/{} deviceId/{}"
+    ,cookie_manager.get_cookie("msource").unwrap_or("pc_web".to_string())
+    ,cookie_manager.get_cookie("DedeUserID").unwrap_or("".to_string())
+    ,cookie_manager.get_cookie("buvid3").unwrap_or("".to_string())
+    );
+    let mut input_risk_header = HashMap::new();
+    input_risk_header.insert("X-Risk-Header", risk_header.as_str());
     // 提取屏幕尺寸（如果提供）
     let (width, height) = screen_size.unwrap_or((1080, 2400));
     
@@ -405,7 +413,7 @@ pub async fn create_order(
     });
 
     log::debug!("抢票data ：{:?}", data);
-    let response = cookie_manager.post(&url).await
+    let response = cookie_manager.post_with_headers(&url,input_risk_header).await
         .json(&data)
         .send()
         .await
