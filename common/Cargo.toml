@@ -25,8 +25,10 @@ reqwest = { version="0.11.22", features=["json", "blocking", "cookies"]}
 base64 = "0.21"
 aes = "0.7.5"
 block-modes = "0.8.1"
+machine-uid = "0.5.3"
 lazy_static = "1.4"
 image = "0.25"
+
 
 #captcha
 bili_ticket_gt = { git = "https://github.com/Amorter/biliTicker_gt",branch = "rust"}
@@ -38,4 +40,5 @@ uuid = { version = "1.0", features = ["v4", "fast-rng"] }
 hmac = "0.12.1"
 sha2 = "0.10.7"
 hex = "0.4.3"
-cookie = "0.16" 
+cookie = "0.16"
+
