@@ -23,6 +23,12 @@ pub struct Config{
     data: Value,
 }
 
+impl Config {
+    pub fn delete_json_config() -> io::Result<()> {
+        fs::remove_file("config.json")
+    }
+}
+
 impl Config{
     pub fn load_config() -> io::Result<Self>{
         let raw_context = fs::read_to_string("./config")?;
@@ -37,6 +43,12 @@ impl Config{
         let plain_text = String::from_utf8(decrypted)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let data = serde_json::from_str(&plain_text)?;
+        Ok(Self{data})
+
+    }
+    pub fn load_json_config() -> io::Result<Self>{
+        let content = fs::read_to_string("./config.json")?;
+        let data = serde_json::from_str(&content)?;
         Ok(Self{data})
 
     }
