@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use common::cookie_manager::CookieManager;
 use eframe::egui;
+use log::info;
 use reqwest::{Client, header};
 
 use crate::ui;
@@ -175,18 +176,46 @@ impl Myapp{
             },
             Err(e) => {
                 log::error!("配置文件加载失败: {}", e);
-                let cfg =Config::new();
-                match cfg.save_config() {
-                    Ok(_) => {
-                        log::info!("配置文件保存成功");
-                    },
-                    Err(e) => {
-                        log::error!("配置文件保存失败: {}", e);
+                log::info!("尝试迁移json配置");
+                 match Config::load_json_config() {
+                    Ok(load_config) => {
+                        log::info!("配置文件加载成功");
+                        match load_config.save_config() {
+                            Ok(_) => {
+                                log::info!("配置文件保存成功");
+                                match Config::delete_json_config() {
+                                    Ok(_) => {
+                                        log::info!("旧配置文件删除成功");
+                                    },
+                                    Err(e) => {
+                                        log::error!("旧配置文件删除失败: {}", e);
+                                    }
+                                }
+                                log::info!("迁移成功");
+                            },
+                            Err(e) => {
+                                log::error!("配置文件保存失败: {}", e);
+                            }
+
+                        }
+                        load_config
                     }
-                    
-                }
-                cfg
+                    Err(e) => {
+                        log::error!("迁移失败: {}", e);
+                        let cfg =Config::new();
+                        match cfg.save_config() {
+                            Ok(_) => {
+                                log::info!("配置文件保存成功");
+                            },
+                            Err(e) => {
+                                log::error!("配置文件保存失败: {}", e);
+                            }
+
+                        }
+                        cfg
+                    }
                 
+            }
             }
         };
         
