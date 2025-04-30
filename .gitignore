@@ -16,5 +16,6 @@ Thumbs.db
 *.json
 *txt
 config.json
-/Log
-/models
+config
+/Log/
+/models/
