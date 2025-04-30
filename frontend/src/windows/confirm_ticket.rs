@@ -1,4 +1,6 @@
 use crate::app::Myapp;
+use std::sync::Arc;
+use common::cookie_manager::CookieManager;
 use common::ticket::{*};
 use common::taskmanager::{GrabTicketRequest, TaskStatus, TaskRequest};
 use eframe::egui;
@@ -20,7 +22,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
     };
     let biliticket_uid;
     let biliticket_project_id;
-    let biliticket_session;
+    let cookie_manager: Arc<CookieManager>;
     let id_bind;
     let screen_info: Option<ScreenInfo>;
     let ticket_info: Option<ScreenTicketInfo>;
@@ -33,7 +35,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
         
         biliticket_uid = biliticket.uid;
         biliticket_project_id = biliticket.project_info.as_ref().map(|p| p.id.to_string());
-        biliticket_session = biliticket.session.clone();
+        cookie_manager = biliticket.cookie_manager.clone().unwrap();
         
         id_bind = match &biliticket.project_info {
             Some(project) => project.id_bind,
@@ -348,7 +350,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     grab_mode: app.grab_mode,
                                                     status: TaskStatus::Pending,
                                                     start_time: None,
-                                                    client: biliticket_session.unwrap(),
+                                                    cookie_manager: cookie_manager.clone(),
                                                     biliticket: biliticket.clone(),
                                                     local_captcha: local_captcha.clone(),
                                                 };

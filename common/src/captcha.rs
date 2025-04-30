@@ -1,9 +1,9 @@
 use std::fmt;
-use reqwest::Client;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use bili_ticket_gt::click::Click;
 use bili_ticket_gt::slide::Slide;
+use crate::cookie_manager::CookieManager;
 use crate::{ ticket::TokenRiskParam, utility::CustomConfig};
 
 #[derive(Clone)]  
@@ -162,7 +162,7 @@ pub async fn captcha(
 
 
 pub async fn handle_risk_verification(
-    client: Arc<Client>,
+    cookie_manager: Arc<CookieManager>,
     risk_param: TokenRiskParam,
     custom_config: &CustomConfig,
     csrf: &str,
@@ -174,7 +174,7 @@ pub async fn handle_risk_verification(
     };
     log::debug!("风控参数: {:?}", risk_params_value);
     let url = "https://api.bilibili.com/x/gaia-vgate/v1/register";
-    let response = client.post(url)
+    let response = cookie_manager.post(url).await
         .json(&json!(risk_params_value))
         .send()
         .await
@@ -242,7 +242,7 @@ pub async fn handle_risk_verification(
             
             log::debug!("发送验证请求: {:?}", params);
             let validate_url = "https://api.bilibili.com/x/gaia-vgate/v1/validate";
-            let validate_response = client.post(validate_url)
+            let validate_response = cookie_manager.post(validate_url).await
                 .json(&params)
                 .send()
                 .await

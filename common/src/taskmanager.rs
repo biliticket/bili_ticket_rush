@@ -1,6 +1,7 @@
 use std::time::Instant;
 use reqwest::Client;
 use std::sync::Arc;
+use crate::cookie_manager::CookieManager;
 use crate::ticket::{*};
 use crate::captcha::LocalCaptcha;
 use crate::push::PushConfig;
@@ -77,7 +78,7 @@ pub struct GrabTicketRequest {
     pub screen_id : String,
     pub ticket_id: String,
     pub buyer_info: Vec<BuyerInfo>,
-    pub client: Arc<Client>,
+    pub cookie_manager: Arc<CookieManager>,
     pub biliticket: BilibiliTicket,
     pub grab_mode: u8,
     pub status: TaskStatus,

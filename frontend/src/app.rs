@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use common::cookie_manager;
 use eframe::egui;
 use reqwest::{Client, header};
 
@@ -702,7 +703,8 @@ impl eframe::App for Myapp{
                 
                 if should_request {
                     log::info!("提交获取{}project请求 ", self.ticket_id);
-                    if let Some(client) = &bilibili_ticket.session {
+                    let cookie_manager = bilibili_ticket.cookie_manager.clone().unwrap();
+                    let client = cookie_manager.client.clone(); {
                         let request = TaskRequest::GetTicketInfoRequest(GetTicketInfoRequest{
                             task_id: "".to_string(),
                             uid: bilibili_ticket.uid.clone(),
@@ -720,9 +722,7 @@ impl eframe::App for Myapp{
                                 log::error!("提交获取project请求失败: {}", e);
                             }
                         }
-                    } else {
-                        log::error!("账号 {} 的客户端未初始化", bilibili_ticket.account.name);
-                    }
+                    } 
                 } else {
                     
                     windows::screen_info::show(self, ctx, account_id);
@@ -765,7 +765,8 @@ impl eframe::App for Myapp{
                 }
                 if should_request{
                     log::info!("提交获取购票人信息请求");
-                    if let Some(client) = &bilibili_ticket.session {
+                    let cookie_manager = bilibili_ticket.cookie_manager.clone().unwrap();
+                    let client = cookie_manager.client.clone(); {
                         let request = TaskRequest::GetBuyerInfoRequest(GetBuyerInfoRequest{
                             task_id: "".to_string(),
                             uid: bilibili_ticket.uid.clone(),
@@ -782,9 +783,7 @@ impl eframe::App for Myapp{
                                 log::error!("提交获取购票人信息请求失败: {}", e);
                             }
                         }
-                    } else {
-                        log::error!("账号 {} 的客户端未初始化", bilibili_ticket.account.name);
-                    }
+                    } 
                 }
                 
                 windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());

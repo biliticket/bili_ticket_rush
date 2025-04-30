@@ -1,11 +1,11 @@
-use std::str::FromStr;
+use std::sync::Arc;
 
 use reqwest::header::HeaderValue;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::Arc;
 
+use crate::cookie_manager::CookieManager;
 use crate::account::Account;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
@@ -55,7 +55,7 @@ pub struct BilibiliTicket{
     pub push_self : PushConfig,
     pub status_delay : usize,
     pub captcha_use_type: usize,    //选择的验证码方式
-    pub session: Option<Arc<reqwest::Client>>,
+    pub cookie_manager: Option<Arc<CookieManager>>,
 
     //抢票相关
     pub project_id: String,
@@ -143,7 +143,7 @@ impl BilibiliTicket{
             push_self: push_self.clone(),
             status_delay: *status_delay,
             captcha_use_type: captcha_type,
-            session: Some(Arc::new(client)),
+            cookie_manager: None,
             project_id: project_id.to_string(),
             screen_id: String::new(),
             project_info: None,

@@ -32,10 +32,10 @@ pub struct WebData {
 
 #[derive(Debug, Clone)]
 pub struct CookieManager {
-    client: Arc<reqwest::Client>,
-    create_type: usize,
+    pub client: Arc<reqwest::Client>,
+    pub create_type: usize,
     app_data: Option<AppData>,
-    web_data: Option<WebData>,
+    pub web_data: Option<WebData>,
     pub cookies: CookiesData,
     
 }
@@ -96,8 +96,13 @@ impl CookieManager {
                 let os_version = os_version_list.choose(&mut rand::thread_rng())
                 .map(|&s| s.to_string())
                 .unwrap_or_else(|| "(Windows NT 10.0; Win64; x64)".to_string());
-
-                let ua = format!("Mozilla/5.0 {} AppleWebKit/537.36 (KHTML, like Gecko) {} Safari/537.36", os_version, browser_version);
+                let ua = match user_agent {
+                    Some(ua) => ua.to_string(),
+                    None => {
+                         format!("Mozilla/5.0 {} AppleWebKit/537.36 (KHTML, like Gecko) {} Safari/537.36", os_version, browser_version)
+                    }
+                };
+                
                 log::debug!("UA: {}", ua);
 
                 //！异步改这里，去掉blocking

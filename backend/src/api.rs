@@ -1,5 +1,7 @@
+use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::ticket::{*};
+use reqwest::cookie::Cookie;
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
@@ -182,7 +184,7 @@ QrCodeLoginStatus::Expired
 }
 
 
-pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,TokenRiskParam>{
+pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,TokenRiskParam>{
     
     
 
@@ -198,7 +200,8 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
     });
     
     let url = format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id);
-    let response = client.post(url)
+    let response = cookie_manager
+        .post(&url).await
         .json(&params)
         .send()
         .await;
@@ -313,12 +316,14 @@ pub async fn get_ticket_token(client:Arc<Client>, project_id : &str , screen_id:
 
 }
 
-pub async fn confirm_ticket_order(client:Arc<Client>,project_id : &str,token: &str) -> Result<ConfirmTicketResult, String> {
+pub async fn confirm_ticket_order(cookie_manager:Arc<CookieManager>,project_id : &str,token: &str) -> Result<ConfirmTicketResult, String> {
     let url = format!("https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&voucher=&project_id={}&requestSource=neul-next",token,project_id);
-    let response = client.get(&url)
+    let response = cookie_manager.get(&url)
+        .await
         .send()
         .await
         .map_err(|e| format!("请求失败: {}", e))?;
+        
     if !response.status().is_success() {
         return Err(format!("请求失败: {}", response.status()));
     }
@@ -337,7 +342,7 @@ pub async fn confirm_ticket_order(client:Arc<Client>,project_id : &str,token: &s
 }
 
 pub async fn create_order(
-    client: Arc<Client>,
+    cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
     confirm_result: &ConfirmTicketResult,
@@ -401,7 +406,7 @@ pub async fn create_order(
     });
 
     log::debug!("抢票data ：{:?}", data);
-    let response = client.post(&url)
+    let response = cookie_manager.post(&url).await
         .json(&data)
         .send()
         .await

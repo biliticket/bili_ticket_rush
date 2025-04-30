@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::thread;
+use common::cookie_manager::CookieManager;
 use reqwest::Client;
 
 
@@ -346,7 +347,7 @@ impl TaskManager for TaskManagerImpl {
                                     let screen_id = grab_ticket_req.screen_id.clone();
                                     let ticket_id = grab_ticket_req.ticket_id.clone();
                                     let buyer_info = grab_ticket_req.buyer_info.clone();
-                                    let client = grab_ticket_req.client.clone();
+                                    let cookie_manager = grab_ticket_req.cookie_manager.clone();
                                     let task_id = grab_ticket_req.task_id.clone();
                                     let result_tx = result_tx.clone();
                                     let uid = grab_ticket_req.uid.clone();
@@ -436,7 +437,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(client.clone(), &project_id, &screen_id, &ticket_id).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -447,7 +448,7 @@ impl TaskManager for TaskManagerImpl {
                                                             //尝试下单
                                                             loop {
                                                                if handle_grab_ticket(
-                                                                  client.clone(), 
+                                                                cookie_manager.clone(), 
                                                                   &project_id, 
                                                                   &token, 
                                                                   &task_id, 
@@ -483,7 +484,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 //需要处理验证码
                                                                 log::warn!("需要验证码，开始处理验证码...");
                                                                 match handle_risk_verification(
-                                                                    client.clone(), 
+                                                                    cookie_manager.clone(), 
                                                                     risk_param,
                                                                     &custon_config,
                                                                     &csrf,
@@ -772,7 +773,7 @@ impl TaskManager for TaskManagerImpl {
 }
 
 async fn handle_grab_ticket(
-    client: Arc<Client>,
+    cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
     task_id: &str,
@@ -782,12 +783,12 @@ async fn handle_grab_ticket(
     buyer_info: &Vec<BuyerInfo>,
 ) -> bool {
     // 确认订单
-    match confirm_ticket_order(client.clone(), project_id, token).await {
+    match confirm_ticket_order(cookie_manager.clone(), project_id, token).await {
         Ok(confirm_result) => {
             log::info!("确认订单成功！准备下单");
             
             if let Some(success) = try_create_order(
-                client.clone(),
+                cookie_manager.clone(),
                 project_id,
                 token,
                 &confirm_result,
@@ -811,7 +812,7 @@ async fn handle_grab_ticket(
 
 // 处理创建订单逻辑
 async fn try_create_order(
-    client: Arc<Client>,
+    cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
     confirm_result: &ConfirmTicketResult,
@@ -831,7 +832,7 @@ async fn try_create_order(
         }
         
         match create_order(
-            client.clone(), 
+            cookie_manager.clone(), 
             project_id, 
             token,
             confirm_result,
