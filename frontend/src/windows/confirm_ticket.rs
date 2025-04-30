@@ -35,7 +35,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
         
         biliticket_uid = biliticket.uid;
         biliticket_project_id = biliticket.project_info.as_ref().map(|p| p.id.to_string());
-        cookie_manager = biliticket.cookie_manager.clone().unwrap();
+        cookie_manager = biliticket.account.cookie_manager.clone().unwrap();
         
         id_bind = match &biliticket.project_info {
             Some(project) => project.id_bind,

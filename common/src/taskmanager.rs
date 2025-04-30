@@ -110,7 +110,7 @@ pub struct  GrabTicketResult {
 pub struct GetBuyerInfoRequest {
     pub uid : i64,
     pub task_id : String,
-    pub client: Arc<Client>,
+    pub cookie_manager: Arc<CookieManager>,
 }
 
 #[derive(Clone,Debug)]
@@ -127,7 +127,7 @@ pub struct GetBuyerInfoTask {
     pub task_id : String,
     pub status: TaskStatus,
     pub start_time : Option<Instant>,
-    pub client: Arc<Client>,
+    pub cookie_manager: Arc<CookieManager>,
 }
 //请求project_id票详情
 #[derive(Clone,Debug)]
@@ -135,7 +135,7 @@ pub struct GetTicketInfoRequest {
     pub uid : i64,
     pub task_id : String,
     pub project_id : String,
-    pub client: Arc<Client>,
+    pub cookie_manager: Arc<CookieManager>,
 
 }
 
@@ -154,7 +154,7 @@ pub struct GetTicketInfoTask {
     pub project_id : String,
     pub status: TaskStatus,
     pub start_time : Option<Instant>,
-    pub client: Arc<Client>,
+    pub cookie_manager: Arc<CookieManager>,
 }
 
 

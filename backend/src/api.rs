@@ -1,7 +1,6 @@
 use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::ticket::{*};
-use reqwest::cookie::Cookie;
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
@@ -10,8 +9,8 @@ use serde_json::{json, Value};
 use rand::{thread_rng, Rng};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn get_buyer_info(client: Arc<Client>) -> Result<BuyerInfoResponse,String>{
-    let req = client.get("https://show.bilibili.com/api/ticket/buyer/list");
+pub async fn get_buyer_info(cookie_manager: Arc<CookieManager>) -> Result<BuyerInfoResponse,String>{
+    let req = cookie_manager.get("https://show.bilibili.com/api/ticket/buyer/list").await;
     let response = req.send().await;
     match response {
         Ok(resp)=>{
@@ -52,8 +51,8 @@ pub async fn get_buyer_info(client: Arc<Client>) -> Result<BuyerInfoResponse,Str
     }
 }
 
-pub async fn get_project(client: Arc<Client>, project_id : &str) -> Result<InfoResponse,String>{
-    let req = client.get(format!("https://show.bilibili.com/api/ticket/project/getV2?id={}",project_id));
+pub async fn get_project(cookie_manager: Arc<CookieManager>, project_id : &str) -> Result<InfoResponse,String>{
+    let req = cookie_manager.get(format!("https://show.bilibili.com/api/ticket/project/getV2?id={}",project_id).as_str()).await;
     let response = req.send().await;
     match response {
         Ok(resp)=>{

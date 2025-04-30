@@ -269,14 +269,14 @@ impl TaskManager for TaskManagerImpl {
                                     });
                                 }
                                 TaskRequest::GetTicketInfoRequest(get_ticketinfo_req) => {
-                                    let client = get_ticketinfo_req.client.clone();
+                                    let cookie_manager = get_ticketinfo_req.cookie_manager.clone();
                                     let task_id = get_ticketinfo_req.task_id.clone();
                                     let result_tx = result_tx.clone();
                                     let project_id = get_ticketinfo_req.project_id.clone();
                                     let uid = get_ticketinfo_req.uid.clone();
                                     tokio::spawn(async move{
                                         log::debug!("正在获取project{}",task_id);
-                                        let response  = get_project(client, &project_id).await;
+                                        let response  = get_project(cookie_manager, &project_id).await;
                                         let success = response.is_ok();
                                         let ticket_info = match &response{
                                             Ok(info) => {Some(info.clone())},
@@ -306,13 +306,13 @@ impl TaskManager for TaskManagerImpl {
                                     });
                                 }
                                 TaskRequest::GetBuyerInfoRequest(get_buyerinfo_req)=>{
-                                    let client = get_buyerinfo_req.client.clone();
+                                    let cookie_manager = get_buyerinfo_req.cookie_manager.clone();
                                     let task_id = get_buyerinfo_req.task_id.clone();
                                     let result_tx = result_tx.clone();
                                     let uid = get_buyerinfo_req.uid.clone();
                                     tokio::spawn(async move{
                                         log::debug!("正在获取购票人信息{}",task_id);
-                                        let response  = get_buyer_info(client).await;
+                                        let response  = get_buyer_info(cookie_manager).await;
                                         let success = response.is_ok();
                                         let buyer_info = match &response{
                                             Ok(info) => {Some(info.clone())},
@@ -672,7 +672,7 @@ impl TaskManager for TaskManagerImpl {
                     project_id: get_ticketinfo_req.project_id.clone(),
                     status: TaskStatus::Running,
                     start_time: Some(std::time::Instant::now()),
-                    client: get_ticketinfo_req.client.clone(), 
+                    cookie_manager: get_ticketinfo_req.cookie_manager.clone(), 
                 };
                 self.running_tasks.insert(task_id.clone(),Task::GetTicketInfoTask(task));
             }
@@ -683,7 +683,7 @@ impl TaskManager for TaskManagerImpl {
                 let task = GetBuyerInfoTask {
                     uid: get_buyerinfo_req.uid.clone(),
                     task_id: task_id.clone(),
-                    client: get_buyerinfo_req.client.clone(),
+                    cookie_manager: get_buyerinfo_req.cookie_manager.clone(),
                     status: TaskStatus::Pending,
                     start_time: Some(std::time::Instant::now()),
                     
@@ -892,6 +892,10 @@ async fn try_create_order(
                         log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
                         return Some(false);
                     },
+                    100039 => {
+                        log::error!("活动收摊啦,下次要快点哦");
+                        return Some(false);
+                    }
                     
                     //未知错误
                     _ => log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题", e),

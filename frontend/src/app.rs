@@ -705,13 +705,13 @@ impl eframe::App for Myapp{
                 
                 if should_request {
                     log::info!("提交获取{}project请求 ", self.ticket_id);
-                    let cookie_manager = bilibili_ticket.cookie_manager.clone().unwrap();
-                    let client = cookie_manager.client.clone(); {
+                    let cookie_manager = bilibili_ticket.account.cookie_manager.clone().unwrap();
+                    {
                         let request = TaskRequest::GetTicketInfoRequest(GetTicketInfoRequest{
                             task_id: "".to_string(),
                             uid: bilibili_ticket.uid.clone(),
                             project_id: self.ticket_id.clone(),
-                            client: client.clone(),
+                            cookie_manager: cookie_manager.clone(),
                         });
                         match self.task_manager.submit_task(request) {
                             Ok(task_id) => {
@@ -767,12 +767,12 @@ impl eframe::App for Myapp{
                 }
                 if should_request{
                     log::info!("提交获取购票人信息请求");
-                    let cookie_manager = bilibili_ticket.cookie_manager.clone().unwrap();
-                    let client = cookie_manager.client.clone(); {
+                    let cookie_manager = bilibili_ticket.account.cookie_manager.clone().unwrap();
+                     {
                         let request = TaskRequest::GetBuyerInfoRequest(GetBuyerInfoRequest{
                             task_id: "".to_string(),
                             uid: bilibili_ticket.uid.clone(),
-                            client: client.clone(),
+                            cookie_manager: cookie_manager.clone(),
                         });
                         match self.task_manager.submit_task(request) {
                             Ok(task_id) => {
