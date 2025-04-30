@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use common::cookie_manager;
+use std::sync::Arc;
+use common::cookie_manager::CookieManager;
 use eframe::egui;
 use reqwest::{Client, header};
 
@@ -149,6 +150,7 @@ pub struct Myapp{
 
 pub struct AccountManager{
     pub accounts: Vec<Account>,
+    
     pub active_tasks: HashMap<String, TicketTask>,
 }
 
@@ -630,8 +632,8 @@ impl eframe::App for Myapp{
             else{
                 
                 let account = self.account_manager.accounts.iter_mut().find(|a| a.uid == account_id.clone()).unwrap();
-                let client = match account.client.clone() {
-                    Some(client) => client,
+                let cookie_manager = match account.cookie_manager.clone() {
+                    Some(cookie_manager) => cookie_manager,
                     None => {
                         log::error!("账号 {} 的客户端未初始化", account.name);
                         self.show_orderlist_window = None;
@@ -665,7 +667,7 @@ impl eframe::App for Myapp{
                      self.orderlist_requesting = true;  // 标记为正在请求中
                      self.orderlist_last_request_time = Some(std::time::Instant::now());
                      self.orderlist_need_reload = false;
-                    submit_get_total_order(&mut self.task_manager, &client, account);
+                    submit_get_total_order(&mut self.task_manager, cookie_manager, account);
                     self.orderlist_need_reload = false;
                 }
                 windows::show_orderlist::show(self, ctx);
@@ -795,16 +797,17 @@ impl eframe::App for Myapp{
 
         
     }
+    
 
     
 }
 
 
-pub fn submit_get_total_order(task_manager: &mut Box<dyn TaskManager>,client: &Client, account: &Account){
+pub fn submit_get_total_order(task_manager: &mut Box<dyn TaskManager>,cookie_manager: Arc<CookieManager>, account: &Account){
     let request = TaskRequest::GetAllorderRequest(GetAllorderRequest{
         task_id: "".to_string(),
         account_id: account.uid.to_string().clone(),
-        client: client.clone(),
+        cookie_manager: cookie_manager.clone(),
         cookies: account.cookie.clone(),
         //ua: account.user_agent.clone(),
         status: TaskStatus::Pending,

@@ -1,7 +1,7 @@
 use crate::app::Myapp;
 use eframe::egui::{self, RichText};
-use common::account::Account;
-use common::http_utils::request_json_form_sync;
+use serde_json::Value;
+
 pub struct AddBuyerInput{
     pub name: String,
     pub phone: String,
@@ -16,7 +16,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &str) {
         Some(account) => account,
         None => return,
     };
-    let select_client = select_account.client.as_ref().unwrap();
+    let select_cookie_manager = select_account.cookie_manager.clone().unwrap();
     let mut window_open = app.show_add_buyer_window.is_some();
     
     egui::Window::new("添加购票人")
@@ -107,43 +107,59 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &str) {
 
                     log::debug!("添加购票人数据: {:?}", json_form);
                     log::debug!("账号ck: {:?}", select_account.cookie.as_str());
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    let response = rt.block_on(async{
+                        select_cookie_manager.post(
+                            "https://show.bilibili.com/api/ticket/buyer/create",
+
+                        ).await
+                        .json(&json_form)
+                        .send()
+                        .await
+                        .unwrap()
+                    });
                     
-                    match request_json_form_sync(
-                        select_client, 
-                        "https://show.bilibili.com/api/ticket/buyer/create", 
-                        Some(app.default_ua.clone()),
-                        Some("https://show.bilibili.com".to_string()),
-                        Some(select_account.cookie.as_str()), 
-                        &json_form){
-                            Ok(response) => {
-                                if response.status() == 200 {
-                                    // 获取文本内容
-                                    let response_text = match tokio::task::block_in_place(|| {
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
-                                        rt.block_on(response.text())
-                                    }) {
-                                        Ok(text) => text,
-                                        Err(_) => "获取响应失败".to_string()
-                                    };
-                                    
-                                    log::debug!("添加购票人成功: {:?}", response_text);
-                                    app.show_add_buyer_window = None;
-                                    // 重置表单
-                                    app.add_buyer_input = AddBuyerInput {
-                                        name: String::new(),
-                                        phone: String::new(),
-                                        id_type: 0,
-                                        id_number: String::new(),
-                                        as_default_buyer: false,
-                                    };
-                                } else {
-                                    log::error!("添加购票人失败: {:?}", response.status());
-                                }
-                            },
-                            Err(e) => {
-                                log::error!("请求失败: {:?}", e);
-                            }
+                    if !response.status().is_success() {
+                        log::error!("添加购票人失败: {:?}", response.status());
+                        return;
+                    }
+
+                    let response_text = match rt.block_on(response.text()) {
+                        Ok(text) => text,
+                        Err(e) => {
+                            log::error!("获取响应文本失败: {}", e);
+                            return;
                         }
+                    };
+
+                    let json_value: Result<Value, _> = serde_json::from_str(&response_text);
+                    let response_json_value = match json_value {
+                        Ok(val) => val,
+                        Err(e) => {
+                            log::error!("解析JSON失败! 原因: {}, 响应原文: {}", e, response_text);
+                            return;
+                        }
+                    };
+                    
+                    if response_json_value.get("code").unwrap_or(&Value::Null) == &Value::Number(0.into()) {
+                        log::debug!("添加购票人成功: {:?}", response_text);
+                        app.show_add_buyer_window = None;
+                        // 重置表单
+                        app.add_buyer_input = AddBuyerInput {
+                            name: String::new(),
+                            phone: String::new(),
+                            id_type: 0,
+                            id_number: String::new(),
+                            as_default_buyer: false,
+                        };
+                    } else {
+                        log::error!("添加购票人失败: {:?}", response_text);
+                    }
+                    
+
+                    
+
+                    
                 }
             })
 

@@ -3,9 +3,10 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::ops::{Index, IndexMut};
-use reqwest::Client;
+use std::sync::Arc;
 use serde_json::{Value, json, Map};
 use crate::account::Account;
+use crate::cookie_manager::CookieManager;
 use crate::http_utils::request_get_sync;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
@@ -242,48 +243,53 @@ fn write_bytes_to_file(file_path: &str, bytes: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-pub fn load_texture_from_url(ctx: &eframe::egui::Context, client: &Client, url: &String, ua:String, name: &str) -> Option<eframe::egui::TextureHandle> {
-
-    //这里不需要传入Cookie
-    match request_get_sync(client, url,Some(ua),None) {
-
-        Ok(resp) => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let bytes_result = rt.block_on(async {
-                resp.bytes().await
-            });
-            if let Ok(bytes)= bytes_result {
-                match image::load_from_memory(&bytes) {
-                    Ok(image) => {
-                        let size = [image.width() as usize, image.height() as usize];
-                        let image_buffer = image.to_rgba8();
-                        let pixels = image_buffer.as_flat_samples();
-
-                        Some(ctx.load_texture(
-                            name,
-                            eframe::egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
-                            Default::default()
-                        ))
-                    }
-
-                    Err(err) =>{
-                        log::warn!("加载图片至内存失败: {}，url:{}", err,url);
-                        // 这里可以选择将错误信息写入文件
-                        // let file_path = format!("./error_image_{}.png", name.replace("/", "_").replace(":", "_"));
-                        // if let Err(e) = write_bytes_to_file(&file_path, &bytes) {
-                        //     log::error!("写入错误图片失败: {}", e);
-                        // } else {
-                        //     log::info!("错误图片已保存至: {}", file_path);
-                        // }
-                        None
-                    },
-
-                }
-            } else {
+pub fn load_texture_from_url(ctx: &eframe::egui::Context, cookie_manager: Arc<CookieManager>, url: &String, name: &str) -> Option<eframe::egui::TextureHandle> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    
+    
+    let bytes = rt.block_on(async {
+        // 发送请求
+        let resp = match cookie_manager.get(url).await.send().await {
+            Ok(resp) => resp,
+            Err(err) => {
+                log::error!("HTTP请求失败: {}", err);
+                return None;
+            }
+        };
+        
+        // 读取响应体
+        match resp.bytes().await {
+            Ok(bytes) => Some(bytes),
+            Err(err) => {
+                log::error!("读取响应体失败: {}", err);
                 None
             }
         }
-        Err(_) => None,
+    });
+    
+    
+    let bytes = match bytes {
+        Some(b) => b,
+        None => return None,
+    };
+    
+    // 处理图像数据
+    match image::load_from_memory(&bytes) {
+        Ok(image) => {
+            let size = [image.width() as usize, image.height() as usize];
+            let image_buffer = image.to_rgba8();
+            let pixels = image_buffer.as_flat_samples();
+
+            Some(ctx.load_texture(
+                name,
+                eframe::egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
+                Default::default()
+            ))
+        }
+        Err(err) => {
+            log::warn!("加载图片至内存失败: {}，url:{}", err, url);
+            None
+        }
     }
 }
 

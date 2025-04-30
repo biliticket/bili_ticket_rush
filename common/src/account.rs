@@ -1,8 +1,9 @@
 use serde::{Serialize, Deserialize};
 use reqwest::Client;
-use crate::http_utils::{request_get_sync,request_post_sync};
+use crate::{cookie_manager, http_utils::{request_get_sync,request_post_sync}};
 use serde_json;
-
+use std::sync::Arc;
+use crate::cookie_manager::CookieManager;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Account{
     pub uid: i64,  //UID
@@ -18,7 +19,7 @@ pub struct Account{
     #[serde(skip)]
     pub avatar_texture: Option<eframe::egui::TextureHandle>, //头像地址
     #[serde(skip)] 
-    pub client: Option<reqwest::Client>,
+    pub cookie_manager: Option<Arc<CookieManager>>, //cookie管理器
 }
 impl std::fmt::Debug for Account{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -34,7 +35,7 @@ impl std::fmt::Debug for Account{
             .field("is_active", &self.is_active)
             .field("avatar_url", &self.avatar_url)
             .field("avatar_texture", &"SKipped")
-            .field("client", &self.client)
+            .field("client", &self.cookie_manager)
             .finish()
     }
 }
@@ -53,6 +54,9 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
     let json = rt.block_on(async {
         response.json::<serde_json::Value>().await
     }).map_err(|e| e.to_string())?;
+    let cookie_manager = Arc::new(rt.block_on(async{
+        cookie_manager::CookieManager::new(cookie, Some(ua), 0).await
+    }));
     log::debug!("获取账号信息: {:?}", json);
     match json.get("code") {
         Some(code) if code.as_i64() == Some(0) => {} // 成功
@@ -71,7 +75,7 @@ pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, S
             is_active: true,
             avatar_url: Some(data["face"].as_str().unwrap_or("").to_string()),
             avatar_texture: None,
-            client: Some(client.clone()),
+            cookie_manager: Some(cookie_manager),
         };
         account.ensure_client();
         Ok(account)
@@ -85,15 +89,21 @@ pub fn signout_account(account: &Account) -> Result<bool, String> {
         "biliCSRF" : account.csrf,
 
     });
-    let response = request_post_sync(
-        account.client.as_ref().unwrap(),
-        "https://passport.bilibili.com/login/exit/v2",
-        None,
-        None,
-        Some(&data),
-    ).map_err(|e| e.to_string())?;
-    log::debug!("退出登录响应： {:?}",response);
-    Ok(response.status().is_success())
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt.block_on(async{
+        account.cookie_manager.clone().unwrap().post("https://passport.bilibili.com/login/exit/v2")
+        .await
+        .json(&data)
+        .send()
+        .await
+    });
+    
+    let resp = match response {
+        Ok(res) => res,
+        Err(e) => return Err(format!("请求失败: {}", e)),
+    };
+    log::debug!("退出登录响应： {:?}",resp);
+    Ok(resp.status().is_success())
     
 }
 
@@ -125,15 +135,19 @@ fn extract_csrf(cookie: &str) -> String {
 impl Account {
     // 确保每个账号都有自己的 client
     pub fn ensure_client(&mut self) {
-        if self.client.is_none() {
-            self.client = Some(create_client_for_account(&self.cookie));
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        if self.cookie_manager.is_none() {
+            rt.block_on(async{
+            self.cookie_manager = Some(Arc::new(CookieManager::new(
+                &self.cookie,
+                None,
+                0,
+            ).await))
+        });
         }
     }
 
-    // 刷新 client（如果需要重新创建）
-    pub fn refresh_client(&mut self) {
-        self.client = Some(create_client_for_account(&self.cookie));
-    }
+    
 }
 
 // 创建client

@@ -1,9 +1,9 @@
 use crate::app::{Myapp, OrderData};
 use eframe::egui::{self, RichText};
 use egui::{Image, TextureHandle};
-use log::error;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use common::utils::load_texture_from_url;
+use common::{cookie_manager::CookieManager, utils::load_texture_from_url};
 
 pub fn show(
     app: &mut Myapp,
@@ -219,15 +219,23 @@ fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
     // 标记为正在加载
     log::debug!("<正在加载图片>: {}", url);
     ctx.memory_mut(|mem| mem.data.insert_temp(egui::Id::new(format!("loading_{}", url)), true));
-
+    
     // 启动异步加载线程
-    let app_client = app.client.clone();
+    let app_client =match  app.account_manager.accounts[0].cookie_manager.clone(){
+        Some(client) => client,
+        None => {
+            log::error!("cookie_manager不存在");
+            let rt = tokio::runtime::Runtime::new().unwrap();
+           
+            Arc::new(rt.block_on(CookieManager::new("", None, 0)))
+        }
+    };
     let app_ua = app.default_ua.clone();
-    std::thread::spawn(move || {
+    
         // 这里应该实现实际的图片加载逻辑
         // 示例：
-
-        if let Some(texture)=load_texture_from_url(&ctx, &app_client, &(url.clone()+"@74w_74h.jpeg"), app_ua, &url){
+    std::thread::spawn(move || {
+        if let Some(texture)=load_texture_from_url(&ctx, app_client, &(url.clone()+"@74w_74h.jpeg"),  &url){
             ctx.memory_mut(|mem| {
                 log::debug!("加载图片成功: {}", url);
                 mem.data.insert_temp(egui::Id::new(&url), texture);
@@ -244,9 +252,4 @@ fn request_image_async(ctx: egui::Context,app:&Myapp,url: String) {
         });
 
 
-
-
-        // // 为了示例，假设加载成功
-        // std::thread::sleep(std::time::Duration::from_secs(1));
-        // ctx.request_repaint();
 }

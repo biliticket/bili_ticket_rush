@@ -1,7 +1,8 @@
 use eframe::egui;
 use crate::{app::{AccountSwitch, Myapp}};
-use common::account::{Account , signout_account};
+use common::{account::{signout_account, Account}, cookie_manager::{self, CookieManager}};
 use common::utils::load_texture_from_url;
+use std::sync::Arc;
 
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     ui.heading("我的账户");
@@ -20,7 +21,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
         
         avatar_texture:None,
         
-        client: None,
+        cookie_manager: None,
     };
 
 
@@ -28,7 +29,9 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     load_default_avatar(ui.ctx(),app);
 
     let account_to_show = app.account_manager.accounts.first_mut().unwrap_or(&mut example_account);
-    if let Some(texture) = &load_user_avatar(ui.ctx(), app.default_ua.clone(), account_to_show) {
+    let avatar_texture = load_user_avatar(ui.ctx(), account_to_show.cookie_manager.clone(), account_to_show);
+
+    if let Some(texture) = &avatar_texture{
         show_user(
             ui,
             texture,account_to_show,
@@ -139,38 +142,22 @@ fn draw_user_avatar(ui: &mut egui::Ui, texture: &egui::TextureHandle, size: f32)
     response
 }
 
-fn load_user_avatar(ctx: &egui::Context, ua: String, account: &mut Account) ->Option<egui::TextureHandle> {
+fn load_user_avatar(ctx: &egui::Context, cookie_manager: Option<Arc<CookieManager>>, account: &mut Account) ->Option<egui::TextureHandle> {
     // 如果用户已登录且提供了头像路径，尝试加载
     if let Some(texture) = &account.avatar_texture {
         return Some(texture.clone());
     }
-    if account.is_login {
+    if account.is_login && cookie_manager.is_some() {
         if let Some(avatar_url) = &account.avatar_url {
             // 尝试加载用户头像
+            let texture_option = load_texture_from_url(ctx, cookie_manager.unwrap(), avatar_url, "user_avatar");
 
-            let texture_option = load_texture_from_url(ctx, account.client.as_ref().unwrap(), avatar_url, ua, "user_avatar");
-
-            account.avatar_texture= texture_option.clone();
-            if let Some(texture) = texture_option {
-                Some(texture)
-            }
-            else {
-                // // 如果加载失败，记录日志
-                // println!("无法加载用户头像: {}", avatar_url);
-                // 用户也可以在这里添加一个日志
-                log::error!("无法加载头像: {}", avatar_url);
-                None
-            }
+            account.avatar_texture = texture_option.clone();
+            return texture_option;
         }
-        else {
-            //log::debug!("无法加载头像: 无头像URL");
-            None
-        }
-    } else {
-        // 这里有日志，会在没登录的时候显示一堆
-        // log::debug!("无法加载头像: 用户未登录");
-        None
     }
+    //未登录或加载失败
+    None
 }
 // 加载默认头像
 fn load_default_avatar(ctx: &egui::Context, app: &mut Myapp) {

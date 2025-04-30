@@ -236,7 +236,7 @@ pub struct SubmitLoginSmsRequestTask {
 //获取全部订单信息
 pub struct GetAllorderRequest {
     pub task_id: String,
-    pub client: Client,
+    pub cookie_manager: Arc<CookieManager>,
     pub status: TaskStatus,
     pub cookies: String,
     pub account_id: String,

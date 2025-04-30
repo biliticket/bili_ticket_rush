@@ -1,14 +1,14 @@
-use common::http_utils::request_get;
+use common::{cookie_manager::CookieManager, http_utils::request_get};
 use serde_json;
-use reqwest::Client;
+use std::sync::Arc;
 use common::show_orderlist::{*};
 
 
-pub async fn get_orderlist(client :Client, cookies: &str) -> Result<OrderResponse, String>{
-    match request_get(
-        &client,
-        "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10", 
-        Some(cookies)).await{
+pub async fn get_orderlist(cookie_manager :Arc<CookieManager>, cookies: &str) -> Result<OrderResponse, String>{
+    match cookie_manager.get(
+        
+        "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10" 
+        ).await.send().await{
             Ok(resp) =>{
                 if resp.status().is_success(){
 

@@ -232,14 +232,14 @@ impl TaskManager for TaskManagerImpl {
                                     });
                                 }
                                 TaskRequest::GetAllorderRequest(get_order_req) => {
-                                    let client = get_order_req.client.clone();
+                                    let cookie_manager = get_order_req.cookie_manager.clone();
                                     let result_tx = result_tx.clone();
                                     let task_id = get_order_req.task_id;
                                     let account_id = get_order_req.account_id.clone();
                                     let cookies = get_order_req.cookies.clone();
                                     tokio::spawn(async move{
                                         log::info!("正在获取全部订单 ID: {}", task_id);
-                                        let response = get_orderlist(client,cookies.as_str()).await;
+                                        let response = get_orderlist(cookie_manager,cookies.as_str()).await;
                                         let success = response.is_ok();
                                         let data = match &response {
                                             Ok(order_resp) => {order_resp.clone()},
@@ -655,7 +655,7 @@ impl TaskManager for TaskManagerImpl {
                 // 创建获取全部订单任务
                 let task = GetAllorderRequest {
                     task_id: task_id.clone(),
-                    client: get_order_req.client.clone(),
+                    cookie_manager: get_order_req.cookie_manager.clone(),
                     status: TaskStatus::Pending,
                     cookies: get_order_req.cookies.clone(),
                     account_id: get_order_req.account_id.clone(),
