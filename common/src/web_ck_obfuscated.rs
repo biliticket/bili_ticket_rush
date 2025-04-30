@@ -396,6 +396,41 @@ fn _calc_hmac(key: &str, message: &str) -> Result<String, String> {
     Ok(hex::encode(_bytes))
 }
 
+pub fn gen_01x88() -> String {
+    let _x1 = |_n: u8| -> bool { (_n & 0x2D) == 0x2D }; 
+    
+    let _t0 = std::time::SystemTime::now();
+    let _r1 = rand::thread_rng().r#gen::<u16>() % 4 > 0; 
+    
+    let _id_src = if _r1 {
+        
+        let _uuid_raw = uuid::Uuid::new_v4();
+        _uuid_raw.as_bytes().to_vec() 
+    } else {
+        
+        let mut _bytes = [0u8; 16];
+        rand::thread_rng().fill(&mut _bytes);
+        let _u = uuid::Uuid::from_bytes(_bytes);
+        _u.as_bytes().to_vec()
+    };
+    
+   
+    let mut _result = String::with_capacity(32);
+    let _hex = "0123456789abcdef".as_bytes();
+    
+    for &_b in _id_src.iter() {
+        _result.push(_hex[(_b >> 4) as usize] as char);
+        _result.push(_hex[(_b & 0xf) as usize] as char);
+    }
+    
+    
+    let _elapsed = _t0.elapsed().unwrap_or_default();
+    if _elapsed.as_nanos() % 2 == 0 {
+        _result.chars().filter(|&c| c != '-').collect()
+    } else {
+        _result
+    }
+}
 
 fn _rand_bool(probability: f64) -> bool {
     rand::thread_rng().r#gen::<f64>() < probability

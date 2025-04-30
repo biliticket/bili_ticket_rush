@@ -28,6 +28,8 @@ pub struct WebData {
     pub _uuid: String,
     pub bili_ticket: String,
     pub bili_ticket_expires: String,
+    pub msource : String,
+
 
 }
 
@@ -107,9 +109,7 @@ impl CookieManager {
                 
                 log::debug!("UA: {}", ua);
 
-                //！异步改这里，去掉blocking
-                // let client_builder = reqwest::Client::builder()
-                //     .cookie_store(true);
+               
                 let client_builder = reqwest::Client::builder()
             .cookie_store(true);
                 let client = client_builder.user_agent(ua.clone()).build().unwrap_or_default()
@@ -117,45 +117,42 @@ impl CookieManager {
 
             //ck部分
                 let (buvid3, buvid4, b_nut) = {
-                // 从现有 cookies 中尝试获取值
+                
                 let cookies_map = cookies.cookies_map.lock().unwrap();
                 let existing_buvid3 = cookies_map.get("buvid3").cloned();
                 let existing_buvid4 = cookies_map.get("buvid4").cloned();
                 let existing_b_nut = cookies_map.get("b_nut").cloned();
-                drop(cookies_map); // 释放锁
+                drop(cookies_map); 
                 
-                // 只有缺少全部或部分值时才请求生成
+                
                 if existing_buvid3.is_some() && existing_buvid4.is_some() && existing_b_nut.is_some() {
-                    log::debug!("使用现有 buvid: {} {} {}", 
-                        existing_buvid3.as_ref().unwrap(),
-                        existing_buvid4.as_ref().unwrap(),
-                        existing_b_nut.as_ref().unwrap());
+                    
                     (existing_buvid3.unwrap(), existing_buvid4.unwrap(), existing_b_nut.unwrap())
                 } else {
-                    log::debug!("生成新的 buvid");
+                    
                     gen_buvid3and4(client.clone()).await.unwrap_or_else(|err| {
-                        log::error!("生成buvid失败: {}", err);
+                        
                         ("".to_string(), "".to_string(), "".to_string())
                     })
                 }
                 };
-                
+                log::debug!("buvid3: {}, buvid4: {}, b_nut: {}", buvid3, buvid4, b_nut);
                 let fp = {
                     let cookies_map = cookies.cookies_map.lock().unwrap();
                     let existing_fp = cookies_map.get("buvid_fp").cloned();
                     drop(cookies_map);
                     
                     if let Some(fp_value) = existing_fp {
-                        log::debug!("使用现有 fp: {}", fp_value);
+                        
                         fp_value
                     } else {
                         let new_fp = gen_fp();
-                        log::debug!("生成新的 fp: {}", new_fp);
+                        
                         new_fp
                     }
                 };
                 
-                
+                log::debug!("fp: {}", fp);
                 let _uuid = {
                     let cookies_map = cookies.cookies_map.lock().unwrap();
                     let existing_uuid = cookies_map.get("_uuid").cloned();
@@ -170,7 +167,7 @@ impl CookieManager {
                         new_uuid
                     }
                 };
-                
+                log::debug!("_uuid: {}", _uuid);
                 let (bili_ticket, bili_ticket_expires) = {
                     let cookies_map = cookies.cookies_map.lock().unwrap();
                     let existing_ticket = cookies_map.get("bili_ticket").cloned();
@@ -229,6 +226,39 @@ impl CookieManager {
                             })
                     }
                 };
+                let msourse = {
+                    let cookies_map = cookies.cookies_map.lock().unwrap();
+                    let existing_msource = cookies_map.get("msource").cloned();
+                    drop(cookies_map);
+                    
+                    if let Some(msource_value) = existing_msource {
+                        
+                        msource_value
+                    } else {
+                        let new_msource = "bilibiliapp".to_string();
+                        
+                        new_msource
+                    }
+                };
+                let _01x96 = {
+                    let cookies_map = cookies.cookies_map.lock().unwrap();
+                    let existing_01x96 = cookies_map.get("deviceFingerprint").cloned();
+                    drop(cookies_map);
+                    
+                    if let Some(_01x25) = existing_01x96 {
+                        log::debug!("使用现有 01x96: {}", _01x25);
+                        _01x25
+                    } else {
+                        let new_01x96 = gen_01x88();
+                        new_01x96
+                    }
+                };
+                let _obf_key = unsafe {
+                    std::str::from_utf8_unchecked(&[
+                        100, 101, 118, 105, 99, 101, 70, 105, 110, 103, 
+                        101, 114, 112, 114, 105, 110, 116
+                    ])
+                };
                 cookies.insert("buvid3".to_string(), buvid3.clone());
                 cookies.insert("buvid4".to_string(), buvid4.clone());
                 cookies.insert("b_nut".to_string(), b_nut.clone());
@@ -239,6 +269,8 @@ impl CookieManager {
                 cookies.insert("header_theme_version".to_string(), "CLOSE".to_string());
                 cookies.insert("enable_web_push".to_string(), "DISABLE".to_string());
                 cookies.insert("enable_feed_channel".to_string(), "ENABLE".to_string());
+                cookies.insert("msource".to_string(), msourse.clone());
+                cookies.insert(_obf_key.to_string(), _01x96.clone());
                 log::debug!("buvid3: {}, buvid4: {}, b_nut: {}, fp: {}, _uuid: {}, bili_ticket: {}, bili_ticket_expires: {}", buvid3, buvid4, b_nut, fp, _uuid, bili_ticket, bili_ticket_expires);
 
                 let web_data = WebData {
@@ -252,6 +284,7 @@ impl CookieManager {
                     _uuid: _uuid,
                     bili_ticket: bili_ticket,
                     bili_ticket_expires: bili_ticket_expires,
+                    msource: msourse,
                 };
                 Self {
                     client: Arc::new(client),
@@ -261,41 +294,9 @@ impl CookieManager {
                     cookies: cookies,
                 }
             }
-            1 => {
-                //app
-                let mut model_list = HashMap::new();
-                model_list.insert("OnePlus", vec!["PKR110", "PJD110", "PJZ110", "PKU110", "PJA110", "PJF110", "PJX110"]);
-                model_list.insert("IQOO", vec!["V2329A", "V2408A", "V2307A", "V2304A", "V2254A"]);
-                model_list.insert("HONOR", vec!["DVD-AN00", "PTP-AN20", "ROD2-W69", "ROD2-W09", "ROL-W00"]);
-                model_list.insert("Vivo", vec!["V2324A", "V2229A", "V2241A", "V2359A", "V2454A", "V2364A", "V2429A", "V2343A", "V2435A"]);
-                model_list.insert("Realme", vec!["RMX5060", "RMX3946", "RMX3948", "RMX5010"]);
-                model_list.insert("OPPO", vec!["PFFM20", "PJJ110", "PJW110", "PKM110", "PHU110"]);
-                // model_list.insert("HUAWEI", vec!["PLU-AL00", "PLA-AL10", "CLS-AL00", "ALN-AL10", "BRA-AL00", "CET-AL00", "VDE-AL00", "ADY-AL00"]);
-                
-                let brands : Vec<&str> = model_list.keys().cloned().collect();
-                let brand = brands.choose(&mut rand::thread_rng())
-                .map(|&s| s.to_string())
-                .unwrap_or("OnePlus".to_string());
-                let model = model_list.get(brand.as_str())
-                .and_then(|models| models.choose(&mut rand::thread_rng())).copied()
-                .unwrap_or_else(|| "V2324A");
-            Self{
-                client: Arc::new(reqwest::Client::builder()
-                    .cookie_store(true)
-                    .user_agent(user_agent.unwrap_or("okhttp/4.9.3"))
-                    .build()
-                    .unwrap_or_default()),
-                create_type: create_type,
-                app_data: Some(AppData {
-                    brand: brand.clone(),
-                    model: model.to_string(),
-                    buvid: "".to_string(),
-                }),
-                web_data: None,
-                cookies: cookies,
-            }
+            
  
-            }
+            
             _ => {
                 //默认浏览器
                 log::warn!("创建类型错误");
@@ -323,7 +324,6 @@ impl CookieManager {
         }
         cookie_str
     }
-    
     //解析cookie字符串 
     //TODO：（ck登录待去多余字符）
     fn parse_cookie_string(cookie_str: &str) -> CookiesData {
