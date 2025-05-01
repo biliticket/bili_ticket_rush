@@ -1,17 +1,14 @@
-use eframe::egui;
 use crate::app::Myapp;
 use chrono::TimeZone;
+use eframe::egui;
 use serde_json::Value;
 
-pub fn show(
-    app: &mut Myapp,
-    ctx: &egui::Context,
-    uid: i64,
-){
-    let bilibili_ticket = app.bilibiliticket_list
-                .iter_mut()
-                .find(|ticket| ticket.uid == uid)
-                .unwrap();
+pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: i64) {
+    let bilibili_ticket = app
+        .bilibiliticket_list
+        .iter_mut()
+        .find(|ticket| ticket.uid == uid)
+        .unwrap();
     let mut window_open = app.show_screen_info.is_some();
 
     let ticket_data = match bilibili_ticket.project_info.clone() {
@@ -86,16 +83,14 @@ pub fn show(
                 if idx < ticket_data.screen_list.len() {
                     let selected_screen = &ticket_data.screen_list[idx];
                     // 场次信息卡片
-                    let mut card=egui::Frame::none();
-
-                    if !ctx.style().visuals.dark_mode {
-                        card=card.fill(egui::Color32::from_rgb(245, 245, 250));
+                    let bg_color=if !ctx.style().visuals.dark_mode {
+                        egui::Color32::from_rgb(245, 245, 250)
                     } else {
-                        card=card.fill(egui::Color32::from_rgb(6,6,6));
-                    }
-
-
-                    card.rounding(8.0)
+                        egui::Color32::from_rgb(6,6,6)
+                    };
+                    egui::Frame::none()
+                        .fill(bg_color)
+                        .rounding(8.0)
                         .inner_margin(10.0)
                         .outer_margin(10.0)
                         .show(ui, |ui| {
@@ -215,9 +210,10 @@ pub fn show(
             }
         }); */
     });
-    if !window_open{app.show_screen_info = None;
-    bilibili_ticket.project_info = None;}
-
+    if !window_open {
+        app.show_screen_info = None;
+        bilibili_ticket.project_info = None;
+    }
 }
 
 // 将时间戳转换为可读时间
