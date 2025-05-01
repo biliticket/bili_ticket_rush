@@ -544,18 +544,73 @@ impl TaskManager for TaskManagerImpl {
 
                                                 }
                                             }
-                                            /* 2=> {
+                                            2=> {
                                                 log::debug!("捡漏模式");
+                                                let mut local_grab_request = grab_ticket_req.clone();
                                                 loop {
-                                                    let result = grab_ticket().await;
-                                                    let success = result.is_ok();
-                                                    if success{
-                                                        grab_ticket_success();
+                                                    
+                                                    let ticket_data = match  get_project(cookie_manager.clone(),project_id.clone().as_str()).await{
+                                                        Ok(data) => data,
+                                                        Err(e) => {
+                                                            log::error!("获取项目数据失败，原因：{}",e);
+                                                            continue;
+                                                        }
+                                                    };
+                                                    if !ticket_data.data.sale_flag_number == 8 | 2 {
+                                                        log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
                                                         break;
+                                                        
                                                     }
+                                                    for screen_data in ticket_data.data.screen_list{
+                                                        if screen_data.clickable {
+                                                            local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
+                                                            log::info!("当前项目有可抢票场次，开始抢票！");
+                                                           for ticket_data in screen_data.ticket_list{
+                                                            if ticket_data.clickable {
+                                                                log::info!("当前票种可售，开始抢票！");
+                                                                local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
+                                                                let token = get_ticket_tokne(project_id.parse::<usize>().unwrap_or_default(), screen_data.id, ticket_data.id,1,1,None).await;
+                                                                    
+                                                                let mut confirm_retry_count = 0;
+                                                                const MAX_CONFIRM_RETRY: i8 = 4;
+                                                                loop {
+                                                                    if handle_grab_ticket(
+                                                                        cookie_manager.clone(), 
+                                                                        &project_id, 
+                                                                        &token, 
+                                                                        &task_id, 
+                                                                        uid, 
+                                                                        &result_tx,
+                                                                        &grab_ticket_req,
+                                                                        &buyer_info
+                                                                    ).await {
+                                                                        break; //成功或致命错误，跳出循环
+                                                                    }
+                                                                    
+                                                                    confirm_retry_count += 1;
+                                                                    if confirm_retry_count >= MAX_CONFIRM_RETRY {
+                                                                        log::error!("确认订单失败，已达最大重试次数");
+                                                                        let task_result = TaskResult::GrabTicketResult(GrabTicketResult {
+                                                                            task_id: task_id.clone(),
+                                                                            uid,
+                                                                            success: false,
+                                                                            message: "确认订单失败，已达最大重试次数".to_string(),
+                                                                            order_id: None,
+                                                                        });
+                                                                        let _ = result_tx.send(task_result).await;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                
+                                                            }
+                                                           }
+                                                            
+                                                        }
+                                                    };
+
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                                 }
-                                            } */
+                                            }
                                             _=> {
                                                 log::error!("未知模式");
                                             }
