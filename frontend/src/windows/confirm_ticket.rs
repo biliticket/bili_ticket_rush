@@ -100,9 +100,15 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
             ui.heading("已选择票种");
             ui.add_space(5.0);
 
-            egui::Frame::none()
-                .fill(Color32::from_rgb(245, 245, 250))
-                .rounding(8.0)
+            let mut card =egui::Frame::none();
+
+            if !ctx.style().visuals.dark_mode {
+                card=card.fill(egui::Color32::from_rgb(245, 245, 250));
+            } else {
+                card=card.fill(egui::Color32::from_rgb(6,6,6));
+            }
+                
+                card.rounding(8.0)
                 .inner_margin(12.0)
                 .show(ui, |ui| {
                     // 显示项目名称
@@ -189,12 +195,23 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                     // 检查该购票人是否被选中 - 对单选和多选都使用 selected_buyer_list
                                     let is_selected = app.selected_buyer_list.as_ref()
                                         .map_or(false, |list| list.iter().any(|b| b.id == buyer.id));
-                                    
-                                    let card_color = if is_selected {
-                                        Color32::from_rgb(236, 252, 243) // 选中状态的浅绿色
+
+                                    let card_color=if !ctx.style().visuals.dark_mode {
+                                        if is_selected {
+                                            Color32::from_rgb(236, 252, 243) // 选中状态的浅绿色
+                                        } else {
+                                            Color32::from_rgb(245, 245, 250) // 默认浅灰色
+                                        }
                                     } else {
-                                        Color32::from_rgb(245, 245, 250) // 默认浅灰色
+                                        //深色模式
+                                        if is_selected {
+                                            Color32::from_rgb(6, 20, 6) // 选中状态的黑底浅绿色
+                                        } else {
+                                            Color32::from_rgb(6, 6, 6) // 默认深黑色
+                                        }
                                     };
+                                    
+                                   
                                     
                                     // 创建固定宽度的卡片
                                     ui.scope(|ui| {
