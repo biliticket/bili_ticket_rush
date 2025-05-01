@@ -72,7 +72,7 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
             app.bilibiliticket_list.push(bilibili_ticket);
             log::debug!("当前抢票对象列表：{:?}", app.bilibiliticket_list);
             match app.grab_mode{
-                1 => {
+                0|1 => {
                     app.show_screen_info = Some(select_uid);
                 }
                 2 => {
@@ -175,7 +175,7 @@ fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
             ui.label(egui::RichText::new("未登录账号").color(egui::Color32::RED).italics());
             ui.add_space(8.0);
             if egui::Button::new(egui::RichText::new("去登录").size(14.0).color(egui::Color32::BLUE))
-                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色 
+                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色
                 .ui(ui)
                 .clicked() {
                 app.show_login_windows = true;
