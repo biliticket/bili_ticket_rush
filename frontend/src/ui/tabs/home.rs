@@ -79,6 +79,7 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
                     app.confirm_ticket_info = Some(select_uid.to_string());
                 }
                 _ => {
+                    app.bilibiliticket_list.pop();
                     log::error!("当前模式不支持！请检查输入！");
                 }
             }
@@ -175,7 +176,7 @@ fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
             ui.label(egui::RichText::new("未登录账号").color(egui::Color32::RED).italics());
             ui.add_space(8.0);
             if egui::Button::new(egui::RichText::new("去登录").size(14.0).color(egui::Color32::BLUE))
-                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色 
+                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色
                 .ui(ui)
                 .clicked() {
                 app.show_login_windows = true;
