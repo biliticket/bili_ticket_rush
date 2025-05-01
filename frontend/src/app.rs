@@ -786,10 +786,13 @@ impl eframe::App for Myapp{
                     Some(last_time) => last_time.elapsed() > std::time::Duration::from_secs(5),
                     None => true,
                 };
-                let id_bind = match bilibili_ticket.project_info.clone(){
+                let mut id_bind = match bilibili_ticket.project_info.clone(){
                     Some(proj_info) => proj_info.id_bind,
                     None => 0,
                 };
+                if bilibili_ticket.method == 2 {  //如果是捡漏模式，直接请求购票人信息
+                    id_bind = 1;
+                }
                 if id_bind == 0{
                     self.is_loading = false;
                     should_request = false;
@@ -816,8 +819,20 @@ impl eframe::App for Myapp{
                         }
                     } 
                 }
+                match bilibili_ticket.method {
+                    1 => {
+                        windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());
+                    }
+                    2 => {
+                        windows::confirm_ticket2::show(self, ctx, &confirm_uid.clone());
+                    }
+                    _ => {
+                        log::error!("未知的抢票方式: {}", bilibili_ticket.method);
+                        self.show_screen_info = None;
+                        return;
+                    }
+                }
                 
-                windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());
             } else {
                 log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", confirm_uid);
                 self.show_screen_info = None;

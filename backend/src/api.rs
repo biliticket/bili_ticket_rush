@@ -459,9 +459,9 @@ pub enum ClickPositionType {
 
 
 pub async fn get_ticket_tokne(
-    project_id: usize,
-    screen_id: usize,
-    sku_id: usize,
+    project_id: u32,
+    screen_id: u32,
+    sku_id: u32,
     count: u16,
     order_type: u8,
     ts: Option<u32>,

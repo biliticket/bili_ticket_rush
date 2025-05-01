@@ -548,7 +548,7 @@ impl TaskManager for TaskManagerImpl {
                                                 log::debug!("捡漏模式");
                                                 let mut local_grab_request = grab_ticket_req.clone();
                                                 loop {
-                                                    
+                                                    log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_id, ticket_id);
                                                     let ticket_data = match  get_project(cookie_manager.clone(),project_id.clone().as_str()).await{
                                                         Ok(data) => data,
                                                         Err(e) => {
@@ -563,16 +563,20 @@ impl TaskManager for TaskManagerImpl {
                                                     }
                                                     for screen_data in ticket_data.data.screen_list{
                                                         if screen_data.clickable {
+                                                            local_grab_request.screen_id = screen_data.id.clone().to_string();
                                                             local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
                                                             log::info!("当前项目有可抢票场次，开始抢票！");
                                                            for ticket_data in screen_data.ticket_list{
                                                             if ticket_data.clickable {
-                                                                log::info!("当前票种可售，开始抢票！");
+                                                                log::info!("当前{} {}票种可售，开始抢票！",ticket_data.screen_name,ticket_data.desc);
+                                                                local_grab_request.ticket_id = ticket_data.id.clone().to_string();
                                                                 local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
-                                                                let token = get_ticket_tokne(project_id.parse::<usize>().unwrap_or_default(), screen_data.id, ticket_data.id,1,1,None).await;
-                                                                    
+                                                                log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_data.id, ticket_data.id);
+                                                                let token = get_ticket_tokne(ticket_data.id as u32, screen_data.id as u32, ticket_data.id as u32,1,1,None).await;
+                                                                log::debug!("获取token成功！:{}",token);    
                                                                 let mut confirm_retry_count = 0;
                                                                 const MAX_CONFIRM_RETRY: i8 = 4;
+                                                                log::debug!("\n最终request: {:?}",local_grab_request);
                                                                 loop {
                                                                     if handle_grab_ticket(
                                                                         cookie_manager.clone(), 
@@ -581,7 +585,7 @@ impl TaskManager for TaskManagerImpl {
                                                                         &task_id, 
                                                                         uid, 
                                                                         &result_tx,
-                                                                        &grab_ticket_req,
+                                                                        &local_grab_request,
                                                                         &buyer_info
                                                                     ).await {
                                                                         break; //成功或致命错误，跳出循环
@@ -600,6 +604,7 @@ impl TaskManager for TaskManagerImpl {
                                                                         let _ = result_tx.send(task_result).await;
                                                                         break;
                                                                     }
+                                                                    tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.3)).await;
                                                                 }
                                                                 
                                                             }

@@ -71,7 +71,17 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
             );
             app.bilibiliticket_list.push(bilibili_ticket);
             log::debug!("当前抢票对象列表：{:?}", app.bilibiliticket_list);
-            app.show_screen_info = Some(select_uid);
+            match app.grab_mode{
+                1 => {
+                    app.show_screen_info = Some(select_uid);
+                }
+                2 => {
+                    app.confirm_ticket_info = Some(select_uid.to_string());
+                }
+                _ => {
+                    log::error!("当前模式不支持！请检查输入！");
+                }
+            }
 
 
         }
