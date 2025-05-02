@@ -6,3 +6,4 @@ pub mod show_orderlist;
 pub mod screen_info;
 pub mod confirm_ticket;
 pub mod confirm_ticket2;
+pub mod show_qrcode;

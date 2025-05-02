@@ -21,11 +21,39 @@ pub struct SubmitOrderResult{
     pub order_token: String,
 }
 
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct CheckFakeResult{
+    pub errno: i32,
+    pub errtag: i32,
+    pub msg: String,
+    pub data: CheckFakeResultParam,
+}
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct CheckFakeResultParam{
+    #[serde(rename = "payParam")]
+    pub pay_param: CheckFakeResultData,
+}
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct CheckFakeResultData{
+    pub sign : String,
+    pub code_url : String,
+}
+
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct ConfirmTicketInfo{
+    pub name: String,
+    pub count: i32,
+    pub price: i64,
+}
+
 //确认订单结构体
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct ConfirmTicketResult{
     pub count : i32,
     pub pay_money: i64,
+    pub project_name: String,
+    pub screen_name: String,
+    pub ticket_info: ConfirmTicketInfo,
     
 }
 

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::thread;
+use std::{result, thread};
 use common::cookie_manager::CookieManager;
-use reqwest::Client;
+use serde_json::json;
 
 
 use tokio::runtime::Runtime;
@@ -550,6 +550,9 @@ impl TaskManager for TaskManagerImpl {
                                                                     success: false,
                                                                     message: "确认订单失败，已达最大重试次数".to_string(),
                                                                     order_id: None,
+                                                                    pay_token: None,
+                                                                    pay_result: None,
+                                                                    confirm_result: None,
                                                                     });
                                                                   let _ = result_tx.send(task_result).await;
                                                                     break;
@@ -585,6 +588,9 @@ impl TaskManager for TaskManagerImpl {
                                                                                 success: false,
                                                                                 message: format!("验证码处理失败，已达最大重试次数: {}", e),
                                                                                 order_id: None,
+                                                                                pay_token: None,
+                                                                                pay_result: None,
+                                                                                confirm_result: None,
                                                                             });
                                                                             let _ = result_tx.send(task_result).await;
                                                                             break;
@@ -612,6 +618,9 @@ impl TaskManager for TaskManagerImpl {
                                                                     success: false,
                                                                     message: format!("获取token失败，错误代码: {}，错误信息：{}", risk_param.code, risk_param.message),
                                                                     order_id: None,
+                                                                    pay_token: None,
+                                                                    pay_result: None,
+                                                                    confirm_result: None,
                                                                 });
                                                                 let _ = result_tx.send(task_result).await;
                                                                 break;
@@ -627,74 +636,95 @@ impl TaskManager for TaskManagerImpl {
                                             2=> {
                                                 log::debug!("捡漏模式");
                                                 let mut local_grab_request = grab_ticket_req.clone();
-                                                loop {
+                                                
+                                                // 外层循环，一旦抢票成功或遇到致命错误就退出
+                                                'main_loop: loop {
                                                     log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_id, ticket_id);
-                                                    let ticket_data = match  get_project(cookie_manager.clone(),project_id.clone().as_str()).await{
+                                                    
+                                                    // 获取项目数据
+                                                    let project_data = match get_project(cookie_manager.clone(), project_id.clone().as_str()).await {
                                                         Ok(data) => data,
                                                         Err(e) => {
-                                                            log::error!("获取项目数据失败，原因：{}",e);
+                                                            log::error!("获取项目数据失败，原因：{}", e);
+                                                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                                             continue;
                                                         }
                                                     };
-                                                    if !ticket_data.data.sale_flag_number == 8 | 2 {
+                                                    
+                                                    // 检查项目是否可售
+                                                    if !project_data.data.sale_flag_number == 8 | 2 {
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
-                                                        break;
-                                                        
+                                                        break 'main_loop; // 直接退出整个捡漏模式
                                                     }
-                                                    for screen_data in ticket_data.data.screen_list{
-                                                        if screen_data.clickable {
-                                                            local_grab_request.screen_id = screen_data.id.clone().to_string();
-                                                            local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
-                                                            log::info!("当前项目有可抢票场次，开始抢票！");
-                                                           for ticket_data in screen_data.ticket_list{
-                                                            if ticket_data.clickable {
-                                                                log::info!("当前{} {}票种可售，开始抢票！",ticket_data.screen_name,ticket_data.desc);
-                                                                local_grab_request.ticket_id = ticket_data.id.clone().to_string();
-                                                                local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
-                                                                log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_data.id, ticket_data.id);
-                                                                let token = get_ticket_tokne(ticket_data.id as u32, screen_data.id as u32, ticket_data.id as u32,1,1,None).await;
-                                                                log::debug!("获取token成功！:{}",token);    
-                                                                let mut confirm_retry_count = 0;
-                                                                const MAX_CONFIRM_RETRY: i8 = 4;
-                                                                log::debug!("\n最终request: {:?}",local_grab_request);
-                                                                loop {
-                                                                    if handle_grab_ticket(
-                                                                        cookie_manager.clone(), 
-                                                                        &project_id, 
-                                                                        &token, 
-                                                                        &task_id, 
-                                                                        uid, 
-                                                                        &result_tx,
-                                                                        &local_grab_request,
-                                                                        &buyer_info
-                                                                    ).await {
-                                                                        break; //成功或致命错误，跳出循环
-                                                                    }
+                                                    
+                                                    
+                                                    'screen_loop: for screen_data in project_data.data.screen_list {
+                                                        if !screen_data.clickable {
+                                                            continue; 
+                                                        }
+                                                        
+                                                        local_grab_request.screen_id = screen_data.id.clone().to_string();
+                                                        local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
+                                                        log::info!("当前项目有可抢票场次，开始抢票！");
+                                                        
+                                                        // 遍历票种
+                                                        'ticket_loop: for ticket_data in screen_data.ticket_list {
+                                                            if !ticket_data.clickable {
+                                                                continue; // 跳过不可点击的票种
+                                                            }
+                                                            
+                                                            log::info!("当前{} {}票种可售，开始抢票！", ticket_data.screen_name, ticket_data.desc);
+                                                            local_grab_request.ticket_id = ticket_data.id.clone().to_string();
+                                                            local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
+                                                            
+                                                            // 获取token
+                                                            let token = get_ticket_tokne(
+                                                                project_data.data.id as u32, 
+                                                                screen_data.id as u32, 
+                                                                ticket_data.id as u32,
+                                                                1, 1, None
+                                                            ).await;
+                                                            
+                                                            log::debug!("获取token成功！:{}", token);
+                                                            
+                                                            // 尝试抢票
+                                                            let mut confirm_retry_count = 0;
+                                                            const MAX_CONFIRM_RETRY: i8 = 4;
+                                                            
+                                                            loop {
+                                                                if handle_grab_ticket(
+                                                                    cookie_manager.clone(),
+                                                                    &project_id,
+                                                                    &token,
+                                                                    &task_id,
+                                                                    uid,
+                                                                    &result_tx,
+                                                                    &local_grab_request,
+                                                                    &buyer_info
+                                                                ).await {
+                                                                    // 抢票成功或致命错误，直接跳出整个捡漏模式
+                                                                    log::info!("抢票流程结束，退出捡漏模式");
                                                                     
-                                                                    confirm_retry_count += 1;
-                                                                    if confirm_retry_count >= MAX_CONFIRM_RETRY {
-                                                                        log::error!("确认订单失败，已达最大重试次数");
-                                                                        let task_result = TaskResult::GrabTicketResult(GrabTicketResult {
-                                                                            task_id: task_id.clone(),
-                                                                            uid,
-                                                                            success: false,
-                                                                            message: "确认订单失败，已达最大重试次数".to_string(),
-                                                                            order_id: None,
-                                                                        });
-                                                                        let _ = result_tx.send(task_result).await;
-                                                                        break;
-                                                                    }
-                                                                    tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.3)).await;
+                                                                    break 'main_loop;
                                                                 }
                                                                 
+                                                                confirm_retry_count += 1;
+                                                                if confirm_retry_count >= MAX_CONFIRM_RETRY {
+                                                                    log::error!("确认订单失败，已达最大重试次数，尝试其他票种");
+                                                                    break; // 只跳出当前票种的重试循环
+                                                                }
+                                                                
+                                                                tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.3)).await;
                                                             }
-                                                           }
-                                                            
                                                         }
-                                                    };
-
-                                                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                                                    }
+                                                    
+                                                    // 本轮所有场次和票种都检查完毕，休息一秒后继续下一轮
+                                                    log::debug!("所有场次和票种检查完毕，等待2秒后重新检查");
+                                                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                                 }
+                                                
+                                                log::info!("捡漏模式任务已退出");
                                             }
                                             _=> {
                                                 log::error!("未知模式");
@@ -956,6 +986,7 @@ async fn handle_grab_ticket(
                 uid,
                 result_tx,
             ).await {
+                
                 return success;
             }
             
@@ -1003,14 +1034,50 @@ async fn try_create_order(
         ).await {
             Ok(order_result) => {
                 log::info!("下单成功！订单信息{:?}", order_result);
+                let empty_json = json!({});
+                let order_data = order_result.get("data").unwrap_or(&empty_json);
                 
+                let zero_json = json!(0);
+                let order_id = order_data.get("orderId").unwrap_or(&zero_json).as_i64().unwrap_or(0);
+                
+                let empty_string_json = json!("");
+                let pay_token = order_data.get("token").unwrap_or(&empty_string_json).as_str().unwrap_or("");
+                
+                log::info!("下单成功！正在检测是否假票！");
+                // 检测假票
+                let check_result = match check_fake_ticket(cookie_manager.clone(), project_id, pay_token, order_id).await{
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("检测假票失败，原因：{}，请前往订单列表查看是否下单成功", e);
+                        continue; // 继续重试
+                    }
+                };
+                let errno = check_result.get("errno").unwrap_or(&zero_json).as_i64().unwrap_or(0);
+                if errno != 0 {
+                    log::error!("假票，继续抢票");
+                    continue;
+                }
+                let analyze_result = match serde_json::from_value::<CheckFakeResult>(check_result.clone()){
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("解析假票结果失败，原因：{}", e);
+                        continue; // 继续重试
+                    }
+                };
+                    
+                  
+                let pay_result = analyze_result.data.pay_param;
                 // 通知成功
                 let task_result = TaskResult::GrabTicketResult(GrabTicketResult {
                     task_id: task_id.to_string(),
                     uid,
                     success: true,
                     message: "抢票成功".to_string(),
-                    order_id: Some("123456".to_string()), // 应该从order_result中获取
+                    order_id: Some(order_id.to_string()), 
+                    pay_token: Some(pay_token.to_string()),
+                    confirm_result: Some(confirm_result.clone()),
+                    pay_result : Some(pay_result),
+
                 });
                 let _ = result_tx.send(task_result).await;
                 
@@ -1034,25 +1101,25 @@ async fn try_create_order(
                     //需要重新获取token的情况
                     100041 => {
                         log::info!("token失效，即将重新获取token");
-                        return Some(false); // 需要重新获取token
+                        return Some(true); // 需要重新获取token
                     },
                     
                     //需要终止抢票的致命错误
                     100017 | 100016 => {
                         log::info!("当前项目/类型/场次已停售");
-                        return Some(false);
+                        return Some(true);
                     },
                     83000004 => {
                         log::error!("没有配置购票人信息！请重新配置");
-                        return Some(false);
+                        return Some(true);
                     },
                     100079 => {
                         log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
-                        return Some(false);
+                        return Some(true);
                     },
                     100039 => {
                         log::error!("活动收摊啦,下次要快点哦");
-                        return Some(false);
+                        return Some(true);
                     }
                     
                     //未知错误

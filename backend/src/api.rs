@@ -4,6 +4,7 @@ use common::ticket::{*};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
+use uuid::timestamp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use serde_json::{json, Value};
@@ -445,6 +446,26 @@ pub async fn create_order(
     Ok(value)
 }    
 
+pub async fn check_fake_ticket(cookie_manager: Arc<CookieManager>, project_id: &str, pay_token: &str, order_id: i64) -> Result<Value,String>{
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as u32;
+    let mut url = format!("https://show.bilibili.com/api/ticket/order/createstatus?project_id={}&token={}&timestamp={}",project_id, pay_token, timestamp);
+    if order_id != 0{
+        url = format!("{}&orderId={}",url, order_id);
+    } 
+    log::debug!("check_fake_ticket_url: {}", url);
+    let response = cookie_manager.get(&url)
+        .await
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+    log::debug!("check_fake_ticket: {:?}", response);
+    let data = serde_json::from_str::<Value>(&response.text().await.unwrap_or_default())
+        .map_err(|e| format!("解析响应文本失败: {}", e))?;
+    Ok(data)
+}
 
 /// 点击位置类型枚举
 #[derive(Debug, Clone, Copy)]
