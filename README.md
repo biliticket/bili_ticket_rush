@@ -1,2 +1,7 @@
-# bili_ticket_gui
-A GUI based rust for Bilibili mall ticket 
+# bili_ticket_rust
+哔哩哔哩 简单易用 抢票软件
+
+# 欢迎各位大佬为本项目建言献策以及提出pr
+画饼：
+1.开发模式和release模式 自动判断日志显示等级
+
