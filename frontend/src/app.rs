@@ -850,7 +850,7 @@ impl eframe::App for Myapp{
                     } 
                 }
                 match bilibili_ticket.method {
-                    1 => {
+                    0|1 => {
                         windows::confirm_ticket::show(self, ctx,  &confirm_uid.clone());
                     }
                     2 => {
