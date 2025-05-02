@@ -424,6 +424,9 @@ impl TaskManager for TaskManagerImpl {
                                                                                 success: false,
                                                                                 message: "确认订单失败，已达最大重试次数".to_string(),
                                                                                 order_id: None,
+                                                                                pay_token: None,
+                                                                                pay_result: None,
+                                                                                confirm_result: None,
                                                                             });
                                                                             let _ = result_tx.send(task_result).await;
                                                                             break;
@@ -459,6 +462,9 @@ impl TaskManager for TaskManagerImpl {
                                                                                         success: false,
                                                                                         message: format!("验证码处理失败，已达最大重试次数: {}", e),
                                                                                         order_id: None,
+                                                                                        pay_token: None,
+                                                                                        pay_result: None,
+                                                                                        confirm_result: None,
                                                                                     });
                                                                                     let _ = result_tx.send(task_result).await;
                                                                                     break;
@@ -486,6 +492,9 @@ impl TaskManager for TaskManagerImpl {
                                                                                 success: false,
                                                                                 message: format!("获取token失败，错误代码: {}，错误信息：{}", risk_param.code, risk_param.message),
                                                                                 order_id: None,
+                                                                                pay_token: None,
+                                                                                pay_result: None,
+                                                                                confirm_result: None,
                                                                             });
                                                                             let _ = result_tx.send(task_result).await;
                                                                             break;
