@@ -549,19 +549,19 @@ impl TaskManager for TaskManagerImpl {
                                                 let mut local_grab_request = grab_ticket_req.clone();
                                                 loop {
                                                     log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_id, ticket_id);
-                                                    let ticket_data = match  get_project(cookie_manager.clone(),project_id.clone().as_str()).await{
+                                                    let project_data = match  get_project(cookie_manager.clone(),project_id.clone().as_str()).await{
                                                         Ok(data) => data,
                                                         Err(e) => {
                                                             log::error!("获取项目数据失败，原因：{}",e);
                                                             continue;
                                                         }
                                                     };
-                                                    if !ticket_data.data.sale_flag_number == 8 | 2 {
+                                                    if !project_data.data.sale_flag_number == 8 | 2 {
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
                                                         break;
                                                         
                                                     }
-                                                    for screen_data in ticket_data.data.screen_list{
+                                                    for screen_data in project_data.data.screen_list{
                                                         if screen_data.clickable {
                                                             local_grab_request.screen_id = screen_data.id.clone().to_string();
                                                             local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
@@ -572,7 +572,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 local_grab_request.ticket_id = ticket_data.id.clone().to_string();
                                                                 local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
                                                                 log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_data.id, ticket_data.id);
-                                                                let token = get_ticket_tokne(ticket_data.id as u32, screen_data.id as u32, ticket_data.id as u32,1,1,None).await;
+                                                                let token = get_ticket_tokne(project_data.data.id as u32, screen_data.id as u32, ticket_data.id as u32,1,1,None).await;
                                                                 log::debug!("获取token成功！:{}",token);    
                                                                 let mut confirm_retry_count = 0;
                                                                 const MAX_CONFIRM_RETRY: i8 = 4;
