@@ -666,6 +666,10 @@ impl TaskManager for TaskManagerImpl {
                                                         break 'main_loop; // 直接退出整个捡漏模式
                                                     }
                                                     
+                                                    if project_data.data.id_bind != 0 | 1 {
+                                                        log::error!("暂不支持抢非实名票捡漏模式");
+                                                        break 'main_loop; 
+                                                    } 
                                                     
                                                     'screen_loop: for screen_data in project_data.data.screen_list {
                                                         if !screen_data.clickable {
