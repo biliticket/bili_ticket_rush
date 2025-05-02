@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::thread;
+use std::{result, thread};
 use common::cookie_manager::CookieManager;
-use reqwest::Client;
+use serde_json::json;
 
 
 use tokio::runtime::Runtime;
@@ -470,6 +470,9 @@ impl TaskManager for TaskManagerImpl {
                                                                     success: false,
                                                                     message: "确认订单失败，已达最大重试次数".to_string(),
                                                                     order_id: None,
+                                                                    pay_token: None,
+                                                                    pay_result: None,
+                                                                    confirm_result: None,
                                                                     });
                                                                   let _ = result_tx.send(task_result).await;
                                                                     break;
@@ -505,6 +508,9 @@ impl TaskManager for TaskManagerImpl {
                                                                                 success: false,
                                                                                 message: format!("验证码处理失败，已达最大重试次数: {}", e),
                                                                                 order_id: None,
+                                                                                pay_token: None,
+                                                                                pay_result: None,
+                                                                                confirm_result: None,
                                                                             });
                                                                             let _ = result_tx.send(task_result).await;
                                                                             break;
@@ -532,6 +538,9 @@ impl TaskManager for TaskManagerImpl {
                                                                     success: false,
                                                                     message: format!("获取token失败，错误代码: {}，错误信息：{}", risk_param.code, risk_param.message),
                                                                     order_id: None,
+                                                                    pay_token: None,
+                                                                    pay_result: None,
+                                                                    confirm_result: None,
                                                                 });
                                                                 let _ = result_tx.send(task_result).await;
                                                                 break;
@@ -615,6 +624,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 ).await {
                                                                     // 抢票成功或致命错误，直接跳出整个捡漏模式
                                                                     log::info!("抢票流程结束，退出捡漏模式");
+                                                                    
                                                                     break 'main_loop;
                                                                 }
                                                                 
@@ -878,6 +888,7 @@ async fn handle_grab_ticket(
                 uid,
                 result_tx,
             ).await {
+                
                 return success;
             }
             
@@ -925,14 +936,50 @@ async fn try_create_order(
         ).await {
             Ok(order_result) => {
                 log::info!("下单成功！订单信息{:?}", order_result);
+                let empty_json = json!({});
+                let order_data = order_result.get("data").unwrap_or(&empty_json);
                 
+                let zero_json = json!(0);
+                let order_id = order_data.get("orderId").unwrap_or(&zero_json).as_i64().unwrap_or(0);
+                
+                let empty_string_json = json!("");
+                let pay_token = order_data.get("token").unwrap_or(&empty_string_json).as_str().unwrap_or("");
+                
+                log::info!("下单成功！正在检测是否假票！");
+                // 检测假票
+                let check_result = match check_fake_ticket(cookie_manager.clone(), project_id, pay_token, order_id).await{
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("检测假票失败，原因：{}，请前往订单列表查看是否下单成功", e);
+                        continue; // 继续重试
+                    }
+                };
+                let errno = check_result.get("errno").unwrap_or(&zero_json).as_i64().unwrap_or(0);
+                if errno != 0 {
+                    log::error!("假票，继续抢票");
+                    continue;
+                }
+                let analyze_result = match serde_json::from_value::<CheckFakeResult>(check_result.clone()){
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("解析假票结果失败，原因：{}", e);
+                        continue; // 继续重试
+                    }
+                };
+                    
+                  
+                let pay_result = analyze_result.data.pay_param;
                 // 通知成功
                 let task_result = TaskResult::GrabTicketResult(GrabTicketResult {
                     task_id: task_id.to_string(),
                     uid,
                     success: true,
                     message: "抢票成功".to_string(),
-                    order_id: Some("123456".to_string()), // 应该从order_result中获取
+                    order_id: Some(order_id.to_string()), 
+                    pay_token: Some(pay_token.to_string()),
+                    confirm_result: Some(confirm_result.clone()),
+                    pay_result : Some(pay_result),
+
                 });
                 let _ = result_tx.send(task_result).await;
                 
@@ -956,25 +1003,25 @@ async fn try_create_order(
                     //需要重新获取token的情况
                     100041 => {
                         log::info!("token失效，即将重新获取token");
-                        return Some(false); // 需要重新获取token
+                        return Some(true); // 需要重新获取token
                     },
                     
                     //需要终止抢票的致命错误
                     100017 | 100016 => {
                         log::info!("当前项目/类型/场次已停售");
-                        return Some(false);
+                        return Some(true);
                     },
                     83000004 => {
                         log::error!("没有配置购票人信息！请重新配置");
-                        return Some(false);
+                        return Some(true);
                     },
                     100079 => {
                         log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
-                        return Some(false);
+                        return Some(true);
                     },
                     100039 => {
                         log::error!("活动收摊啦,下次要快点哦");
-                        return Some(false);
+                        return Some(true);
                     }
                     
                     //未知错误

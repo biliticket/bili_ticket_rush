@@ -143,7 +143,9 @@ pub struct Myapp{
 
     pub selected_buyer_list: Option<Vec<BuyerInfo>>, // 选中的购票人ID
 
-    pub local_captcha: LocalCaptcha, // 本地打码实例                               
+    pub local_captcha: LocalCaptcha, // 本地打码实例       
+
+    pub show_qr_windows: Option<String>, //扫码支付窗口  (传二维码数据)                   
                                     }
 
 
@@ -310,6 +312,7 @@ impl Myapp{
             confirm_ticket_info: None,
             selected_buyer_list: None,
             local_captcha: LocalCaptcha::new(),
+            show_qr_windows: None,
 
         };
         // 初始化每个账号的 client
@@ -486,7 +489,38 @@ impl Myapp{
                     }
                 }
                 TaskResult::GrabTicketResult(grab_ticket_result)=>{
-                    log::debug!("抢票结果: {:?}", grab_ticket_result);
+                    if grab_ticket_result.success{
+                        let pay_url = match grab_ticket_result.pay_result {
+                            Some(ref data) => {
+                                data.code_url.clone()
+                            },
+                            None => {
+                                log::error!("获取支付链接失败: {}", grab_ticket_result.message);
+                                continue;
+                            }
+                        };
+                        self.show_qr_windows = Some(pay_url.clone());
+                        let confirm_result = match grab_ticket_result.confirm_result{
+                            Some(data) => data,
+                            None => {
+                                ConfirmTicketResult {
+                                    project_name: "".to_string(),
+                                    screen_name: "".to_string(),
+                                    count: 0,
+                                    pay_money: 0,
+                                    ticket_info: ConfirmTicketInfo{
+                                        name: "".to_string(),
+                                        count: 0,
+                                        price: 0,
+                                    }
+                                }
+                            }
+                        };
+                        
+                        let title = format!("恭喜{}抢票成功！", confirm_result.project_name);
+                        let message = format!("抢票成功！\n项目：{}\n场次：{}\n票类型：{}\n支付链接：{}\n请尽快支付{}元，以免支付超时导致票丢失\n如果觉得本项目好用，可前往https://github.com/biliticket/bili_ticket_rush帮我们点个star\n本项目完全免费开源，仅供学习使用，开发组不承担使用本软件造成的一切后果",confirm_result.project_name, confirm_result.screen_name, confirm_result.ticket_info.name, pay_url ,confirm_result.ticket_info.price / 100);
+                        self.push_config.push_all(title.as_str(), message.as_str(), &mut *self.task_manager);
+                    }
                 }
             }
         }
@@ -704,12 +738,6 @@ impl eframe::App for Myapp{
             
         }
 
-        /* //开始抢票？弹出窗口
-        if self.bilibiliticket_list.len() > 0{
-            if let Some(ticket) = self.bilibiliticket_list.first_mut() {
-                windows::grab_ticket::show(self, ctx, ticket);
-            }
-        } */
 
         //开启场次窗口
         if self.show_screen_info.is_some() {
@@ -764,6 +792,8 @@ impl eframe::App for Myapp{
                 self.show_screen_info = None;
             }
         }
+
+
         //确认信息窗口
         if self.confirm_ticket_info.is_some() {
             let confirm_uid = match self.confirm_ticket_info.clone() {
@@ -837,6 +867,11 @@ impl eframe::App for Myapp{
                 log::error!("未找到账号ID为 {} 的抢票对象，可能已被移除", confirm_uid);
                 self.show_screen_info = None;
             }
+        }
+
+        //扫码支付窗口
+        if self.show_qr_windows.is_some() {
+            windows::show_qrcode::show(self, ctx);
         }
 
         

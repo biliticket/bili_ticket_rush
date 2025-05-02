@@ -104,6 +104,9 @@ pub struct  GrabTicketResult {
     pub success: bool,
     pub message:String,
     pub order_id: Option<String>,
+    pub pay_token: Option<String>,
+    pub confirm_result: Option<ConfirmTicketResult>,
+    pub pay_result: Option<CheckFakeResultData>,
 }
 //获取购票人信息
 #[derive(Clone,Debug)]
