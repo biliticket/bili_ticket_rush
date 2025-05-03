@@ -25,7 +25,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: i64) {
     if app.selected_screen_index.is_none() && !ticket_data.screen_list.is_empty() {
         app.selected_screen_index = Some(0);
     }
-
+    bilibili_ticket.id_bind = ticket_data.id_bind as usize;
     egui::Window::new("项目详情")
     .open(&mut window_open)
     .default_height(600.0)
@@ -148,6 +148,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: i64) {
                                             // 将选中的票种ID保存到项目ID中，准备抢票
                                             app.ticket_id = ticket.project_id.to_string();
                                             bilibili_ticket.select_ticket_id = Some(ticket.id.to_string());
+                                            
                                             app.confirm_ticket_info= Some(bilibili_ticket.uid.to_string().clone());
                                             log::info!("已选择: {} [{}]", &ticket.desc, ticket.id);
                                         }

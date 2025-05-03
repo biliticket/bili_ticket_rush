@@ -88,13 +88,13 @@ pub struct BilibiliTicket{
     //抢票相关
     pub project_id: String,
     pub screen_id: String,
+    pub id_bind: usize, //是否绑定
 
     pub project_info : Option<TicketInfo>, //项目详情
     pub all_buyer_info: Option<BuyerInfoData>, //所有购票人信息
     pub buyer_info: Option<Vec<BuyerInfo>>,  //购买人信息（实名票）
 
-    pub nobind_name: Option<String>, //不实名制展出的姓名
-    pub nobind_tel: Option<String>, //不实名制展出的电话
+    pub no_bind_buyer_info: Option<NoBindBuyerInfo>, //不实名制购票人信息
 
     pub select_ticket_id : Option<String>,
 
@@ -160,7 +160,7 @@ impl BilibiliTicket{
                                     };
         let captcha_type = config.captcha_mode;      
 
-        let device_id = create_new_device_id();
+       
            
         let new = Self{
             uid: account.uid.clone(),
@@ -177,12 +177,12 @@ impl BilibiliTicket{
             project_info: None,
             buyer_info: None,
             all_buyer_info: None,
-            nobind_name: None,
-            nobind_tel: None,
+            no_bind_buyer_info: None,
             select_ticket_id: None,
             pay_money: None,
             count: None,
-            device_id: device_id,
+            device_id: "".to_string(),
+            id_bind: 999,
 
         };
         log::debug!("新建抢票对象：{:?}",new);
@@ -197,13 +197,13 @@ pub struct TicketInfo {
     pub id: i32,
     pub name: String,
     pub is_sale: usize,
-    pub start_time: usize,
-    pub end_time: usize,
+    pub start_time: i64,
+    pub end_time: i64,
     pub pick_seat: usize, //0:不选座 1:选座
     pub project_type: usize, //未知作用，bw2024是type1
     pub express_fee: usize, //快递费
-    pub sale_begin: usize, //开售时间
-    pub sale_end: usize, //截止时间
+    pub sale_begin: i64, //开售时间
+    pub sale_end: i64, //截止时间
     pub count_down: i64, //倒计时（可能有负数）
     pub screen_list: Vec<ScreenInfo>, //场次列表
     pub sale_flag_number: usize, //售票标志位
@@ -345,12 +345,12 @@ pub struct BuyerInfoResponse{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuyerInfoData{
     pub list: Vec<BuyerInfo>,
+    
 }
 
-pub fn create_new_device_id() -> String {
-    use rand::{thread_rng, Rng};
-    
-    let mut rng = thread_rng();
-    let random_bytes: [u8; 16] = rng.gen();
-    format!("{:032x}", u128::from_le_bytes(random_bytes))
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NoBindBuyerInfo {
+    pub name: String,
+    pub tel: String,
+    pub uid: i64,
 }

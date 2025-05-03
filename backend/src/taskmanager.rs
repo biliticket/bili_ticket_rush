@@ -363,6 +363,7 @@ impl TaskManager for TaskManagerImpl {
                                         match mode {
                                             0 => {
                                                 log::debug!("定时抢票模式");
+                                                //log::debug!("开售时间：{}",project_info.clone().unwrap().sale_begin);
                                                 let mut countdown = match get_countdown(cookie_manager.clone(),project_info).await{
                                                     Ok(countdown) => countdown,
                                                     Err(e) => {
@@ -370,6 +371,7 @@ impl TaskManager for TaskManagerImpl {
                                                         return;
                                                     }
                                                 };
+                                                //log::debug!("获取倒计时成功：{}",countdown);
                                                 if countdown > 0.0{
                                                     log::info!("距离抢票时间还有{}秒",countdown);
                                                     loop{
@@ -667,7 +669,7 @@ impl TaskManager for TaskManagerImpl {
                                                         break 'main_loop; // 直接退出整个捡漏模式
                                                     }
                                                     
-                                                    if project_data.data.id_bind != 0 | 1 {
+                                                    if project_data.data.id_bind != 2 | 1 {
                                                         log::error!("暂不支持抢非实名票捡漏模式");
                                                         break 'main_loop; 
                                                     } 
@@ -956,44 +958,7 @@ impl TaskManager for TaskManagerImpl {
     }
 }
 
-async fn get_countdown(cookie_manager: Arc<CookieManager>, info: Option<TicketInfo>) -> Result<f64, String> {
-    // 获取开始时间
-    let start_time :i64 = match info {
-        Some(info) => info.start_time as i64 * 1000,
-        None => return Err("获取开始时间失败".to_string()),
-    };
-    // 获取现在时间
-    let url = "https://api.bilibili.com/x/click-interface/click/now";
-    let response = cookie_manager.get(url).await;
-    let mut now_time = match response.send().await {
-        Ok(data) => {
-            let text = data.text().await.unwrap_or_default();
-            let json_data: serde_json::Value = serde_json::from_str(&text).unwrap_or(
-                json!({
-                    "code": 0,
-                    "data": {
-                        "now": 0
-                    }
-                })
-            );
-            let now_time = json_data["data"]["now"].as_i64().unwrap_or(0);
-            now_time * 1000
-        }
-        Err(e) => {
-            log::error!("获取网络时间失败，原因：{}", e);
-            0
-        }
-    };
-    if now_time == 0 {
-        log::info!("使用本地时间");
-        now_time = chrono::Utc::now().timestamp_millis() as i64;
-    }
-    // 获取倒计时
-    let countdown_ms = start_time - now_time; 
-    
-    
-    Ok(countdown_ms as f64 / 1000.0)
-}
+
 
 async fn handle_grab_ticket(
     cookie_manager: Arc<CookieManager>,
@@ -1009,6 +974,7 @@ async fn handle_grab_ticket(
     match confirm_ticket_order(cookie_manager.clone(), project_id, token).await {
         Ok(confirm_result) => {
             log::info!("确认订单成功！准备下单");
+            
             
             if let Some(success) = try_create_order(
                 cookie_manager.clone(),
@@ -1154,6 +1120,10 @@ async fn try_create_order(
                     },
                     100039 => {
                         log::error!("活动收摊啦,下次要快点哦");
+                        return Some(true);
+                    }
+                    919 => {
+                        log::error!("该项目区分绑定非绑定项目错误，传入意外值，请尝试重新下单以及提出issue");
                         return Some(true);
                     }
                     

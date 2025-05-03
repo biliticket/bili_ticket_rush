@@ -86,6 +86,7 @@ pub struct GrabTicketRequest {
     
     pub local_captcha: LocalCaptcha,
     
+    
 }
 #[derive(Clone,Debug)]
 pub struct GrabTicketTask {

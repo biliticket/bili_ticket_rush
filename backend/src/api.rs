@@ -4,13 +4,66 @@ use common::ticket::{*};
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
-use uuid::timestamp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use serde_json::{json, Value};
 use rand::{thread_rng, Rng};
 use std::time::{SystemTime, UNIX_EPOCH};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+pub async fn get_countdown(cookie_manager: Arc<CookieManager>, info: Option<TicketInfo>) -> Result<f64, String> {
+    // 获取开始时间 (秒级)
+    let sale_begin_sec = match info {
+        Some(info) => info.sale_begin ,
+        None => return Err("获取开始时间失败".to_string()),
+    };
+    log::debug!("获取开始时间(秒级)：{}", sale_begin_sec);
+    
+    // 获取网络时间 (秒级)
+    let url = "https://api.bilibili.com/x/click-interface/click/now";
+    let response = cookie_manager.get(url).await;
+    let now_sec = match response.send().await {
+        Ok(data) => {
+            let text = data.text().await.unwrap_or_default();
+            log::debug!("API原始响应：{}", text);
+            
+            let json_data: serde_json::Value = serde_json::from_str(&text).unwrap_or(
+                json!({
+                    "code": 0,
+                    "data": {
+                        "now": 0
+                    }
+                })
+            );
+            
+            
+            let now_sec = json_data["data"]["now"].as_i64().unwrap_or(0);
+            log::debug!("解析出的网络时间(秒级)：{}", now_sec);
+            now_sec
+        }
+        Err(e) => {
+            log::debug!("获取网络时间失败，原因：{}", e);
+            0
+        }
+    };
+    
+    // 如果网络时间获取失败，使用本地时间 (转换为秒)
+    let now_sec = if now_sec == 0 {
+        log::debug!("使用本地时间");
+        let local_sec = chrono::Utc::now().timestamp();
+        log::debug!("本地时间(秒级)：{}", local_sec);
+        local_sec
+    } else {
+        now_sec
+    };
+    
+    // 计算倒计时(秒级)
+    let countdown_sec = sale_begin_sec - now_sec;
+    log::debug!("计算倒计时(秒)：开始时间[{}] - 当前时间[{}] = 倒计时[{}]秒", 
+               sale_begin_sec, now_sec, countdown_sec);
+    
+    Ok(countdown_sec as f64)
+}
 
 
 pub async fn get_buyer_info(cookie_manager: Arc<CookieManager>) -> Result<BuyerInfoResponse,String>{
@@ -400,21 +453,52 @@ pub async fn create_order(
     };
     let ticket_id_int = ticket_id.parse::<i64>().map_err(|_| 999)?;
 
-    let data = json!({
-        "project_id": project_id.parse::<i64>().unwrap_or(0),
-        "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
-        "sku_id": ticket_id_int, 
-        "token": token,
-        "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
-        "clickPosition": click_position,
-        "newRisk": true,
-        "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
-        "deviceId": biliticket.device_id.clone(),
-        "pay_money": pay_money,
-        "count": count,
-        "timestamp": timestamp,
-        "order_type": 1, 
-    });
+    let data = match biliticket.id_bind {
+        0 => {
+            // 不实名制购票人信息
+            let no_bind_buyer_info = biliticket.no_bind_buyer_info.clone().unwrap();
+                
+            let data = json!({
+                "project_id": project_id.parse::<i64>().unwrap_or(0),
+                "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                "sku_id": ticket_id_int, 
+                "token": token,
+                "buyer": no_bind_buyer_info.name,
+                "tel": no_bind_buyer_info.tel,
+                "clickPosition": click_position,
+                "newRisk": true,
+                "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
+                "deviceId": biliticket.device_id.clone(),
+                "pay_money": pay_money,
+                "count": count,
+                "timestamp": timestamp,
+                "order_type": 1, 
+            });
+            data
+        }
+        1 | 2 => {
+            let data = json!({
+                "project_id": project_id.parse::<i64>().unwrap_or(0),
+                "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                "sku_id": ticket_id_int, 
+                "token": token,
+                "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
+                "clickPosition": click_position,
+                "newRisk": true,
+                "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
+                "deviceId": biliticket.device_id.clone(),
+                "pay_money": pay_money,
+                "count": count,
+                "timestamp": timestamp,
+                "order_type": 1, 
+            });
+            data
+        }
+        _ => {
+            log::error!("购票人信息错误，id_bind: {}", biliticket.id_bind);
+            return Err(919); // 错误的购票人信息
+        }
+    };
 
     log::debug!("抢票data ：{:?}", data);
     let response = cookie_manager.post_with_headers(&url,input_risk_header).await

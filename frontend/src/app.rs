@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use common::cookie_manager::CookieManager;
 use eframe::egui;
-use log::info;
 use reqwest::{Client, header};
 
 use crate::ui;
