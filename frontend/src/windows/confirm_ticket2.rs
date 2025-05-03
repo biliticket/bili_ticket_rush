@@ -242,9 +242,10 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                 log::info!("开始捡漏模式，选择的购票人IDs: {:?}", ids);
                                 
                                 // 获取必要的数据
-                                let biliticket = &app.bilibiliticket_list[biliticket_index];
+                                let mut biliticket = &mut app.bilibiliticket_list[biliticket_index];
                                 let project_id = biliticket.project_id.clone();
                                 let local_captcha = app.local_captcha.clone();
+                                biliticket.id_bind = 1;
                                 
                                 // 创建捡漏模式的抢票请求
                                 let grab_ticket_request = GrabTicketRequest {
