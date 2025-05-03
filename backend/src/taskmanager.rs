@@ -384,7 +384,12 @@ impl TaskManager for TaskManagerImpl {
                                                         
                                                     }
                                                     loop{
-                                                        tokio::time::sleep(tokio::time::Duration::from_secs_f64(countdown-1.0)).await;
+                                                        if countdown <= 1.3 {  //按道理来说countdown是1秒，为了保险多设置几秒
+                                                            tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.8)).await;
+                                                            break;
+                                                        }
+                                                        countdown = countdown - 1.0;
+                                                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                                     }
                                                 }
                                                 log::info!("开始抢票！");
