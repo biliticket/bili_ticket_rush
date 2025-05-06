@@ -17,6 +17,9 @@ use block_modes::block_padding::Pkcs7;
 use aes::Aes128;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::path::Path;
+use std::time::{SystemTime, Duration};
+use fs2::FileExt;
 
 #[derive(Clone,Debug)]
 pub struct Config{
@@ -336,4 +339,219 @@ fn decrypt_data(iv:Vec<u8>,encrypted: &[u8]) -> Result<Vec<u8>, block_modes::Blo
         .map_err(|_| block_modes::BlockModeError)?; // 将 InvalidKeyIvLength 转换为 BlockModeError
 
     cipher.decrypt_vec(encrypted)
+}
+
+// 单例锁实现，防止程序多开
+pub struct SingleInstanceLock {
+    lock_file_path: String,
+    lock_file: Option<File>,
+}
+
+impl SingleInstanceLock {
+    pub fn new(app_name: &str) -> Self {
+        let lock_file = format!("{}_{}.lock", app_name, whoami::username());
+        let temp_dir = std::env::temp_dir();
+        let lock_path = temp_dir.join(lock_file);
+        
+        Self {
+            lock_file_path: lock_path.to_string_lossy().to_string(),
+            lock_file: None,
+        }
+    }
+    
+    // 尝试获取锁，如果成功返回true，如果程序已运行返回false
+    pub fn try_lock(&mut self) -> bool {
+        // log::debug!("检查程序是否已运行，锁文件路径: {}", self.lock_file_path);
+        
+        // 先检查锁文件是否存在
+        if Path::new(&self.lock_file_path).exists() {
+            // 检查现有锁文件里的PID是否有效
+            if self.check_and_cleanup_stale_lock() {
+                // 锁文件里的进程已经不存在，继续获取锁
+                log::info!("发现孤立锁文件，已清理");
+            } else {
+                // 锁文件里的进程仍然存在，表示程序确实在运行
+                log::warn!("程序已经在运行中！");
+                return false;
+            }
+        }
+        
+        // 创建或打开锁文件
+        let mut file = match File::options()
+            .write(true)
+            .create(true)
+            .open(&self.lock_file_path) {
+                Ok(file) => file,
+                Err(e) => {
+                    log::error!("无法创建/打开锁文件: {}", e);
+                    return false;
+                }
+            };
+            
+        // 尝试获取独占锁，不阻塞
+        match file.try_lock_exclusive() {
+            Ok(_) => {
+                // 成功获取锁
+                log::info!("成功获取程序锁，确认为单实例运行");
+                // 写入PID到锁文件便于调试和后续检测
+                let pid = std::process::id();
+                if let Err(e) = file.set_len(0)
+                    .and_then(|_| file.write_all(format!("{}", pid).as_bytes()))
+                    .and_then(|_| file.flush()) {
+                    log::warn!("写入PID到锁文件失败: {}", e);
+                }
+                // 保存文件句柄，当对象销毁时会自动释放锁
+                self.lock_file = Some(file);
+                true
+            },
+            Err(_) => {
+                // 获取锁失败，但尝试再次检查进程是否存在
+                drop(file); // 先释放我们的文件句柄
+                
+                if self.check_and_cleanup_stale_lock() {
+                    // 上一个进程已退出但锁文件未清理，递归再试一次
+                    log::info!("检测到过期锁，重试获取锁");
+                    return self.try_lock();
+                }
+                
+                log::warn!("程序已经在运行中！无法获取文件锁");
+                false
+            }
+        }
+    }
+    
+    // 检查锁文件是否对应有效进程，如果无效则清理
+    fn check_and_cleanup_stale_lock(&self) -> bool {
+        // 读取锁文件中的PID
+        let pid_str = match fs::read_to_string(&self.lock_file_path) {
+            Ok(content) => content.trim().to_string(),
+            Err(_) => return false, // 读取失败，当作锁有效处理
+        };
+        
+        let pid = match pid_str.parse::<u32>() {
+            Ok(pid) => pid,
+            Err(_) => return false, // 无法解析PID，当作锁有效处理
+        };
+        
+        // 检查进程是否存在
+        if !is_process_running(pid) {
+            // 进程不存在，清理锁文件
+            let _ = fs::remove_file(&self.lock_file_path);
+            return true;
+        }
+        
+        // 进程存在，锁有效
+        false
+    }
+}
+
+impl Drop for SingleInstanceLock {
+    fn drop(&mut self) {
+        // 明确释放文件锁
+        if let Some(file) = self.lock_file.take() {
+            // 尝试解锁文件
+            let _ = file.unlock();
+            // 文件会在这里关闭，锁也会自动释放
+            drop(file);
+            
+            // 尝试删除锁文件
+            if let Err(e) = fs::remove_file(&self.lock_file_path) {
+                log::error!("无法删除锁文件: {}", e);
+            } else {
+                log::info!("已删除锁文件");
+            }
+        }
+    }
+}
+
+// 检查程序是否可以运行，如果已有实例运行则退出
+pub fn ensure_single_instance() -> bool {
+    // 使用静态变量保存锁实例，确保锁在程序整个生命周期都存在
+    use std::sync::Mutex;
+    use std::sync::Once;
+    use std::sync::OnceLock;
+    
+    static INSTANCE: OnceLock<Mutex<SingleInstanceLock>> = OnceLock::new();
+    static INIT: Once = Once::new();
+    
+    let mut success = true;
+    
+    INIT.call_once(|| {
+        let mut lock = SingleInstanceLock::new("bili_ticket_rush");
+        let result = lock.try_lock();
+        
+        if !result {
+            log::error!("程序已经在运行中，请勿重复启动！");
+            eprintln!("程序已经在运行中，请勿重复启动！");
+            success = false;
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            std::process::exit(1);
+        }
+        
+        // 初始化成功后，将锁存储在全局静态变量中
+        INSTANCE.get_or_init(|| Mutex::new(lock));
+        
+        // 确保进程退出时清理锁文件
+        std::panic::set_hook(Box::new(|_| {
+            if let Some(lock) = INSTANCE.get() {
+                if let Ok(mut guard) = lock.try_lock() {
+                    // 显式释放锁
+                    guard.lock_file = None;
+                }
+            }
+            log::info!("程序异常退出，已释放锁");
+        }));
+    });
+    
+    success
+}
+
+// 检查指定PID的进程是否正在运行
+#[cfg(target_os = "windows")]
+fn is_process_running(pid: u32) -> bool {
+    use std::process::Command;
+    
+    // 使用 tasklist 命令检查进程
+    let output = Command::new("tasklist")
+        .args(&["/NH", "/FI", &format!("PID eq {}", pid)])
+        .output();
+        
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            !stdout.contains("信息: 没有运行的任务匹配指定标准") && 
+            !stdout.contains("No tasks") && 
+            stdout.contains(&format!("{}", pid))
+        },
+        Err(_) => false, // 执行命令失败，假设进程不存在
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn is_process_running(pid: u32) -> bool {
+    Path::new(&format!("/proc/{}", pid)).exists()
+}
+
+#[cfg(target_os = "macos")]
+fn is_process_running(pid: u32) -> bool {
+    use std::process::Command;
+    
+    // 使用 ps 命令检查进程
+    let output = Command::new("ps")
+        .args(&["-p", &format!("{}", pid)])
+        .output();
+        
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            stdout.contains(&format!("{}", pid))
+        },
+        Err(_) => false, // 执行命令失败，假设进程不存在
+    }
+}
+
+// 为不支持的平台提供默认实现
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+fn is_process_running(_pid: u32) -> bool {
+    false // 不支持的平台，假设进程不存在
 }

@@ -29,6 +29,8 @@ machine-uid = "0.5.3"
 lazy_static = "1.4"
 image = "0.25"
 
+whoami = "1.5.1"   
+ctrlc = "3.4.0"   
 
 #captcha
 bili_ticket_gt = { git = "https://github.com/Amorter/biliTicker_gt",branch = "rust"}
@@ -41,4 +43,5 @@ hmac = "0.12.1"
 sha2 = "0.10.7"
 hex = "0.4.3"
 cookie = "0.16"
+fs2 = "0.4.3"  # 添加对fs2的依赖
 
