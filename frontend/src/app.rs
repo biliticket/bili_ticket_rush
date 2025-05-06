@@ -53,6 +53,12 @@ pub struct Myapp{
     pub error_banner_start_time: Option<std::time::Instant>,
     pub error_banner_opacity: f32,
 
+    //成功提醒横幅
+    pub success_banner_active: bool,
+    pub success_banner_text: String,
+    pub success_banner_start_time: Option<std::time::Instant>,
+    pub success_banner_opacity: f32,
+
     //抢票id
     pub ticket_id: String,
    
@@ -144,7 +150,9 @@ pub struct Myapp{
 
     pub local_captcha: LocalCaptcha, // 本地打码实例       
 
-    pub show_qr_windows: Option<String>, //扫码支付窗口  (传二维码数据)                   
+    pub  show_qr_windows: Option<String>, //扫码支付窗口  (传二维码数据)                   
+    
+    
                                     }
 
 
@@ -234,7 +242,7 @@ impl Myapp{
             client: Client::new(),
             default_avatar_texture: None,
             running_status: String::from("空闲ing"),
-            ticket_id: String::from("85939"),
+            ticket_id: String::from("100596"),
              // 初始化任务管理器
              task_manager: Box::new(TaskManagerImpl::new()),
              account_manager: AccountManager {
@@ -298,6 +306,10 @@ impl Myapp{
             error_banner_text: String::new(),
             error_banner_start_time: None,
             error_banner_opacity: 0.0,
+            success_banner_active: false,
+            success_banner_text: String::new(),
+            success_banner_start_time: None,
+            success_banner_opacity: 0.0,
             status_delay: 2,
             grab_mode: 0,
             selected_account_uid: None,
@@ -339,16 +351,28 @@ impl Myapp{
         
     }
 
-    pub fn add_log(&mut self, message: &str){
-        self.logs.push(format!("{}",message));
-
-        // 检测是否是ERROR日志
-        if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") ||message.contains("抢票") {
+    pub fn add_log(&mut self, message: &str) {
+        self.logs.push(format!("{}", message));
+        
+        // 首先检查是否为错误消息 - 给错误消息更高优先级
+        if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") {
             self.error_banner_active = true;
             self.error_banner_text = message.to_string();
             self.error_banner_start_time = Some(std::time::Instant::now());
             self.error_banner_opacity = 1.0;
         }
+        // 然后检查是否为成功消息，但使用更严格的条件
+        else if message.contains("info:") || 
+                message.contains("INFO:") || 
+                message.contains("Info:") || 
+                (message.contains("INFO:") && !message.contains("ERROR:")) ||  // 只有包含INFO但不包含ERROR的才算成功
+                message.contains("下单成功") {  
+            self.success_banner_active = true;
+            self.success_banner_text = message.to_string();
+            self.success_banner_start_time = Some(std::time::Instant::now());
+            self.success_banner_opacity = 1.0;
+        }
+        // 普通消息不显示横幅
     }
     // 处理任务结果的方法
     fn process_task_results(&mut self) {
@@ -530,6 +554,7 @@ impl Myapp{
                 .find(|a| a.uid == account_id.parse::<i64>().unwrap_or(-1)) {
                 account.account_status = "空闲".to_string();
             }
+            
         }
         
         // 一次性添加所有日志，避免借用冲突
@@ -630,6 +655,32 @@ impl eframe::App for Myapp{
                 }
             }
         }
+
+        // 渲染成功横幅
+        if self.success_banner_active {
+            if let Some(start_time) = self.success_banner_start_time {
+                let elapsed = start_time.elapsed().as_secs_f32();
+                
+                // 横幅在屏幕上停留3秒，然后在1秒内淡出
+                if elapsed < 4.0 {
+                    // 如果超过3秒，开始淡出
+                    if elapsed > 3.0 {
+                        self.success_banner_opacity = (1.0 - (elapsed - 3.0) / 1.0).max(0.0);
+                    }
+                    
+                
+                    render_error_banner(self, ctx);
+                    
+                    // 持续重绘以实现动画效果
+                    ctx.request_repaint();
+                } else {
+                    // 超过4秒，停用横幅
+                    self.success_banner_active = false;
+                    self.success_banner_start_time = None;
+                }
+            }
+        }
+        
 
         //删除账号
         if let Some(account_id) = self.delete_account.take() {
