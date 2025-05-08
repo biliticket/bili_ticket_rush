@@ -413,7 +413,7 @@ impl TaskManager for TaskManagerImpl {
         
                                                             //尝试下单
                                                             loop {
-                                                               if handle_grab_ticket(
+                                                               let (success, retry_limit) = handle_grab_ticket(
                                                                 cookie_manager.clone(), 
                                                                   &project_id, 
                                                                   &token, 
@@ -422,9 +422,11 @@ impl TaskManager for TaskManagerImpl {
                                                                   &result_tx,
                                                                   &grab_ticket_req,
                                                                   &buyer_info
-                                                                ).await {
-                                                                  break; //成功或致命错误，跳出循环
-                                                                  }
+                                                                ).await ;
+                                                                if success {
+                                                                    log::info!("抢票流程结束，退出定时抢票模式");
+                                                                    break; //成功或致命错误，跳出循环
+                                                                }
             
                                                             
                                                             confirm_retry_count += 1;
@@ -544,7 +546,7 @@ impl TaskManager for TaskManagerImpl {
         
                                                             //尝试下单
                                                             loop {
-                                                               if handle_grab_ticket(
+                                                               let (success, retry_limit) = handle_grab_ticket(
                                                                 cookie_manager.clone(), 
                                                                   &project_id, 
                                                                   &token, 
@@ -553,9 +555,12 @@ impl TaskManager for TaskManagerImpl {
                                                                   &result_tx,
                                                                   &grab_ticket_req,
                                                                   &buyer_info
-                                                                ).await {
-                                                                  break; //成功或致命错误，跳出循环
-                                                                  }
+                                                                ).await; 
+                                                                if success {
+                                                                    log::info!("抢票流程结束，退出捡漏模式");
+                                                                    
+                                                                    break; //成功或致命错误，跳出循环
+                                                                }
             
                                                             
                                                             confirm_retry_count += 1;
@@ -669,12 +674,12 @@ impl TaskManager for TaskManagerImpl {
                                                     };
                                                     
                                                     // 检查项目是否可售
-                                                    if !project_data.data.sale_flag_number == 8 | 2 {
+                                                    if ![8,2].contains(&project_data.data.sale_flag_number){
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
                                                         break 'main_loop; // 直接退出整个捡漏模式
                                                     }
                                                     
-                                                    if project_data.data.id_bind != 2 | 1 {
+                                                    if ![1, 2].contains(&project_data.data.id_bind) {
                                                         log::error!("暂不支持抢非实名票捡漏模式");
                                                         break 'main_loop; 
                                                     } 
@@ -713,7 +718,7 @@ impl TaskManager for TaskManagerImpl {
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
                                                             
                                                             loop {
-                                                                if handle_grab_ticket(
+                                                                let (success, retry_limit) = handle_grab_ticket(
                                                                     cookie_manager.clone(),
                                                                     &project_id,
                                                                     &token,
@@ -722,11 +727,15 @@ impl TaskManager for TaskManagerImpl {
                                                                     &result_tx,
                                                                     &local_grab_request,
                                                                     &buyer_info
-                                                                ).await {
-                                                                    // 抢票成功或致命错误，直接跳出整个捡漏模式
+                                                                ).await;
+                                                                if success {
                                                                     log::info!("抢票流程结束，退出捡漏模式");
                                                                     
                                                                     break 'main_loop;
+                                                                }
+                                                                if retry_limit {
+                                                                    log::info!("该票种已达到最大重试次数，恢复捡漏模式，尝试其他票种");
+                                                                    break 'screen_loop;
                                                                 }
                                                                 
                                                                 confirm_retry_count += 1;
@@ -741,7 +750,7 @@ impl TaskManager for TaskManagerImpl {
                                                     }
                                                     
                                                     // 本轮所有场次和票种都检查完毕，休息一秒后继续下一轮
-                                                    log::debug!("所有场次和票种检查完毕，等待2秒后重新检查");
+                                                    log::info!("所有场次和票种检查完毕，等待2秒后重新检查");
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                                 }
                                                 
@@ -974,14 +983,14 @@ async fn handle_grab_ticket(
     result_tx: &mpsc::Sender<TaskResult>,
     grab_ticket_req: &GrabTicketRequest,
     buyer_info: &Vec<BuyerInfo>,
-) -> bool {
+) -> (bool, bool) {
     // 确认订单
     match confirm_ticket_order(cookie_manager.clone(), project_id, token).await {
         Ok(confirm_result) => {
             log::info!("确认订单成功！准备下单");
             
             
-            if let Some(success) = try_create_order(
+            if let Some((success,retry_limit)) = try_create_order(
                 cookie_manager.clone(),
                 project_id,
                 token,
@@ -993,14 +1002,14 @@ async fn handle_grab_ticket(
                 result_tx,
             ).await {
                 
-                return success;
+                return (success,retry_limit);
             }
             
-            true // 订单流程已完成
+            (true, false) // 订单流程已完成
         }
         Err(e) => {
             log::error!("确认订单失败，原因：{}  正在重试...", e);
-            false // 需要继续重试
+            (false, false) // 需要继续重试
         }
     }
 }
@@ -1016,7 +1025,10 @@ async fn try_create_order(
     task_id: &str,
     uid: i64,
     result_tx: &mpsc::Sender<TaskResult>,
-) -> Option<bool> {
+) -> Option<(
+    bool,
+    bool  // 第二个参数标记是因为达到重试上限
+    )> {
     let mut order_retry_count = 0;
     let mut need_retry = false;
     
@@ -1087,7 +1099,7 @@ async fn try_create_order(
                 });
                 let _ = result_tx.send(task_result).await;
                 
-                return Some(true); // 成功，不需要继续重试
+                return Some((true,false)); // 成功，不需要继续重试
             }
             
             Err(e) => {
@@ -1107,31 +1119,34 @@ async fn try_create_order(
                     //需要重新获取token的情况
                     100041 => {
                         log::info!("token失效，即将重新获取token");
-                        return Some(true); // 需要重新获取token
+                        return Some((true,false)); // 需要重新获取token
                     },
                     
                     //需要终止抢票的致命错误
                     100017 | 100016 => {
                         log::info!("当前项目/类型/场次已停售");
-                        return Some(true);
+                        return Some((true,false));
                     },
                     83000004 => {
                         log::error!("没有配置购票人信息！请重新配置");
-                        return Some(true);
+                        return Some((true,false));
                     },
                     100079 => {
                         log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
-                        return Some(true);
+                        return Some((true,false));
                     },
                     100039 => {
                         log::error!("活动收摊啦,下次要快点哦");
-                        return Some(true);
+                        return Some((true,false));
                     }
                     919 => {
                         log::error!("该项目区分绑定非绑定项目错误，传入意外值，请尝试重新下单以及提出issue");
-                        return Some(true);
+                        return Some((true,false));
                     }
-                    
+                    209001 => {
+                        log::error!("当前项目只能选择一个购票人！不支持多选，请重新提交任务");
+                        return Some((true,false));
+                    }
                     //未知错误
                     _ => log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题", e),
                 }
@@ -1140,6 +1155,10 @@ async fn try_create_order(
         
         // 增加重试计数并等待
         order_retry_count += 1;
+        if grab_ticket_req.grab_mode == 2 && order_retry_count >= 30 {
+            log::error!("捡漏模式下单失败，已达最大重试次数，放弃该票种抢票，准备检测其他票种继续捡漏");
+            return Some((false,true)); // 捡漏模式下单失败，放弃该票种抢票
+        }
         tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.22)).await;
     }
 }
