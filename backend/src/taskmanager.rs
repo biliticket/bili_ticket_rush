@@ -153,6 +153,7 @@ impl TaskManager for TaskManagerImpl {
                                     let push_config = push_req.push_config.clone();
                                     let title = push_req.title.clone();
                                     let message = push_req.message.clone();
+                                    let jump_url = push_req.jump_url.clone();
                                     let push_type = push_req.push_type.clone();
                                     let result_tx = result_tx.clone();
                                     
@@ -162,7 +163,7 @@ impl TaskManager for TaskManagerImpl {
                                         
                                         let (success, result_message) = match push_type {
                                             PushType::All => {
-                                                push_config.push_all_async( &title, &message).await
+                                                push_config.push_all_async( &title, &message,&jump_url).await
                                             },
                                             
                                             // 其他推送类型的处理...

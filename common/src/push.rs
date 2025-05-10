@@ -1,3 +1,5 @@
+use std::default;
+
 use serde::{Serialize, Deserialize};
 use crate::taskmanager::{TaskManager, PushRequest, PushType, TaskRequest};
 use reqwest::Client;
@@ -11,10 +13,26 @@ pub struct PushConfig{
     pub fangtang_token: String,
     pub dingtalk_token: String,
     pub wechat_token: String,
+    pub gotify_config: GotifyConfig,
     pub smtp_config: SmtpConfig,
 
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GotifyConfig{
+    pub gotify_url: String,
+    pub gotify_token: String,
+}
+
+impl GotifyConfig {
+    pub fn new() -> Self{
+        Self { 
+            gotify_url: String::new(),
+            gotify_token: String::new(),
+         }
+
+    }
+}
 //邮箱配置(属于pushconfig)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SmtpConfig{
@@ -35,17 +53,19 @@ impl PushConfig{
             fangtang_token: String::new(),
             dingtalk_token: String::new(),
             wechat_token: String::new(),
+            gotify_config: GotifyConfig::new(),
             smtp_config: SmtpConfig::new(),
         }
     }
 
-    pub fn push_all(&self,title:&str,message:&str, task_manager: &mut dyn TaskManager){
+    pub fn push_all(&self,title:&str,message:&str,jump_url:&Option<String>, task_manager: &mut dyn TaskManager){
         if !self.enabled{
             return;
         }
         let push_request =TaskRequest::PushRequest( PushRequest{
             title: title.to_string(),
             message: message.to_string(),
+            jump_url: jump_url.clone(),
             push_config: self.clone(),
             push_type: PushType::All,
         });
@@ -61,7 +81,7 @@ impl PushConfig{
 
     }
 
-    pub async fn push_all_async(&self, title:&str, message: &str) -> (bool,String){
+    pub async fn push_all_async(&self, title:&str, message: &str, jump_url:&Option<String>) -> (bool,String){
         let mut success_count = 0;
         let mut failure_count = 0;
         let mut failures = Vec::new();
@@ -121,6 +141,16 @@ impl PushConfig{
                 failures.push(format!("SMTP推送出错: {}", msg));
             }
         }
+        if !self.gotify_config.gotify_token.is_empty(){
+            let (success,msg) = self.push_gotify(title, message, jump_url).await;
+            if success{
+                success_count += 1;
+        
+            }else{
+                failure_count += 1;
+                failures.push(format!("Gotify推送出错: {}", msg));
+            }
+        }
         if success_count == 0{
             return (false, format!("{} 成功 / {} 失败。失败详情: {}", 
                            success_count, failure_count, failures.join("; ")))
@@ -128,7 +158,62 @@ impl PushConfig{
             return (true, format!("全部 {} 个渠道推送成功", success_count))
     }
 }
+    pub async fn push_gotify(&self, title:&str, message: &str, jump_url:&Option<String>) -> (bool, String){
+        let mut default_headers = reqwest::header::HeaderMap::new();
+        let jump_url_real = match jump_url {
+            Some(url) => url,
+            None => &"bilibili://mall/web?url=https://www.bilibili.com".to_string(),
+        };
+        default_headers.insert("Content-Type", reqwest::header::HeaderValue::from_static("application/json"));
+        default_headers.insert("Authorization", reqwest::header::HeaderValue::from_str(&format!("Bearer {}", self.gotify_config.gotify_token)).unwrap());
+        let client_builder = Client::builder()
+            .default_headers(default_headers)
+            .timeout(std::time::Duration::from_secs(20)); 
+        let data = serde_json::json!({
+            "message": message,
+            "title": title,
+            "priority": 9,
+            "extras": {
+            "client::notification": {
+                "click": {"url": jump_url_real},
+            },
+            "android::action": {
+                "onReceive": {"intentUrl": jump_url_real}
+            }
+        }
+        });
+        let client = match client_builder.build(){
+            Ok(client) => client,
+            Err(e) => return (false, format!("创建HTTP客户端失败: {}", e)),
+        };
+        let url = format!("{}/message",self.gotify_config.clone().gotify_url);
 
+        match client.post(&url)
+            .json(&data)
+            .send()
+            .await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    match resp.text().await {
+                        Ok(text) => {
+                            log::debug!("Gotify 推送响应: 状态码 {}, 内容: {}", status, text);
+                            if status.is_success() {
+                                (true, "推送成功".to_string())
+                            } else {
+                                (false, format!("推送失败，状态码: {}", status))
+                            }
+                        },
+                        Err(e) => (false, format!("读取响应失败: {}", e))
+                    }
+                },
+                Err(e) => {
+                    (false, format!("推送失败: {}", e))
+                }
+
+            }
+
+       
+    }
     pub async fn push_bark(&self, title:&str ,message: &str) -> (bool, String){
         let client = Client::new();
         let data = serde_json::json!({

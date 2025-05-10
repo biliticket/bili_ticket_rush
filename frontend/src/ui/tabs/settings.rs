@@ -234,7 +234,7 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                       .rounding(15.0);//圆角成度
                 let response = ui.add(button);
                 if response.clicked(){
-                    app.push_config.push_all("biliticket推送测试", "这是一个推送测试", &mut *app.task_manager);
+                    app.push_config.push_all("biliticket推送测试", "这是一个推送测试", &None,&mut *app.task_manager);
                 }
                   
 
@@ -288,6 +288,11 @@ pub fn push_setting(app: &mut Myapp, ui: &mut egui::Ui){
                 dynamic_caculate_space(ui, 180.0);
                 common_input(ui, "收件人邮箱：",&mut app.push_config.smtp_config.smtp_to,"请输入收件人邮箱",true);
                 
+            });
+            ui.horizontal(|ui| {
+                common_input(ui, "gotify地址：",&mut app.push_config.gotify_config.gotify_url,"请输入gotify服务器地址，只填写地址",false);
+                dynamic_caculate_space(ui, 180.0);
+                common_input(ui, "gotify的token", &mut app.push_config.gotify_config.gotify_token, "请输入gotify的token", true)
             });
         }
         

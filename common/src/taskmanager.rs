@@ -166,6 +166,7 @@ pub struct GetTicketInfoTask {
 pub struct PushRequest{
     pub title: String,
     pub message: String,
+    pub jump_url: Option<String>,
     pub push_config: PushConfig,
     pub push_type : PushType,
 }
