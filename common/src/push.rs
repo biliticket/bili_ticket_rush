@@ -164,6 +164,11 @@ impl PushConfig{
             Some(url) => url,
             None => &"bilibili://mall/web?url=https://www.bilibili.com".to_string(),
         };
+        let push_target_url = if self.gotify_config.clone().gotify_url.contains("http"){
+            self.gotify_config.clone().gotify_url
+        }else{
+            format!("http://{}", self.gotify_config.clone().gotify_url)
+        };
         default_headers.insert("Content-Type", reqwest::header::HeaderValue::from_static("application/json"));
         default_headers.insert("Authorization", reqwest::header::HeaderValue::from_str(&format!("Bearer {}", self.gotify_config.gotify_token)).unwrap());
         let client_builder = Client::builder()
@@ -186,7 +191,7 @@ impl PushConfig{
             Ok(client) => client,
             Err(e) => return (false, format!("创建HTTP客户端失败: {}", e)),
         };
-        let url = format!("{}/message",self.gotify_config.clone().gotify_url);
+        let url = format!("{}/message",push_target_url);
 
         match client.post(&url)
             .json(&data)
