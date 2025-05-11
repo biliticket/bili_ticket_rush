@@ -410,3 +410,8 @@ fn is_process_running(pid: u32) -> bool {
         Err(_) => false, // 执行命令失败，假设进程不存在
     }
 }
+
+
+/* pub fn check_policy() -> PolicyValue {
+
+} */

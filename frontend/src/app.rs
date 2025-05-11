@@ -152,6 +152,7 @@ pub struct Myapp{
 
     pub  show_qr_windows: Option<String>, //扫码支付窗口  (传二维码数据)                   
     
+    pub machine_id :String,
     
                                     }
 
@@ -324,12 +325,14 @@ impl Myapp{
             selected_buyer_list: None,
             local_captcha: LocalCaptcha::new(),
             show_qr_windows: None,
+            machine_id: common::machine_id::get_machine_id_ob(),
 
         };
         // 初始化每个账号的 client
         for account in &mut app.account_manager.accounts {
         account.ensure_client();
         log::debug!("为账号 {} 初始化了专属客户端", account.name);
+        log::debug!("machine_id: {}", app.machine_id);
     }
 
     //初始化client和ua
