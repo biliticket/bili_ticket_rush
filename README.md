@@ -109,6 +109,20 @@ A: 支持B站所有类型的票务，包括演唱会、展览、话剧等实名�
 **Q: 同一账号可以同时抢多个场次的票吗？**  
 A: 可以，系统支持为同一账号创建多个抢票任务，分别针对不同场次或票种。
 
+**Q: 在Windows Server系统上使用提示缺少MSVCP140.dll怎么办？**  
+A: 这是因为缺少Visual C++ 可再发行软件包。请根据系统类型下载安装：
+   - 32位系统：下载并安装 [VC_redist.x86.exe](https://aka.ms/vs/17/release/vc_redist.x86.exe)
+   - 64位系统：下载并安装 [VC_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+   - 安装完成后请重启系统
+
+**Q: 安装了VC++运行库后程序仍然闪退或电脑没有显卡怎么办？**  
+A: 这种情况需要安装Mesa3D软件渲染器，步骤如下：
+   1. 参考[这篇文章](https://zhuanlan.zhihu.com/p/666093183)
+   2. 访问[Mesa3D发布页](https://github.com/pal1000/mesa-dist-win/releases)下载最新的`mesa3d-x.y.z-release-msvc.7z`文件并解压
+   3. 运行解压后的`perappdeploy.cmd`，选择一个空文件夹作为安装路径，全程按'y'确认安装
+   4. 运行`systemwidedeploy.cmd`，输入数字'1'然后按回车键
+   5. 完成上述步骤后，重新打开应用程序即可正常运行
+
 ## 免责声明
 
 本软件仅供学习研究使用，不得用于商业用途。使用本软件造成的任何问题由用户自行承担，与开发者无关。请合理使用，尊重演出方和票务平台的规则。
