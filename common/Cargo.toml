@@ -45,3 +45,5 @@ hex = "0.4.3"
 cookie = "0.16"
 fs2 = "0.4.3"  # 添加对fs2的依赖
 
+#Singleton
+single-instance = "0.3.3"
