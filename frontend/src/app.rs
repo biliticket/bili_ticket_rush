@@ -360,7 +360,13 @@ impl Myapp{
         // 首先检查是否为错误消息 - 给错误消息更高优先级
         if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") {
             self.error_banner_active = true;
-            self.error_banner_text = message.to_string();
+            // 限制消息长度，防止横幅过长
+            let limited_message = if message.len() > 80 {
+                format!("{}...", &message[0..77])
+            } else {
+                message.to_string()
+            };
+            self.error_banner_text = limited_message;
             self.error_banner_start_time = Some(std::time::Instant::now());
             self.error_banner_opacity = 1.0;
         }
@@ -371,7 +377,13 @@ impl Myapp{
                 (message.contains("INFO:") && !message.contains("ERROR:")) ||  // 只有包含INFO但不包含ERROR的才算成功
                 message.contains("下单成功") {  
             self.success_banner_active = true;
-            self.success_banner_text = message.to_string();
+            // 限制消息长度，防止横幅过长
+            let limited_message = if message.len() > 80 {
+                format!("{}...", &message[0..77])
+            } else {
+                message.to_string()
+            };
+            self.success_banner_text = limited_message;
             self.success_banner_start_time = Some(std::time::Instant::now());
             self.success_banner_opacity = 1.0;
         }

@@ -404,7 +404,13 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
+                                                    let token_result = get_ticket_token(
+                                                        cookie_manager.clone(), 
+                                                        &project_id, 
+                                                        &screen_id, 
+                                                        &ticket_id,
+                                                        grab_ticket_req.biliticket.count
+                                                    ).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -537,7 +543,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
+                                                    let token_result = get_ticket_token(                                                        cookie_manager.clone(),                                                         &project_id,                                                         &screen_id,                                                         &ticket_id,                                                        grab_ticket_req.biliticket.count                                                    ).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -705,11 +711,12 @@ impl TaskManager for TaskManagerImpl {
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
                                                             
                                                             // 获取token
+                                                            let count = local_grab_request.biliticket.count.unwrap_or(1) as u16;
                                                             let token = get_ticket_tokne(
                                                                 project_data.data.id as u32, 
                                                                 screen_data.id as u32, 
                                                                 ticket_data.id as u32,
-                                                                1, 1, None
+                                                                count, 1, None
                                                             ).await;
                                                             
                                                             log::debug!("获取token成功！:{}", token);
