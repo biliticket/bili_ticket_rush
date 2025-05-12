@@ -1139,8 +1139,8 @@ async fn try_create_order(
                         log::error!("没有配置购票人信息！请重新配置");
                         return Some((true,false));
                     },
-                    100079 => {
-                        log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
+                    100079 | 100003 => {
+                        log::error!("有购票人存在待付款订单，请前往支付或取消后重新下单");
                         return Some((true,false));
                     },
                     100039 => {

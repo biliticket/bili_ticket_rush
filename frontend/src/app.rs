@@ -559,6 +559,24 @@ impl Myapp{
                         let message = format!("抢票成功！\n项目：{}\n场次：{}\n票类型：{}\n支付链接：{}\n请尽快支付{}元，以免支付超时导致票丢失\n如果觉得本项目好用，可前往https://github.com/biliticket/bili_ticket_rush 帮我们点个小星星star收藏本项目以防走丢\n本项目完全免费开源，仅供学习使用，开发组不承担使用本软件造成的一切后果",confirm_result.project_name, confirm_result.screen_name, confirm_result.ticket_info.name, pay_url ,confirm_result.ticket_info.price / 100);
                         log::info!("{}",title);
                         log::info!("{}",message);
+                        if self.push_config.enabled{
+                            let push_request = TaskRequest::PushRequest(PushRequest { 
+                                title: title.clone(),
+                                message: message.clone(),
+                                push_type: PushType::All,
+                                jump_url: jump_url.clone(),
+                                push_config: self.push_config.clone(),
+
+                            });
+                            match self.task_manager.submit_task(push_request){
+                                Ok(task_id) => {
+                                    log::debug!("提交全渠道推送任务成功，任务ID: {}", task_id);
+                                },
+                                Err(e) => {
+                                    log::error!("提交推送任务失败: {}", e);
+                                }
+                            }
+                        }
                         self.push_config.push_all(title.as_str(), message.as_str(), &jump_url,&mut *self.task_manager);
                     
                     }
