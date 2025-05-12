@@ -404,13 +404,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(
-                                                        cookie_manager.clone(), 
-                                                        &project_id, 
-                                                        &screen_id, 
-                                                        &ticket_id,
-                                                        grab_ticket_req.biliticket.count
-                                                    ).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -543,7 +537,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(                                                        cookie_manager.clone(),                                                         &project_id,                                                         &screen_id,                                                         &ticket_id,                                                        grab_ticket_req.biliticket.count                                                    ).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -711,12 +705,11 @@ impl TaskManager for TaskManagerImpl {
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
                                                             
                                                             // 获取token
-                                                            let count = local_grab_request.biliticket.count.unwrap_or(1) as u16;
                                                             let token = get_ticket_tokne(
                                                                 project_data.data.id as u32, 
                                                                 screen_data.id as u32, 
                                                                 ticket_data.id as u32,
-                                                                count, 1, None
+                                                                1, 1, None
                                                             ).await;
                                                             
                                                             log::debug!("获取token成功！:{}", token);
@@ -1139,8 +1132,8 @@ async fn try_create_order(
                         log::error!("没有配置购票人信息！请重新配置");
                         return Some((true,false));
                     },
-                    100079 | 100003 => {
-                        log::error!("有购票人存在待付款订单，请前往支付或取消后重新下单");
+                    100079 | 100003  => {
+                        log::error!("购票人存在待付款订单，请前往支付或取消后重新下单");
                         return Some((true,false));
                     },
                     100039 => {

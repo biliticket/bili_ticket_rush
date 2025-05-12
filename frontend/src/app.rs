@@ -3,6 +3,8 @@ use std::sync::Arc;
 use common::cookie_manager::CookieManager;
 use eframe::egui;
 use reqwest::{Client, header};
+use serde_json::Value;
+use tokio::runtime::Runtime;
 
 use crate::ui;
 use crate::windows;
@@ -12,7 +14,7 @@ use crate::ui::error_banner::render_error_banner;
 
 use common::LOG_COLLECTOR;
 use common::account::{Account,add_account};
-use common::utils::{Config,save_config};
+use common::utils::{*};
 use common::utility::CustomConfig;
 use common::push::{*};
 use common::login::LoginInput;
@@ -28,6 +30,9 @@ use backend::taskmanager::TaskManagerImpl;
 
 //UI
 pub struct Myapp{  
+    pub app: String,
+    pub version: String,
+    pub policy: Option<Value>,
     //ui
     pub left_panel_width: f32,  //左面板宽度
     pub selected_tab: usize,    //左侧已选中标签
@@ -232,6 +237,9 @@ impl Myapp{
         
         
         let mut app = Self {
+            app: String::from("BRT"),
+            version: String::from("6.0.2"),
+            policy: None,
             left_panel_width: 250.0,
             selected_tab: 0,
             is_loading: false,
@@ -333,6 +341,7 @@ impl Myapp{
         account.ensure_client();
         log::debug!("为账号 {} 初始化了专属客户端", account.name);
         log::debug!("machine_id: {}", app.machine_id);
+
     }
 
     //初始化client和ua
@@ -360,13 +369,7 @@ impl Myapp{
         // 首先检查是否为错误消息 - 给错误消息更高优先级
         if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") {
             self.error_banner_active = true;
-            // 限制消息长度，防止横幅过长
-            let limited_message = if message.len() > 80 {
-                format!("{}...", &message[0..77])
-            } else {
-                message.to_string()
-            };
-            self.error_banner_text = limited_message;
+            self.error_banner_text = message.to_string();
             self.error_banner_start_time = Some(std::time::Instant::now());
             self.error_banner_opacity = 1.0;
         }
@@ -377,13 +380,7 @@ impl Myapp{
                 (message.contains("INFO:") && !message.contains("ERROR:")) ||  // 只有包含INFO但不包含ERROR的才算成功
                 message.contains("下单成功") {  
             self.success_banner_active = true;
-            // 限制消息长度，防止横幅过长
-            let limited_message = if message.len() > 80 {
-                format!("{}...", &message[0..77])
-            } else {
-                message.to_string()
-            };
-            self.success_banner_text = limited_message;
+            self.success_banner_text = message.to_string();
             self.success_banner_start_time = Some(std::time::Instant::now());
             self.success_banner_opacity = 1.0;
         }
@@ -577,7 +574,7 @@ impl Myapp{
                                 }
                             }
                         }
-                        self.push_config.push_all(title.as_str(), message.as_str(), &jump_url,&mut *self.task_manager);
+                        //self.push_config.push_all(title.as_str(), message.as_str(), &jump_url,&mut *self.task_manager);
                     
                     }
                 }
@@ -662,6 +659,51 @@ impl eframe::App for Myapp{
 
         //处理异步任务结果
         self.process_task_results();
+
+        //检查policy
+        if self.policy.is_none(){
+            
+            let url = format!("https://policy.ziantt.top/api/client/{}/{}/dispatch.json",self.app,self.version);
+            let rt= Runtime::new().unwrap();
+            let timestamp = rt.block_on(get_now_time(&self.client));
+            let data = serde_json::json!({
+                "ts": timestamp,
+                "machine_id": self.machine_id,
+            });
+            
+            rt.block_on(async{
+                match self.client.post(&url)
+        .json(&data)
+        .send()
+        .await {
+            Ok(response) => {
+                match response.text().await {
+                    Ok(text) => {
+                        match serde_json::from_str::<Value>(&text) {
+                            Ok(json) => {
+                                log::debug!("获取policy成功: {}", json);
+                                self.policy = Some(json);
+                            },
+                            Err(e) => {
+                                log::error!("解析policy响应失败: {}", e);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        log::error!("获取policy响应文本失败: {}", e);
+                    }
+                }
+            },
+            Err(e) => {
+                log::error!("请求policy失败: {}", e);
+            }
+        }
+                   
+
+                
+            })
+
+        }
 
         //从env_log添加日志进窗口
         self.add_log_windows();
@@ -1024,4 +1066,3 @@ pub struct AccountSwitch {
     pub uid: String,
     pub switch: bool,
 }
-

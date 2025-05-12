@@ -7,7 +7,6 @@ use std::sync::Arc;
 use serde_json::{Value, json, Map};
 use crate::account::Account;
 use crate::cookie_manager::CookieManager;
-use crate::http_utils::request_get_sync;
 use crate::push::PushConfig;
 use crate::utility::CustomConfig;
 use base64::Engine as _;
@@ -15,11 +14,10 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Pkcs7;
 use aes::Aes128;
-use rand::distributions::Alphanumeric;
+
 use rand::Rng;
 use std::path::Path;
-use std::time::{SystemTime, Duration};
-use fs2::FileExt;
+use reqwest::Client;
 
 #[derive(Clone,Debug)]
 pub struct Config{
@@ -411,7 +409,48 @@ fn is_process_running(pid: u32) -> bool {
     }
 }
 
-
-/* pub fn check_policy() -> PolicyValue {
-
-} */
+pub async fn get_now_time(client: &Client) -> i64 {
+    // 获取网络时间 (秒级)
+    let url = "https://api.bilibili.com/x/click-interface/click/now";
+    
+    let now_sec = match client.get(url).send().await {
+        Ok(response) => {
+            match response.text().await {
+                Ok(text) => {
+                    log::debug!("API原始响应：{}", text);
+                    
+                    let json_data: serde_json::Value = serde_json::from_str(&text).unwrap_or(
+                        json!({
+                            "code": 0,
+                            "data": {
+                                "now": 0
+                            }
+                        })
+                    );
+                    
+                    let now_sec = json_data["data"]["now"].as_i64().unwrap_or(0);
+                    log::debug!("解析出的网络时间(秒级)：{}", now_sec);
+                    now_sec
+                },
+                Err(e) => {
+                    log::debug!("解析网络时间响应失败：{}", e);
+                    0
+                }
+            }
+        },
+        Err(e) => {
+            log::debug!("获取网络时间失败，原因：{}", e);
+            0
+        }
+    };
+    
+    // 如果网络时间获取失败，使用本地时间 (转换为秒)
+    if now_sec == 0 {
+        log::debug!("使用本地时间");
+        let local_sec = chrono::Utc::now().timestamp();
+        log::debug!("本地时间(秒级)：{}", local_sec);
+        local_sec
+    } else {
+        now_sec
+    }
+}

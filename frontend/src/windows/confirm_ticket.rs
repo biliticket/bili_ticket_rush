@@ -397,11 +397,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
        
                         },
                         1 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
-                        2 => {
-                            // 多选模式，需要确保选中的购票人数量与票数匹配
-                            let ticket_count = app.bilibiliticket_list[biliticket_index].count.unwrap_or(1);
-                            app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty() && list.len() == ticket_count as usize)
-                        },
+                        2 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
                         _ => false,
                     };
                     
@@ -420,36 +416,32 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                     if let Some(screen) = screen_info {
                                         if let Some(ticket) = ticket_info {
                                             // 提交抢票任务
-                                            let mut biliticket_clone = biliticket.clone();
-                                            // 确保票数设置正确
-                                            let ticket_count = app.bilibiliticket_list[biliticket_index].count.unwrap_or(1);
-                                            biliticket_clone.count = Some(ticket_count);
-                                            
-                                            let grab_ticket_request = GrabTicketRequest {
-                                                task_id: "".to_string(),
-                                                uid: biliticket_uid,
-                                                project_id: biliticket_project_id.clone().unwrap_or_default(),
-                                                screen_id: screen.id.to_string(),
-                                                ticket_id: ticket.id.to_string(),
-                                                buyer_info: Vec::new(), // 实名购票人信息,这里传空列表
-                                                grab_mode: app.grab_mode,
-                                                status: TaskStatus::Pending,
-                                                start_time: None,
-                                                cookie_manager: cookie_manager.clone(),
-                                                biliticket: biliticket_clone,
-                                                local_captcha: local_captcha.clone(),
-                                            };
-                                            log::debug!("提交抢票任务: {:?}", grab_ticket_request);
-                                            // 提交到任务管理器
-                                            match app.task_manager.submit_task(TaskRequest::GrabTicketRequest(grab_ticket_request)) {
-                                                Ok(task_id) => {
-                                                    log::info!("提交抢票任务成功，任务ID: {}", task_id);
-                                                    app.confirm_ticket_info = None;
-                                                },
-                                                Err(e) => {
-                                                    log::error!("提交抢票任务失败: {}", e);
-                                                }
-                                            }
+                                    let grab_ticket_request = GrabTicketRequest {
+                                        task_id: "".to_string(),
+                                        uid: biliticket_uid,
+                                        project_id: biliticket_project_id.clone().unwrap_or_default(),
+                                        screen_id: screen.id.to_string(),
+                                        ticket_id: ticket.id.to_string(),
+                                        buyer_info: Vec::new(), // 实名购票人信息,这里传空列表
+                                        grab_mode: app.grab_mode,
+                                        status: TaskStatus::Pending,
+                                        start_time: None,
+                                        cookie_manager: cookie_manager.clone(),
+                                        biliticket: biliticket.clone(),
+                                        local_captcha: local_captcha.clone(),
+                                    };
+                                    log::debug!("提交抢票任务: {:?}", grab_ticket_request);
+                                    // 提交到任务管理器
+                                    match app.task_manager.submit_task(TaskRequest::GrabTicketRequest(grab_ticket_request)) {
+                                        Ok(task_id) => {
+                                            log::info!("提交抢票任务成功，任务ID: {}", task_id);
+                                            app.confirm_ticket_info = None;
+                                        },
+                                        Err(e) => {
+                                            log::error!("提交抢票任务失败: {}", e);
+                                        }
+                                    }
+
                                         }
                                     }
                                     
@@ -464,11 +456,6 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                         if let Some(screen) = screen_info_button {
                                             if let Some(ticket) = ticket_info {
                                                 // 提交抢票任务
-                                                let mut biliticket_clone = biliticket.clone();
-                                                // 确保票数设置正确
-                                                let ticket_count = app.bilibiliticket_list[biliticket_index].count.unwrap_or(1);
-                                                biliticket_clone.count = Some(ticket_count);
-                                                
                                                 let grab_ticket_request = GrabTicketRequest {
                                                     task_id: "".to_string(),
                                                     uid: biliticket_uid,
@@ -480,8 +467,10 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     status: TaskStatus::Pending,
                                                     start_time: None,
                                                     cookie_manager: cookie_manager.clone(),
-                                                    biliticket: biliticket_clone,
+                                                    biliticket: biliticket.clone(),
                                                     local_captcha: local_captcha.clone(),
+                                                    
+
                                                 };
                                                 log::debug!("提交抢票任务: {:?}", grab_ticket_request);
                                                 // 提交到任务管理器
