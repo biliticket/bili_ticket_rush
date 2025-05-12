@@ -11,12 +11,13 @@ pub enum BannerType {
 // 重命名函数为更通用的名称
 pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
     let screen_rect = ctx.available_rect();
-    let banner_height = 40.0;
+    let banner_height = 30.0; // 减小高度
+    let banner_width = screen_rect.width() * 0.6; // 只使用60%屏幕宽度
     
-    // 创建一个位于屏幕顶部的区域
+    // 创建一个位于屏幕顶部中央的区域
     let banner_rect = egui::Rect::from_min_size(
-        egui::pos2(screen_rect.min.x, screen_rect.min.y), 
-        egui::vec2(screen_rect.width(), banner_height)
+        egui::pos2(screen_rect.min.x + (screen_rect.width() - banner_width) * 0.5, screen_rect.min.y + 10.0), // 水平居中并向下偏移10像素
+        egui::vec2(banner_width, banner_height)
     );
     
     // 使用Area绝对定位横幅
@@ -49,14 +50,15 @@ pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
             // 设置框架样式
             let frame = egui::Frame::none()
                 .fill(fill_color)
-                .stroke(egui::Stroke::new(1.0, stroke_color));
+                .stroke(egui::Stroke::new(1.0, stroke_color))
+                .rounding(5.0); // 增加圆角
             
             frame.show(ui, |ui| {
-                ui.set_max_width(screen_rect.width());
+                ui.set_max_width(banner_width);
                 
                 // 居中白色文本
-                ui.vertical_centered(|ui| {
-                    ui.add_space(5.0);
+                ui.horizontal(|ui| { // 改为水平布局
+                    ui.add_space(10.0);
                     let banner_text = if app.success_banner_active {
                         &app.success_banner_text
                     } else {
@@ -64,10 +66,10 @@ pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
                     };
                     let text = egui::RichText::new(banner_text)
                         .color(egui::Color32::WHITE)
-                        .size(16.0)
+                        .size(14.0) // 字体略小
                         .strong();
                     ui.label(text);
-                    ui.add_space(5.0);
+                    ui.add_space(10.0);
                 });
             });
         });

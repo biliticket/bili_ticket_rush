@@ -240,15 +240,16 @@ QrCodeLoginStatus::Expired
 }
 
 
-pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,TokenRiskParam>{
+pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str, ticket_count: Option<i32>) -> Result<String,TokenRiskParam>{
     
-    
+    // 使用提供的票数，如果没有则默认为1
+    let count = ticket_count.unwrap_or(1);
 
     let params = serde_json::json!({
         "project_id": project_id,
         "screen_id": screen_id,
         "sku_id": ticket_id,
-        "count": 1,
+        "count": count,
         "order_type": 1,
         "token": "",
         "requestSource": "neul-next",
