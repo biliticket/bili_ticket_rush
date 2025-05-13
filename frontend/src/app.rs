@@ -339,6 +339,7 @@ impl Myapp{
         // 初始化每个账号的 client
         for account in &mut app.account_manager.accounts {
         account.ensure_client();
+        
         log::debug!("为账号 {} 初始化了专属客户端", account.name);
         log::debug!("machine_id: {}", app.machine_id);
 

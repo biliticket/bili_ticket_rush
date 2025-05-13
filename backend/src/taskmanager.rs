@@ -390,6 +390,7 @@ impl TaskManager for TaskManagerImpl {
                                                             tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.8)).await;
                                                             break;
                                                         }
+                                                        log::info!("距离抢票时间还有{}秒",countdown);
                                                         countdown = countdown - 1.0;
                                                         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                                     }
