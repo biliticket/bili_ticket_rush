@@ -255,6 +255,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     // 在捡漏模式下，这些值会被后端动态设置，所以这里设为空字符串
                                     screen_id: "".to_string(),
                                     ticket_id: "".to_string(),
+                                    count: buyer_list.len() as i16,
                                     buyer_info: buyer_list.clone(),
                                     grab_mode: 2, // 使用捡漏模式
                                     status: TaskStatus::Pending,

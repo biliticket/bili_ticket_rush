@@ -240,7 +240,7 @@ QrCodeLoginStatus::Expired
 }
 
 
-pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str) -> Result<String,TokenRiskParam>{
+pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str, count: i16) -> Result<String,TokenRiskParam>{
     
     
 
@@ -248,7 +248,7 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
         "project_id": project_id,
         "screen_id": screen_id,
         "sku_id": ticket_id,
-        "count": 1,
+        "count": count,
         "order_type": 1,
         "token": "",
         "requestSource": "neul-next",
@@ -278,7 +278,7 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                                 let token = json["data"]["token"].as_str().unwrap_or("");
                                 return Ok(token.to_string());
                             }
-                            -401 => {
+                            -401 | 401 => {
                                 log::info!("需要进行人机验证");
                                 let mid = json["data"]["ga_data"]["riskParams"]["mid"].as_str().unwrap_or("");
                                 let decision_type = json["data"]["ga_data"]["riskParams"]["decision_type"].as_str().unwrap_or("");
@@ -524,7 +524,7 @@ pub async fn create_order(
     log::info!("{:?}", value);
     if value["errno"] != 0{
         
-        return Err(value["errno"].as_i64().unwrap_or(412) as i32);
+        return Err(value["errno"].as_i64().unwrap_or(737) as i32);
 
     }
     Ok(value)
@@ -564,6 +564,7 @@ pub enum ClickPositionType {
 
 
 pub async fn get_ticket_tokne(
+    cookie_manager:Arc<CookieManager>,
     project_id: u32,
     screen_id: u32,
     sku_id: u32,
@@ -572,9 +573,10 @@ pub async fn get_ticket_tokne(
     ts: Option<u32>,
 ) -> String {
     
-    let client = Client::new();
-    let _ = client.get(format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id.clone()))
-        .header("X-risk", "true");
+    
+    let _ = cookie_manager.get(format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id.clone()).as_str())
+        
+        .await;
         
     let _json = r#"{"data":{"token":"TSukAAXc7AANkfgEAAQ"}}"#;
     let _val: Value = serde_json::from_str(_json).unwrap_or_default();

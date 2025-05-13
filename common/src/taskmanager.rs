@@ -77,6 +77,7 @@ pub struct GrabTicketRequest {
     pub project_id : String,
     pub screen_id : String,
     pub ticket_id: String,
+    pub count: i16,
     pub buyer_info: Vec<BuyerInfo>,
     pub cookie_manager: Arc<CookieManager>,
     pub biliticket: BilibiliTicket,

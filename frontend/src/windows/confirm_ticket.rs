@@ -134,7 +134,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                             // 添加票数选择功能
                             ui.horizontal(|ui| {
                                 ui.label("购票数量:");
-                                let mut count = app.bilibiliticket_list[biliticket_index].count.unwrap_or(1);
+                                let mut count = app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1);
                                 
                                 // 添加票数加减按钮
                                 if ui.button("-").clicked() && count > 1 {
@@ -215,7 +215,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                               }));
                               
                               // 显示所需购票人数提示
-                              let ticket_count = app.bilibiliticket_list[biliticket_index].count.unwrap_or(1);
+                              let ticket_count = app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1);
                               if selected_count != ticket_count as usize {
                                   ui.add_space(10.0);
                                   ui.label(RichText::new(format!("(请选择 {} 位购票人)", ticket_count))
@@ -397,7 +397,11 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
        
                         },
                         1 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
-                        2 => app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty()),
+                        2 => {
+                            // 多选模式，需要确保选中的购票人数量与票数匹配
+                            let ticket_count = app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1);
+                            app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty() && list.len() == ticket_count as usize)
+                        },
                         _ => false,
                     };
                     
@@ -422,6 +426,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                         project_id: biliticket_project_id.clone().unwrap_or_default(),
                                         screen_id: screen.id.to_string(),
                                         ticket_id: ticket.id.to_string(),
+                                        count: app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1) as i16,
                                         buyer_info: Vec::new(), // 实名购票人信息,这里传空列表
                                         grab_mode: app.grab_mode,
                                         status: TaskStatus::Pending,
@@ -462,6 +467,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     project_id: biliticket_project_id.clone().unwrap_or_default(),
                                                     screen_id: screen.id.to_string(),
                                                     ticket_id: ticket.id.to_string(),
+                                                    count: app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1) as i16,
                                                     buyer_info: buyer_list.clone(),
                                                     grab_mode: app.grab_mode,
                                                     status: TaskStatus::Pending,

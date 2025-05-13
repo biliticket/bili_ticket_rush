@@ -355,7 +355,8 @@ impl TaskManager for TaskManagerImpl {
                                     let mode = grab_ticket_req.grab_mode.clone();
                                     let custon_config = grab_ticket_req.biliticket.config.clone();
                                     let csrf = grab_ticket_req.biliticket.account.csrf.clone();
-                                    let local_captcha = grab_ticket_req.local_captcha.clone();                                                                    
+                                    let local_captcha = grab_ticket_req.local_captcha.clone();     
+                                    let count = grab_ticket_req.count.clone();                                                               
                                     let project_info = grab_ticket_req.biliticket.project_info.clone();                                                                    
                                     
                                     tokio::spawn(async move{
@@ -404,7 +405,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -537,7 +538,7 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
                                                     match token_result {
                                                         Ok(token) => {
                                                             //获取token成功！
@@ -706,10 +707,11 @@ impl TaskManager for TaskManagerImpl {
                                                             
                                                             // 获取token
                                                             let token = get_ticket_tokne(
+                                                                cookie_manager.clone(),
                                                                 project_data.data.id as u32, 
                                                                 screen_data.id as u32, 
                                                                 ticket_data.id as u32,
-                                                                1, 1, None
+                                                                count as u16, 1, None
                                                             ).await;
                                                             
                                                             log::debug!("获取token成功！:{}", token);
@@ -1148,6 +1150,10 @@ async fn try_create_order(
                         log::error!("当前项目只能选择一个购票人！不支持多选，请重新提交任务");
                         return Some((true,false));
                     }
+                    737 => {
+                        log::error!("B站传了一个NUll回来，请看一下上一行的message提示信息，自行决定是否继续，如果取消请关闭重新打开该应用");
+                    }
+
                     //未知错误
                     _ => log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题", e),
                 }
