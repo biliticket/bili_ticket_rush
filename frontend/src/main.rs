@@ -13,7 +13,6 @@ fn main() -> Result<(), eframe::Error> {
     }
     log::info!("日志初始化成功");
 
-
     std::panic::set_hook(Box::new(|panic_info| {
         if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
             if s.contains("swap") || s.contains("vsync") {
@@ -35,6 +34,9 @@ fn main() -> Result<(), eframe::Error> {
         std::process::exit(1);
     }
 
+    // 创建资源目录（如果不存在）
+    create_resources_directory();
+
     let options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(1200.0, 600.0)),
         min_window_size: Some(Vec2::new(800.0, 600.0)),
@@ -48,4 +50,14 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| Box::new(app::Myapp::new(cc))),
     )
+}
+
+// 确保资源目录存在
+fn create_resources_directory() {
+    let resources_dir = std::path::Path::new("resources/fonts");
+    if !resources_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(resources_dir) {
+            log::warn!("无法创建资源目录: {}", e);
+        }
+    }
 }
