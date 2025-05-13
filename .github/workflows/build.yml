@@ -78,5 +78,5 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-        env:W
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
