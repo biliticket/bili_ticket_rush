@@ -6,18 +6,22 @@ on:
       - 'v*'
   
   workflow_dispatch:
+  
+  pull_request:
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         debug: [debug, release]
         include:
           - os: windows-latest
             build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Windows
           - os: ubuntu-latest
             build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Linux
+          - os: macos-latest
+            build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-macOS
     runs-on: ${{ matrix.os }}
     env:
       debug: ${{ matrix.debug }}
@@ -50,7 +54,7 @@ jobs:
           path: target/output
   publish:
     needs: build
-    #if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Print github.ref
