@@ -39,7 +39,7 @@ BiliTicketRush 是专为B站会员购票务设计的抢票辅助软件，支持�
 
 1. 前往 [GitHub Releases](https://github.com/biliticket/bili_ticket_rush/releases) 页面
 2. 下载适合您操作系统的最新版本
-3. 解压缩下载的文件
+3. 确保电脑能连接到互联网
 4. 运行应用程序
 
 ### 方法二：从源码编译
@@ -53,9 +53,12 @@ cd bili_ticket_rush
 
 # 编译并运行
 cargo build --release
-./target/release/biliticket-gui
+./target/release/frontend.exe
 ```
-
+或直接使用
+```bash
+cargo run
+```
 ## 使用教程
 
 ### 1. 登录账号
