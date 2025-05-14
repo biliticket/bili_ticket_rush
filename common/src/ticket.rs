@@ -305,8 +305,11 @@ pub struct BaseInfoItem {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InfoResponse{
+    #[serde(default)]
     pub errno: i32,
+    #[serde(default)]
     pub errtag: i32,
+    #[serde(default)]
     pub msg: String,
     pub data: TicketInfo,
 }
