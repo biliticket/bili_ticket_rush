@@ -280,7 +280,13 @@ impl TaskManager for TaskManagerImpl {
                                         let response  = get_project(cookie_manager, &project_id).await;
                                         let success = response.is_ok();
                                         let ticket_info = match &response{
-                                            Ok(info) => {Some(info.clone())},
+                                            Ok(info) => {
+                                                // 检查数据是否有效
+                                                if info.data.screen_list.is_empty() {
+                                                    log::warn!("项目信息获取成功但场次列表为空，可能是API格式变化");
+                                                }
+                                                Some(info.clone())
+                                            },
                                             Err(e) => {
                                                 log::error!("获取项目时失败，原因：{}",e);
                                                 None

@@ -120,26 +120,24 @@ pub async fn get_project(cookie_manager: Arc<CookieManager>, project_id : &str) 
                 }){
                     Ok(text) => {
                         log::debug!("获取项目详情：{}",text);
+                        // 尝试常规解析
                         match serde_json::from_str::<InfoResponse>(&text){
                             Ok(ticket_info) => {
                                 return Ok(ticket_info);
                             }
                             Err(e) => {
-                                log::error!("获取项目详情json解析失败：{}",e);
-                                return Err(format!("获取项目详情json解析失败：{}",e))
+                                log::error!("获取项目详情json解析失败：{}", e);
+                                return Err(format!("获取项目详情json解析失败：{}", e));
                             }
-
                         }
                     }
                     Err(e) => {
-                        log::error!("获取项目详情失败：{}",e);
-                        return Err(format!("获取项目详情失败：{}",e))
+                        log::error!("获取项目详情失败：{}", e);
+                        return Err(format!("获取项目详情失败：{}", e));
                     }
-
                 }
             }
             else{
-                
                 log::debug!("请求响应失败: {:?}", resp);
                 return Err(format!("请求响应失败: {}", resp.status()));
             }
@@ -148,7 +146,6 @@ pub async fn get_project(cookie_manager: Arc<CookieManager>, project_id : &str) 
             Err(format!("请求失败: {}", e))
         }
     }
-
 }
 
 
