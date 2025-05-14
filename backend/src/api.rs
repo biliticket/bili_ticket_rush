@@ -519,11 +519,18 @@ pub async fn create_order(
             412
         })?;
     log::info!("{:?}", value);
-    if value["errno"] != 0{
-        
-        return Err(value["errno"].as_i64().unwrap_or(737) as i32);
-
+    let errno_value = value.get("errno").and_then(|v| v.as_i64()).unwrap_or(-1);
+    let code_value = value.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
+    
+    // 只要有一个错误码不是0，就认为有错误
+    if errno_value != 0 || (errno_value == -1 && code_value != 0) {
+        return Err(if errno_value != -1 { 
+            errno_value as i32 
+        } else { 
+            code_value as i32 
+        });
     }
+    
     Ok(value)
 }    
 
