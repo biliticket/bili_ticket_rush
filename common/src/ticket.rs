@@ -354,9 +354,16 @@ pub struct BuyerInfo{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuyerInfoResponse{
+    #[serde(default)]
     pub errno: i32,
+    #[serde(default)]
     pub errtag: i32,
+    #[serde(default)]
     pub msg: String,
+    #[serde(default)]
+    pub code: i32,
+    #[serde(default)]
+    pub message: String,
     pub data: BuyerInfoData,
 }
 

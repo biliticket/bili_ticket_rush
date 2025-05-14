@@ -140,9 +140,15 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &str) {
                             return;
                         }
                     };
-                    
-                    if response_json_value.get("code").unwrap_or(&Value::Null) == &Value::Number(0.into()) {
-                        log::debug!("添加购票人成功: {:?}", response_text);
+                    let errno_value = response_json_value.get("errno").and_then(|v| v.as_i64()).unwrap_or(-1);
+                    let code_value = response_json_value.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
+                    let code = if errno_value != -1{
+                        errno_value
+                    } else {
+                        code_value
+                    };
+                    if code == 0 {
+                        log::info!("添加购票人成功: {:?}", response_text);
                         app.show_add_buyer_window = None;
                         // 重置表单
                         app.add_buyer_input = AddBuyerInput {
