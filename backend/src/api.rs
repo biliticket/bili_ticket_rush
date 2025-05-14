@@ -267,7 +267,9 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                 }){
                     Ok(json) => {
                         log::debug!("获取票token：{}",json);
-                        let code = json["errno"].as_i64().unwrap_or(-1);
+                        let errno_value = json.get("errno").and_then(|v| v.as_i64()).unwrap_or(-1);
+                        let code_value = json.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
+                        let code = if errno_value != -1 { errno_value } else { code_value };
                         let msg = json["msg"].as_str().unwrap_or("未知错误");
                         
                         match code {
@@ -287,6 +289,7 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                                 let risk_param = json["data"]["ga_data"]["riskParams"].clone();
                                 let token_risk_param = TokenRiskParam {
                                     code: code as i32,
+                                    
                                     message: msg.to_string(),
                                     mid: Some(mid.to_string()),
                                     decision_type: Some(decision_type.to_string()),
@@ -305,6 +308,7 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                                 log::error!("{:?}", json);
                                 return Err(TokenRiskParam {
                                     code: code as i32,
+                                   
                                     message: msg.to_string(),
                                     mid: None,
                                     decision_type: None,
@@ -321,8 +325,11 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                 Err(e) => {
                     log::error!("解析票务token响应失败: {}", e);
                     return Err(TokenRiskParam{
+
                         code: 999 as i32,
+                        
                         message: e.to_string(),
+                        
                         mid: None,
                         decision_type: None,
                         buvid: None,
@@ -338,7 +345,9 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                 log::error!("获取票token失败，服务器不期待响应，响应状态码：{}",resp.status());
                 return Err(TokenRiskParam{
                     code: 999 as i32,
+                    
                     message: resp.status().to_string(),
+                    
                     mid: None,
                     decision_type: None,
                     buvid: None,
@@ -354,7 +363,9 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
             log::error!("获取票token失败，错误信息：{}",e);
             return Err(TokenRiskParam{
                 code: 999 as i32,
+                
                 message: e.to_string(),
+                
                 mid: None,
                 decision_type: None,
                 buvid: None,

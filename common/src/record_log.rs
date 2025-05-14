@@ -109,7 +109,7 @@ pub static LOG_COLLECTOR: Lazy<Arc<Mutex<LogCollector>>> =   //?
 struct CollectorLogger;
 impl log::Log for CollectorLogger{
     fn enabled(&self, metadata: &Metadata) -> bool{
-        metadata.level() <= Level::Info
+        metadata.level() <= Level::Debug
     }
     
     fn log(&self,record: &Record){

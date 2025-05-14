@@ -23,9 +23,16 @@ pub struct SubmitOrderResult{
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct CheckFakeResult{
+    #[serde(default)]
     pub errno: i32,
+    #[serde(default)]
+    pub code: i32,
+    #[serde(default)]
     pub errtag: i32,
+    #[serde(default)]
     pub msg: String,
+    #[serde(default)]
+    pub message: String,
     pub data: CheckFakeResultParam,
 }
 #[derive(Clone,Debug,Deserialize,Serialize)]
@@ -61,8 +68,12 @@ pub struct ConfirmTicketResult{
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TokenRiskParam {
+    #[serde(default)]
     pub code : i32,
+    
+    #[serde(default)]
     pub message: String,
+    
     pub mid : Option<String>,
     pub decision_type : Option<String>,
     pub buvid : Option<String>,
@@ -311,6 +322,10 @@ pub struct InfoResponse{
     pub errtag: i32,
     #[serde(default)]
     pub msg: String,
+    #[serde(default)]
+    pub code: i32,
+    #[serde(default)]
+    pub message: String,
     pub data: TicketInfo,
 }
 
