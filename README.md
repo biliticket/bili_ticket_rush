@@ -13,7 +13,7 @@ BiliTicketRush 是专为B站会员购票务设计的抢票辅助软件，支持�
 
 - 不得在国内社群明示本项目（包括biliticket其他项目）包括但不限于截图，链接等。
 - 我们的服务是尽最大限度提供的，若您因使用本程序造成的一切经济、法律后果由您个人承担
-- 未经 biliticket Supervisor 允许，不得使用本项目（包括biliticket其他项目）以任何形式牟利
+- 不得使用本项目以任何形式牟利
 
 若您违反上述条款，biliticket 有权终止对您及关联实体、账号继续提供服务。
 
@@ -164,8 +164,8 @@ A: 请确认是否开启了日志记录功能。可在设置中调整日志级�
 
 <a href="https://star-history.com/#biliticket/bili_ticket_rush&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=biliticket/BHYG&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=biliticket/BHYG&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=biliticket/BHYG&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=biliticket/bili_ticket_rush&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=biliticket/bili_ticket_rush&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=biliticket/bili_ticket_rush&type=Date" />
  </picture>
 </a>
