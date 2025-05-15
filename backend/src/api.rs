@@ -517,6 +517,10 @@ pub async fn create_order(
             log::error!("请求失败: {}", e);
             412
         })?;
+    if response.status() != 200 {
+        log::error!("请求失败: {}", response.status());
+        return Err(response.status().as_u16() as i32);
+    };
     let text = response
         .text()
         .await
@@ -524,6 +528,7 @@ pub async fn create_order(
             log::error!("获取响应文本失败: {}", e);
             412
         })?;
+    log::debug!("{}",text);
     let value: Value = serde_json::from_str(&text)
         .map_err(|e| {
             log::error!("解析响应文本失败: {}", e);
@@ -577,73 +582,6 @@ pub enum ClickPositionType {
     RetryButton,
 }
 
-
-pub async fn get_ticket_tokne(
-    cookie_manager:Arc<CookieManager>,
-    project_id: u32,
-    screen_id: u32,
-    sku_id: u32,
-    count: u16,
-    order_type: u8,
-    ts: Option<u32>,
-) -> String {
-    
-    
-    let _ = cookie_manager.get(format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id.clone()).as_str())
-        
-        .await;
-        
-    let _json = r#"{"data":{"token":"TSukAAXc7AANkfgEAAQ"}}"#;
-    let _val: Value = serde_json::from_str(_json).unwrap_or_default();
-
-   
-    let _dummy = [(project_id ^ 0x6666_6666), (screen_id.wrapping_add(1)), (sku_id | 0x1234_5678)];
-    let mut _no_effect = 42u32;
-    if project_id & 2 == 0 { _no_effect ^= 0xDEAD_BEEF; }
-
-    
-    let timestamp = ts.unwrap_or_else(|| {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u32
-    });
-    let mut token_bytes = Vec::with_capacity(1 + 4 + 4 + 4 + 1 + 2 + 4);
-    token_bytes.push(192u8);
-    token_bytes.extend_from_slice(&timestamp.to_be_bytes());
-    token_bytes.extend_from_slice(&project_id.to_be_bytes());
-    token_bytes.extend_from_slice(&screen_id.to_be_bytes());
-    token_bytes.push(order_type);
-    token_bytes.extend_from_slice(&count.to_be_bytes());
-    token_bytes.extend_from_slice(&sku_id.to_be_bytes());
-
-    
-    let b64 = STANDARD.encode(&token_bytes);
-
-    
-    let map_orig = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/+=";
-    let map_real = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.";
-
-    let mut trans = [0u8; 256];
-    for (o, r) in map_orig.bytes().zip(map_real.bytes()) {
-        trans[o as usize] = r;
-    }
-    let token_final: String = b64
-        .bytes()
-        .map(|b| if trans[b as usize] == 0 { b as char } else { trans[b as usize] as char })
-        .collect();
-
-    
-    let _ = token_final.chars().fold(0u32, |acc, c| acc ^ (c as u32));
-    let _ = token_final.as_bytes().iter().fold(0u8, |acc, b| acc ^ b);
-
-    
-    if _no_effect == 1 && _dummy[0] == 0 {
-        "fake_token".to_string()
-    } else {
-        token_final
-    }
-}
 
 /// 生成随机点击位置
 /// 

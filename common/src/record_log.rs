@@ -109,7 +109,7 @@ pub static LOG_COLLECTOR: Lazy<Arc<Mutex<LogCollector>>> =   //?
 struct CollectorLogger;
 impl log::Log for CollectorLogger{
     fn enabled(&self, metadata: &Metadata) -> bool{
-        metadata.level() <= Level::Info
+        metadata.level() <= Level::Debug
     }
     
     fn log(&self,record: &Record){
@@ -118,15 +118,17 @@ impl log::Log for CollectorLogger{
             let log_message = format!("[{}] {}: {}", 
                 timestamp, record.level(), record.args());
 
-            if let Ok(mut collector) = LOG_COLLECTOR.lock(){
-                collector.add(log_message.clone());
-            }
+                {
+                    if let Ok(mut collector) = LOG_COLLECTOR.try_lock() { // 使用 try_lock 避免长时间等待
+                        collector.add(log_message.clone());
+                    }
+                }
             
 
             println!("{}", log_message);
 
-            //写入到文件
-            write_to_log_file(&log_message);
+            // 单独处理文件写入，避免同时持有多个锁
+            let _ = write_to_log_file(&log_message);
         }
     }
 

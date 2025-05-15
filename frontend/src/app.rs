@@ -366,7 +366,9 @@ impl Myapp{
 
     pub fn add_log(&mut self, message: &str) {
         self.logs.push(format!("{}", message));
-        
+        if self.logs.len() > 5000 {
+            self.logs.drain(0..2500); // 删除前一半日志
+        }
         // 首先检查是否为错误消息 - 给错误消息更高优先级
         if message.contains("ERROR:") || message.contains("error:") || message.contains("Error:") {
             self.error_banner_active = true;
@@ -660,6 +662,22 @@ impl eframe::App for Myapp{
 
         //处理异步任务结果
         self.process_task_results();
+
+        static mut LAST_MONITOR_TIME: Option<std::time::Instant> = None;
+    
+        unsafe {
+        let should_monitor = match LAST_MONITOR_TIME {
+            Some(time) => time.elapsed() > std::time::Duration::from_secs(30),
+            None => true,
+        };
+        
+        if should_monitor {
+            log::info!("资源监控 - 日志条数: {}, 任务数: {}", 
+                self.logs.len(),
+                self.account_manager.active_tasks.len());
+            LAST_MONITOR_TIME = Some(std::time::Instant::now());
+        }
+        }
 
         //检查policy
         if self.policy.is_none(){
