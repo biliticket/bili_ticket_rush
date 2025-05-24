@@ -127,7 +127,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: i64) {
                                     ui.label(&ticket.desc);
 
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        let button_text = if ticket.clickable { "选择" } else { "不可选" };
+                                        let button_text = if ticket.clickable  { "选择" }else if ticket.sale_flag_number ==1 {"定时预选"}  else { "不可选" };
                                         let button_enabled = true/* ticket.clickable */;
 
                                         if ui.add_enabled(

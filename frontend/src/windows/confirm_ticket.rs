@@ -441,6 +441,8 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                         Ok(task_id) => {
                                             log::info!("提交抢票任务成功，任务ID: {}", task_id);
                                             app.confirm_ticket_info = None;
+                                            
+                                            
                                         },
                                         Err(e) => {
                                             log::error!("提交抢票任务失败: {}", e);
@@ -484,6 +486,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     Ok(task_id) => {
                                                         log::info!("提交抢票任务成功，任务ID: {}", task_id);
                                                         app.confirm_ticket_info = None;
+                                                        app.selected_buyer_list = None; 
                                                     },
                                                     Err(e) => {
                                                         log::error!("提交抢票任务失败: {}", e);

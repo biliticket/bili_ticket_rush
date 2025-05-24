@@ -4,7 +4,7 @@ use std::sync::Arc;
 use common::show_orderlist::{*};
 
 
-pub async fn get_orderlist(cookie_manager :Arc<CookieManager>, cookies: &str) -> Result<OrderResponse, String>{
+pub async fn get_orderlist(cookie_manager :Arc<CookieManager>) -> Result<OrderResponse, String>{
     match cookie_manager.get(
         
         "https://show.bilibili.com/api/ticket/ordercenter/ticketList?page=0&page_size=10" 

@@ -240,7 +240,7 @@ impl TaskManager for TaskManagerImpl {
                                     let cookies = get_order_req.cookies.clone();
                                     tokio::spawn(async move{
                                         log::info!("正在获取全部订单 ID: {}", task_id);
-                                        let response = get_orderlist(cookie_manager,cookies.as_str()).await;
+                                        let response = get_orderlist(cookie_manager).await;
                                         let success = response.is_ok();
                                         let data = match &response {
                                             Ok(order_resp) => {order_resp.clone()},
