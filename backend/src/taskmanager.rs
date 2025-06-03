@@ -1194,7 +1194,7 @@ async fn try_create_order(
                     100009 => { 
                         log::info!("当前票种库存不足");
                         //再次降速，不给b站服务器带来压力
-                        tokio::time::sleep(tokio::time::Duration::from_secs_f32(4.8)).await;
+                        tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.6)).await; 
 
                     },
                     211 => {
@@ -1209,7 +1209,7 @@ async fn try_create_order(
                     },
                     
                     //需要重新获取token的情况
-                    100041 => {
+                    100041 | 100050 => {
                         log::info!("token失效，即将重新获取token");
                         return Some((true,false)); // 需要重新获取token
                     },

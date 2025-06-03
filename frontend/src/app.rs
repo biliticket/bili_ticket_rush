@@ -682,7 +682,7 @@ impl eframe::App for Myapp{
         //检查policy
         if self.policy.is_none(){
             
-            let url = format!("https://policy.ziantt.top/api/client/{}/{}/dispatch.json",self.app,self.version);
+            let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json",self.app,self.version);
             let rt= Runtime::new().unwrap();
             let timestamp = rt.block_on(get_now_time(&self.client));
             let data = serde_json::json!({
