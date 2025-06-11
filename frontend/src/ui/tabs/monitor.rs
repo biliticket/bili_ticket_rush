@@ -3,7 +3,12 @@ use crate::app::Myapp;
 
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui){
     app.show_log_window = true;
-    ui.heading("预留监视公告栏2");
+    if let Some(accounce) = app.announce3.clone() {
+        ui.label(accounce);
+    } else {
+        ui.label("暂无监视公告");
+    }
+    
     ui.separator();
 
 }

@@ -528,13 +528,13 @@ pub async fn create_order(
             log::error!("获取响应文本失败: {}", e);
             412
         })?;
-    log::debug!("{}",text);
+    log::info!("{}",text);
     let value: Value = serde_json::from_str(&text)
         .map_err(|e| {
             log::error!("解析响应文本失败: {}", e);
             412
         })?;
-    log::info!("{:?}", value);
+    
     let errno_value = value.get("errno").and_then(|v| v.as_i64()).unwrap_or(-1);
     let code_value = value.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
     

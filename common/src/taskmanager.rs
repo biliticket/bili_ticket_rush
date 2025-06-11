@@ -86,7 +86,7 @@ pub struct GrabTicketRequest {
     pub start_time: Option<Instant>,
     
     pub local_captcha: LocalCaptcha,
-    
+    pub skip_words: Option<Vec<String>>,
     
 }
 #[derive(Clone,Debug)]
@@ -349,7 +349,7 @@ pub trait TaskManager: Send + 'static {
     fn shutdown(&mut self);
 }
 
-pub const DISCLAIMER_TEXT_ENCODED: &str = "4p2k77iP5pys6aG555uu5a6M5YWo5YWN6LS55byA5rqQ77yM56aB5q2i5ZWG55So5oiW5pS26LS577yM5byA5Y+R5Zui6Zif5LiN5om/5ouF5Lu75L2V5rOV5b6L6LSj5Lu7";
+pub const DISCLAIMER_TEXT_ENCODED: &str = "4p2X5pys6aG555uu5a6M5YWo5YWN6LS55byA5rqQ77yM56aB5q2i5ZWG55So5oiW5pS26LS577yM5LuF5L6b5a2m5Lmg5L2/55So77yM6K+35Zyo5LiL6L29MjTlsI/ml7blhoXliKDpmaTvvIzkvb/nlKjmnKzova/ku7bpgKDmiJDnmoTkuIDliIflkI7mnpzor7foh6rooYzmib/mi4U=";
 
 pub fn TaskManager_debug() -> String {
     let bytes = base64::decode(DISCLAIMER_TEXT_ENCODED).unwrap_or_default();

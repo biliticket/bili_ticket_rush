@@ -1,10 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use common::cookie_manager::CookieManager;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
 use eframe::egui;
 use reqwest::{Client, header};
-use serde_json::Value;
+use serde_json::{json,Value};
+use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+
 
 use crate::ui;
 use crate::windows;
@@ -21,6 +26,7 @@ use common::login::LoginInput;
 use common::taskmanager::{*};
 use common::captcha::LocalCaptcha;
 use common::show_orderlist::OrderResponse;
+use common::cookie_manager::CookieManager;
 use common::taskmanager::GetAllorderRequest;
 use common::taskmanager::TaskRequest;
 use common::ticket::{*};
@@ -159,6 +165,16 @@ pub struct Myapp{
     
     pub machine_id :String,
     
+    pub announce1: Option<String>, //主公告
+    pub announce2: Option<String>,
+    pub announce3: Option<String>,//监视公告
+    pub announce4: Option<String>, //退出公告
+    
+
+    pub public_key: String,
+    pub skip_words: Option<Vec<String>>,
+    pub skip_words_input: String, 
+    
                                     }
 
 
@@ -238,8 +254,9 @@ impl Myapp{
         
         let mut app = Self {
             app: String::from("BRT"),
-            version: String::from("6.0.2"),
+            version: String::from("6.4.0"),
             policy: None,
+            public_key: String::from("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApTAS0RElXIs4Kr0bO4n8\nJB+eBFF/TwXUlvtOM9FNgHjK8m13EdwXaLy9zjGTSQr8tshSRr0dQ6iaCG19Zo2Y\nXfvJrwQLqdezMN+ayMKFy58/S9EGG3Np2eGgKHUPnCOAlRicqWvBdQ/cxzTDNCxa\nORMZdJRoBvya7JijLLIC3CoqmMc6Fxe5i8eIP0zwlyZ0L0C1PQ82BcWn58y7tlPY\nTCz12cWnuKwiQ9LSOfJ4odJJQK0k7rXxwBBsYxULRno0CJ3rKfApssW4cfITYVax\nFtdbu0IUsgEeXs3EzNw8yIYnsaoZlFwLS8SMVsiAFOy2y14lR9043PYAQHm1Cjaf\noQIDAQAB\n-----END PUBLIC KEY-----"),
             left_panel_width: 250.0,
             selected_tab: 0,
             is_loading: false,
@@ -333,7 +350,13 @@ impl Myapp{
             selected_buyer_list: None,
             local_captcha: LocalCaptcha::new(),
             show_qr_windows: None,
+            announce1: None,
+            announce2: None,
+            announce3: None,
+            announce4: None,
             machine_id: common::machine_id::get_machine_id_ob(),
+            skip_words: None,
+            skip_words_input: String::from(""), 
 
         };
         // 初始化每个账号的 client
@@ -389,6 +412,83 @@ impl Myapp{
         }
         // 普通消息不显示横幅
     }
+
+    async fn get_policy(&mut self) -> Value {
+        // 获取当前时间戳
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+    
+        // 构建请求数据
+        let data = json!({
+            "ts": timestamp,
+            "machine_id": self.machine_id.clone(),
+            
+            
+        });
+    
+        
+        let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json", 
+                          self.app, self.version);
+                          
+        match self.client.post(&url)
+            .json(&data)
+            .send()
+            .await {
+                Ok(response) => {
+                    match response.json::<Value>().await {
+                        Ok(resp) => {
+                            
+                            if let Some(code) = resp["code"].as_i64() {
+                                if code != 0 {
+                                    log::error!("获取策略失败: {}", resp["message"]);
+                                    return json!({"allow_run": true});
+                                }
+    
+                                
+                                match decode_policy(&resp["data"]["data"].as_str().unwrap_or(""), &self.public_key) {
+                                    Ok(policy) => {
+                                        
+                                        if let Some(permission_token) = resp["data"]["permission"].as_str() {
+                                            match decode_permissions(permission_token, &self.public_key) {
+                                                Ok(permissions) => {
+                                                    
+                                                    if let Ok(mut file) = File::create("permissions") {
+                                                        let _ = file.write_all(permission_token.as_bytes());
+                                                    }
+                                                    self.policy = Some(permissions);
+                                                },
+                                                Err(e) => {
+                                                    log::error!("权限签名无效: {}", e);
+                                                    self.policy = Some(load_local_permissions(self.public_key.clone().as_str()));
+                                                }
+                                            }
+                                        }
+                                        return policy;
+                                    },
+                                    Err(e) => {
+                                        log::error!("策略签名无效: {}", e);
+                                        return json!({"allow_run": false});
+                                    }
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            log::error!("解析响应失败: {}", e);
+                            return json!({"allow_run": false});
+                        }
+                    }
+                },
+                Err(e) => {
+                    log::error!("请求策略失败: {}", e);
+                }
+            }
+    
+        
+        json!({"allow_run": true})
+    }
+    
     // 处理任务结果的方法
     fn process_task_results(&mut self) {
         // 获取所有可用结果
@@ -607,6 +707,53 @@ impl Myapp{
         }
     }
 
+    fn check_policy(&mut self) {
+        if let Some(policy) = &self.policy {
+            // 检查是否有公告信息
+            if let Some(announcement) = policy.get("announcement1").and_then(|v| v.as_str()) {
+                log::info!("公告: {}", announcement);
+                // 可选：显示公告横幅
+                self.success_banner_active = true;
+                self.success_banner_text = format!("公告: {}", announcement);
+                self.success_banner_start_time = Some(std::time::Instant::now());
+                self.success_banner_opacity = 1.0;
+                self.announce1 = Some(announcement.to_string());
+            }
+
+            if let Some(announcement) = policy.get("announcement2").and_then(|v| v.as_str()) {
+                
+                self.announce2 = Some(announcement.to_string());
+            }
+
+            if let Some(announcement) = policy.get("announcement3").and_then(|v| v.as_str()) {
+                
+                self.announce3 = Some(announcement.to_string());
+            }
+
+            if let Some(announcement) = policy.get("announcement4").and_then(|v| v.as_str()) {
+                
+                self.announce4 = Some(announcement.to_string());
+            }
+            
+            // 检查是否允许运行
+            let allow_run = policy.get("allow_run").and_then(|v| v.as_bool()).unwrap_or(false);
+            if !allow_run {
+                if let Some(accouncement) = self.announce4.clone(){
+                    log::error!("公告: {}", accouncement);
+                }
+                log::error!("根据策略配置，当前版本不允许运行");
+                // 显示错误横幅
+                self.error_banner_active = true;
+                self.error_banner_text = "根据策略配置，当前版本不允许运行".to_string();
+                self.error_banner_start_time = Some(std::time::Instant::now());
+                self.error_banner_opacity = 1.0;
+                
+                
+                std::process::exit(1);
+            }
+        }
+    }
+
     pub fn handle_login_success(&mut self, cookie: &str) {
     log::debug!("登录成功，cookie: {}", cookie);
     match add_account(cookie, &self.client,&self.default_ua){
@@ -681,8 +828,13 @@ impl eframe::App for Myapp{
 
         //检查policy
         if self.policy.is_none(){
-            
-            let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json",self.app,self.version);
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async {
+             let policy = self.get_policy().await;
+             self.policy = Some(policy);
+             self.check_policy();
+            });
+           /*  let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json",self.app,self.version);
             let rt= Runtime::new().unwrap();
             let timestamp = rt.block_on(get_now_time(&self.client));
             let data = serde_json::json!({
@@ -721,7 +873,7 @@ impl eframe::App for Myapp{
 
                 
             })
-
+ */
         }
 
         //从env_log添加日志进窗口
@@ -1070,6 +1222,66 @@ pub fn create_client(user_agent: String) -> Client {
         .unwrap_or_default()
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct PolicyPayload {
+    policy: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PermissionsPayload {
+    permissions: Value,
+}
+
+
+// 解码策略JWT令牌
+fn decode_policy(token: &str, public_key: &str) -> Result<Value, String> {
+    let decoding_key = match DecodingKey::from_rsa_pem(public_key.as_bytes()) {
+        Ok(key) => key,
+        Err(e) => return Err(format!("无效的公钥: {}", e)),
+    };
+    
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.validate_exp = false;
+    validation.required_spec_claims.clear();
+    
+    match decode::<PolicyPayload>(token, &decoding_key, &validation) {
+        Ok(token_data) => Ok(token_data.claims.policy),
+        Err(e) => Err(format!("解码JWT失败: {}", e)),
+    }
+}
+
+// 解码权限JWT令牌
+fn decode_permissions(token: &str, public_key: &str) -> Result<Value, String> {
+    let decoding_key = match DecodingKey::from_rsa_pem(public_key.as_bytes()) {
+        Ok(key) => key,
+        Err(e) => return Err(format!("无效的公钥: {}", e)),
+    };
+    
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.validate_exp = false;
+    validation.required_spec_claims.clear();
+    
+    match decode::<PermissionsPayload>(token, &decoding_key, &validation) {
+        Ok(token_data) => Ok(token_data.claims.permissions),
+        Err(e) => Err(format!("解码JWT失败: {}", e)),
+    }
+}
+
+// 加载本地保存的权限
+fn load_local_permissions(public_key: &str) -> Value {
+    match File::open("permissions") {
+        Ok(mut file) => {
+            let mut contents = String::new();
+            if file.read_to_string(&mut contents).is_ok() {
+                if let Ok(decoded) = decode_permissions(&contents, &public_key) {
+                    return decoded;
+                }
+            }
+        },
+        Err(_) => {}
+    }
+    json!({})
+}
 fn generate_random_string(length: usize) -> String {
     use rand::{thread_rng, Rng};
     use rand::distributions::Alphanumeric;

@@ -225,6 +225,75 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
             ui.separator();
             ui.add_space(10.0);
             
+            ui.heading("关键词过滤");
+            ui.label(RichText::new("输入需要过滤的关键词，多个关键词用空格分隔。当捡漏到包含这些关键词的标题时将自动跳过。").color(Color32::DARK_GRAY));
+            ui.add_space(5.0);
+            
+            // 文本输入框
+            ui.horizontal(|ui| {
+                ui.label("过滤关键词：");
+                let text_edit = ui.text_edit_singleline(&mut app.skip_words_input);
+                
+                if text_edit.changed() {
+                    // 当文本输入改变时，更新关键词列表
+                    let words: Vec<String> = app.skip_words_input
+                        .split_whitespace()
+                        .map(|s| s.to_string())
+                        .collect();
+                    
+                    if words.is_empty() {
+                        app.skip_words = None;
+                    } else {
+                        app.skip_words = Some(words);
+                    }
+                }
+            });
+            
+            // 显示当前过滤词列表
+            if let Some(words) = &app.skip_words {
+                if !words.is_empty() {
+                    // 用于记录需要删除的词
+                    let mut word_to_delete: Option<String> = None;
+                    
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("当前过滤词：");
+                        for word in words.iter() {
+                            let chip = egui::Label::new(
+                                RichText::new(format!(" {} ", word))
+                                    .background_color(Color32::from_rgb(59, 130, 246))
+                                    .color(Color32::WHITE)
+                            )
+                            .sense(egui::Sense::click());
+                            
+                            if ui.add(chip).clicked() {
+                                // 只记录要删除的词，不立即修改
+                                word_to_delete = Some(word.clone());
+                            }
+                            ui.add_space(5.0);
+                        }
+                    });
+                    
+                    // 在闭包外处理删除逻辑
+                    if let Some(word) = word_to_delete {
+                        if let Some(words_mut) = &mut app.skip_words {
+                            if let Some(pos) = words_mut.iter().position(|w| w == &word) {
+                                words_mut.remove(pos);
+                                
+                                // 更新输入框内容
+                                app.skip_words_input = words_mut.join(" ");
+                                
+                                // 如果关键词列表为空，设置为None
+                                if words_mut.is_empty() {
+                                    app.skip_words = None;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // 只有选择了购票人，按钮才可用
@@ -263,6 +332,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     cookie_manager,
                                     biliticket: biliticket.clone(),
                                     local_captcha,
+                                    skip_words: app.skip_words.clone(),
                                 };
                                 
                                 log::debug!("提交捡漏模式任务: {:?}", grab_ticket_request);

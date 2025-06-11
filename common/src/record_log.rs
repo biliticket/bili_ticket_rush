@@ -148,5 +148,5 @@ static LOGGER: CollectorLogger = CollectorLogger;
 // 初始化日志系统
 pub fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(LevelFilter::Debug))
+        .map(|()| log::set_max_level(LevelFilter::Info))
 }

@@ -12,7 +12,7 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
     //页面标题
     ui.vertical_centered(|ui| {
         ui.add_space(20.0);
-        ui.heading(egui::RichText::new("B站抢票小助手").size(32.0).strong());
+        ui.heading(egui::RichText::new("仅供学习的小工具").size(32.0).strong());
         ui.add_space(10.0);
         ui.label(egui::RichText::new(TaskManager_debug())
             .size(14.0)
@@ -20,7 +20,14 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
             .strong());
         ui.add_space(10.0);
         ui.label(egui::RichText::new("请输入项目ID或粘贴票务链接，点击开始抢票").size(16.0).color(egui::Color32::GRAY));
-        ui.add_space(40.0);
+        ui.add_space(10.0);
+        if let Some(accounce) = app.announce1.clone() {
+            ui.label(egui::RichText::new(accounce)
+            .size(14.0)
+            .color(egui::Color32::from_rgb(255, 120, 50))
+            .strong());
+        } 
+        ui.add_space(25.0);
 
         //输入区域
         ticket_input_area(ui, app);

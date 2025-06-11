@@ -364,7 +364,7 @@ impl TaskManager for TaskManagerImpl {
                                     let local_captcha = grab_ticket_req.local_captcha.clone();     
                                     let count = grab_ticket_req.count.clone();                                                               
                                     let project_info = grab_ticket_req.biliticket.project_info.clone();                                                                    
-                                    
+                                    let skip_words= grab_ticket_req.skip_words.clone();
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
                                        
@@ -707,6 +707,19 @@ impl TaskManager for TaskManagerImpl {
                                                         'ticket_loop: for ticket_data in screen_data.ticket_list {
                                                             if !ticket_data.clickable {
                                                                 continue; // 跳过不可点击的票种
+                                                            }
+                                                            if let Some(skip_words) = skip_words.clone() {
+                                                                // 检查标题是否包含需要过滤的关键词
+                                                                let title = ticket_data.screen_name.to_lowercase();
+                                                                if skip_words.iter().any(|word| title.contains(&word.to_lowercase())) {
+                                                                    log::info!("跳过包含过滤关键词的场次: {}", ticket_data.screen_name);
+                                                                    continue; // 跳过这个场次
+                                                                }
+                                                                let ticket_title = ticket_data.desc.to_lowercase();
+                                                                if skip_words.iter().any(|word| ticket_title.contains(&word.to_lowercase())) {
+                                                                    log::info!("跳过包含过滤关键词的票种: {}", ticket_data.screen_name);
+                                                                    continue; // 跳过这个票种
+                                                                }
                                                             }
                                                             
                                                             log::info!("当前{} {}票种可售，开始抢票！", ticket_data.screen_name, ticket_data.desc);
@@ -1219,6 +1232,10 @@ async fn try_create_order(
                         log::info!("当前项目/类型/场次已停售");
                         return Some((true,false));
                     },
+                    1 => {
+                        log::error!("超人 请慢一点，这是仅限1人抢票的项目，或抢票格式有误，请重新提交任务");
+                        return Some((true,false));
+                    }
                     83000004 => {
                         log::error!("没有配置购票人信息！请重新配置");
                         return Some((true,false));

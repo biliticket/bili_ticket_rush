@@ -434,6 +434,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                         cookie_manager: cookie_manager.clone(),
                                         biliticket: biliticket.clone(),
                                         local_captcha: local_captcha.clone(),
+                                        skip_words: app.skip_words.clone(),
                                     };
                                     log::debug!("提交抢票任务: {:?}", grab_ticket_request);
                                     // 提交到任务管理器
@@ -477,7 +478,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     cookie_manager: cookie_manager.clone(),
                                                     biliticket: biliticket.clone(),
                                                     local_captcha: local_captcha.clone(),
-                                                    
+                                                    skip_words: app.skip_words.clone(),
 
                                                 };
                                                 log::debug!("提交抢票任务: {:?}", grab_ticket_request);
