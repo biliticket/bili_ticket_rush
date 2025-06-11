@@ -20,8 +20,7 @@ jobs:
             build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Windows
           - os: ubuntu-latest
             build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-Linux
-          - os: macos-latest
-            build: BiliTicketRush-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-macOS
+          
     runs-on: ${{ matrix.os }}
     env:
       debug: ${{ matrix.debug }}
