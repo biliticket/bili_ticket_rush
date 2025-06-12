@@ -4,3 +4,7 @@ members = [
     "backend",
     "common"
 ]
+
+[patch.crates-io]
+ort = { git="https://github.com/biliticket/ort" }
+ort-sys = { git = "https://github.com/biliticket/ort" }
