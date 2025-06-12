@@ -147,6 +147,19 @@ static LOGGER: CollectorLogger = CollectorLogger;
 
 // 初始化日志系统
 pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(LevelFilter::Info))
+    
+    if cfg!(debug_assertions) {
+        println!("调试模式启动");
+    } else {
+        println!("正式版");
+    }
+    
+    // 根据构建模式设置不同的日志级别
+    log::set_logger(&LOGGER).map(|()| {
+        if cfg!(debug_assertions) {
+            log::set_max_level(LevelFilter::Debug)
+        } else {
+            log::set_max_level(LevelFilter::Info)
+        }
+    })
 }
