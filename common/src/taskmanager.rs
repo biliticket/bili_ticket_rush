@@ -159,6 +159,7 @@ pub struct PushRequest {
     pub jump_url: Option<String>,
     pub push_config: PushConfig,
     pub push_type: PushType,
+    pub status: TaskStatus,
 }
 
 //推送类型

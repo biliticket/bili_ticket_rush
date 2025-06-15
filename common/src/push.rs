@@ -1,6 +1,6 @@
 use std::default;
 
-use crate::taskmanager::{PushRequest, PushType, TaskManager, TaskRequest};
+use crate::taskmanager::{PushRequest, PushType, TaskManager, TaskRequest, TaskStatus};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -72,6 +72,7 @@ impl PushConfig {
             jump_url: jump_url.clone(),
             push_config: self.clone(),
             push_type: PushType::All,
+            status: TaskStatus::Pending,
         });
         match task_manager.submit_task(push_request) {
             Ok(task_id) => {

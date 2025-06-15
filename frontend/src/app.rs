@@ -666,6 +666,7 @@ impl Myapp{
                                 push_type: PushType::All,
                                 jump_url: jump_url.clone(),
                                 push_config: self.push_config.clone(),
+                                status: TaskStatus::Pending,
 
                             });
                             match self.task_manager.submit_task(push_request){
