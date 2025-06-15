@@ -1,10 +1,9 @@
 use common::cookie_manager::CookieManager;
 use serde_json::json;
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{result, thread};
+use std::thread;
 
 use crate::api::*;
 use crate::show_orderlist::get_orderlist;

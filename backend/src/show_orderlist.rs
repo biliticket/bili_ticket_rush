@@ -1,5 +1,5 @@
 use common::show_orderlist::*;
-use common::{cookie_manager::CookieManager, http_utils::request_get};
+use common::cookie_manager::CookieManager;
 use serde_json;
 use std::sync::Arc;
 

@@ -1,12 +1,11 @@
 use std::u32;
 
+use crate::app::Myapp;
+use common::account::Account;
+use common::taskmanager::{TaskManager_debug, TaskStatus, TicketRequest};
+use common::ticket::BilibiliTicket;
 use eframe::egui;
 use eframe::egui::Widget;
-use crate::app::Myapp;
-use common::account::{Account};
-use common::taskmanager::{TaskStatus, TicketRequest, TaskManager_debug};
-use common::ticket::BilibiliTicket;
-
 
 pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
     //页面标题
@@ -14,19 +13,27 @@ pub fn render(app: &mut Myapp, ui: &mut egui::Ui) {
         ui.add_space(20.0);
         ui.heading(egui::RichText::new("仅供学习的小工具").size(32.0).strong());
         ui.add_space(10.0);
-        ui.label(egui::RichText::new(TaskManager_debug())
-            .size(14.0)
-            .color(egui::Color32::from_rgb(255, 120, 50))
-            .strong());
+        ui.label(
+            egui::RichText::new(TaskManager_debug())
+                .size(14.0)
+                .color(egui::Color32::from_rgb(255, 120, 50))
+                .strong(),
+        );
         ui.add_space(10.0);
-        ui.label(egui::RichText::new("请输入项目ID或粘贴票务链接，点击开始抢票").size(16.0).color(egui::Color32::GRAY));
+        ui.label(
+            egui::RichText::new("请输入项目ID或粘贴票务链接，点击开始抢票")
+                .size(16.0)
+                .color(egui::Color32::GRAY),
+        );
         ui.add_space(10.0);
         if let Some(accounce) = app.announce1.clone() {
-            ui.label(egui::RichText::new(accounce)
-            .size(14.0)
-            .color(egui::Color32::from_rgb(255, 120, 50))
-            .strong());
-        } 
+            ui.label(
+                egui::RichText::new(accounce)
+                    .size(14.0)
+                    .color(egui::Color32::from_rgb(255, 120, 50))
+                    .strong(),
+            );
+        }
         ui.add_space(25.0);
 
         //输入区域
@@ -49,37 +56,39 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
 
         //抢票按钮
         if styled_grab_button(ui).clicked() {
-            if !check_input_ticket(&mut app.ticket_id) {app.show_log_window = true; return};
+            if !check_input_ticket(&mut app.ticket_id) {
+                app.show_log_window = true;
+                return;
+            };
             if app.account_manager.accounts.is_empty() {
                 log::info!("没有可用账号，请登录账号");
                 app.show_login_windows = true;
-                return
+                return;
             }
             let select_uid = match app.selected_account_uid {
                 Some(uid) => uid,
                 None => {
                     log::error!("没有选择账号，请选择账号！");
-                    return
+                    return;
                 }
             };
             let bilibili_ticket: BilibiliTicket = BilibiliTicket::new(
-
                 &app.grab_mode,
                 &app.default_ua,
                 &app.custom_config,
-                &app.account_manager.accounts
+                &app.account_manager
+                    .accounts
                     .iter()
                     .find(|a| a.uid == select_uid)
                     .unwrap(),
-
                 &app.push_config,
                 &app.status_delay,
                 &app.ticket_id,
             );
             app.bilibiliticket_list.push(bilibili_ticket);
             log::debug!("当前抢票对象列表：{:?}", app.bilibiliticket_list);
-            match app.grab_mode{
-                0|1 => {
+            match app.grab_mode {
+                0 | 1 => {
                     app.show_screen_info = Some(select_uid);
                 }
                 2 => {
@@ -89,13 +98,11 @@ fn ticket_input_area(ui: &mut egui::Ui, app: &mut Myapp) {
                     log::error!("当前模式不支持！请检查输入！");
                 }
             }
-
-
         }
 
         //底部状态文本
         ui.add_space(30.0);
-       /*  let status_text = match app.is_loading {
+        /*  let status_text = match app.is_loading {
             true => egui::RichText::new(&app.running_status).color(egui::Color32::from_rgb(255, 165, 0)),
             false => egui::RichText::new("等待开始...").color(egui::Color32::GRAY),
         };
@@ -114,7 +121,10 @@ fn styled_ticket_input(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
         egui::Frame::none()
             .fill(egui::Color32::from_rgb(245, 245, 250))
             .rounding(10.0)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 220)))
+            .stroke(egui::Stroke::new(
+                1.0,
+                egui::Color32::from_rgb(200, 200, 220),
+            ))
             .shadow(egui::epaint::Shadow::small_light())
             .inner_margin(egui::vec2(12.0, 10.0))
             .show(ui, |ui| {
@@ -137,7 +147,8 @@ fn styled_ticket_input(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
                 ui.add(input)
             })
             .inner
-    }).inner
+    })
+    .inner
 }
 
 //选择模式区域UI
@@ -151,7 +162,10 @@ fn styled_selection_area(ui: &mut egui::Ui, app: &mut Myapp) {
         egui::Frame::none()
             .fill(egui::Color32::from_rgb(245, 245, 250))
             .rounding(8.0)
-            .stroke(egui::Stroke::new(0.5, egui::Color32::from_rgb(200, 200, 220)))
+            .stroke(egui::Stroke::new(
+                0.5,
+                egui::Color32::from_rgb(200, 200, 220),
+            ))
             .shadow(egui::epaint::Shadow::small_light())
             .inner_margin(egui::vec2(16.0, 12.0))
             .show(ui, |ui| {
@@ -175,16 +189,30 @@ fn styled_selection_area(ui: &mut egui::Ui, app: &mut Myapp) {
 // 账号选择UI
 fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new("选择账号：").color(egui::Color32::BLACK).size(16.0).strong());
+        ui.label(
+            egui::RichText::new("选择账号：")
+                .color(egui::Color32::BLACK)
+                .size(16.0)
+                .strong(),
+        );
 
         // 如果没有账号，显示提示
         if app.account_manager.accounts.is_empty() {
-            ui.label(egui::RichText::new("未登录账号").color(egui::Color32::RED).italics());
+            ui.label(
+                egui::RichText::new("未登录账号")
+                    .color(egui::Color32::RED)
+                    .italics(),
+            );
             ui.add_space(8.0);
-            if egui::Button::new(egui::RichText::new("去登录").size(14.0).color(egui::Color32::BLUE))
-                .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色
-                .ui(ui)
-                .clicked() {
+            if egui::Button::new(
+                egui::RichText::new("去登录")
+                    .size(14.0)
+                    .color(egui::Color32::BLUE),
+            )
+            .fill(egui::Color32::LIGHT_GRAY) // 设置背景颜色
+            .ui(ui)
+            .clicked()
+            {
                 app.show_login_windows = true;
             }
         } else {
@@ -194,7 +222,10 @@ fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
             }
 
             // 创建账号ComboBox
-            let selected_account = app.account_manager.accounts.iter()
+            let selected_account = app
+                .account_manager
+                .accounts
+                .iter()
                 .find(|a| Some(a.uid) == app.selected_account_uid);
 
             let selected_text = match selected_account {
@@ -238,7 +269,12 @@ fn account_selection(ui: &mut egui::Ui, app: &mut Myapp) {
 // 抢票模式选择UI
 fn grab_mode_selection(ui: &mut egui::Ui, app: &mut Myapp) {
     ui.vertical(|ui| {
-        ui.label(egui::RichText::new("抢票模式：").color(egui::Color32::BLACK).size(16.0).strong());
+        ui.label(
+            egui::RichText::new("抢票模式：")
+                .color(egui::Color32::BLACK)
+                .size(16.0)
+                .strong(),
+        );
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
@@ -246,22 +282,35 @@ fn grab_mode_selection(ui: &mut egui::Ui, app: &mut Myapp) {
 
             // 第一种模式 - 自动抢票（推荐）
             let selected = app.grab_mode == 0;
-            if mode_selection_button(ui, "🎫 自动抢票（推荐）",
-                "自动检测开票时间抢票", selected).clicked() {
+            if mode_selection_button(ui, "🎫 自动抢票（推荐）", "自动检测开票时间抢票", selected)
+                .clicked()
+            {
                 app.grab_mode = 0;
             }
 
             // 第二种模式 - 直接抢票
             let selected = app.grab_mode == 1;
-            if mode_selection_button(ui, "⚡ 直接抢票",
-                "直接开始尝试下单（适合已开票项目！，未开票项目使用会导致冻结账号！）", selected).clicked() {
+            if mode_selection_button(
+                ui,
+                "⚡ 直接抢票",
+                "直接开始尝试下单（适合已开票项目！，未开票项目使用会导致冻结账号！）",
+                selected,
+            )
+            .clicked()
+            {
                 app.grab_mode = 1;
             }
 
             // 第三种模式 - 捡漏模式
             let selected = app.grab_mode == 2;
-            if mode_selection_button(ui, "🔄 捡漏模式",
-                "对于已开票项目，监测是否出现余票并尝试下单", selected).clicked() {
+            if mode_selection_button(
+                ui,
+                "🔄 捡漏模式",
+                "对于已开票项目，监测是否出现余票并尝试下单",
+                selected,
+            )
+            .clicked()
+            {
                 app.grab_mode = 2;
             }
         });
@@ -269,17 +318,18 @@ fn grab_mode_selection(ui: &mut egui::Ui, app: &mut Myapp) {
 }
 
 // 抢票模式按钮
-fn mode_selection_button(ui: &mut egui::Ui, title: &str, tooltip: &str, selected: bool) -> egui::Response {
+fn mode_selection_button(
+    ui: &mut egui::Ui,
+    title: &str,
+    tooltip: &str,
+    selected: bool,
+) -> egui::Response {
     let btn = ui.add(
-        egui::widgets::Button::new(
-            egui::RichText::new(title)
-                .size(14.0)
-                .color(if selected {
-                    egui::Color32::WHITE
-                } else {
-                    egui::Color32::from_rgb(70, 70, 70)
-                })
-        )
+        egui::widgets::Button::new(egui::RichText::new(title).size(14.0).color(if selected {
+            egui::Color32::WHITE
+        } else {
+            egui::Color32::from_rgb(70, 70, 70)
+        }))
         .min_size(egui::vec2(110.0, 36.0))
         .fill(if selected {
             egui::Color32::from_rgb(102, 204, 255)
@@ -293,8 +343,8 @@ fn mode_selection_button(ui: &mut egui::Ui, title: &str, tooltip: &str, selected
                 egui::Color32::from_rgb(25, 118, 210)
             } else {
                 egui::Color32::from_rgb(180, 180, 190)
-            }
-        ))
+            },
+        )),
     );
 
     // 添加悬停提示
@@ -314,32 +364,36 @@ fn styled_grab_button(ui: &mut egui::Ui) -> egui::Response {
             egui::RichText::new("开始抢票")
                 .size(24.0)
                 .strong()
-                .color(egui::Color32::from_rgb(255,255,255))
+                .color(egui::Color32::from_rgb(255, 255, 255)),
         )
         .min_size(egui::vec2(button_width, button_height))
         .fill(egui::Color32::from_rgb(102, 204, 255))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(25, 118, 210)))
+        .stroke(egui::Stroke::new(
+            1.0,
+            egui::Color32::from_rgb(25, 118, 210),
+        ))
         .rounding(12.0);
 
         ui.add(button)
-    }).inner
+    })
+    .inner
 }
 
-fn check_input_ticket(ticket_id: &mut String) -> bool{
+fn check_input_ticket(ticket_id: &mut String) -> bool {
     //检查输入的票务ID是否有效
-    if ticket_id.is_empty(){
+    if ticket_id.is_empty() {
         log::info!("请输入有效的票务id");
         return false;
     }
     if ticket_id.contains("https") {
-        if let Some(position) = ticket_id.find("id="){
-            let mut id = ticket_id.split_off(position+3);
+        if let Some(position) = ticket_id.find("id=") {
+            let mut id = ticket_id.split_off(position + 3);
             if id.contains("&") {
                 let position = id.find("&").unwrap();
                 id.truncate(position);
             }
             if id.len() == 5 || id.len() == 6 {
-                match id.parse::<u32>(){
+                match id.parse::<u32>() {
                     Ok(_) => {
                         log::info!("获取到的id为：{}", id);
                         *ticket_id = id;
@@ -351,11 +405,10 @@ fn check_input_ticket(ticket_id: &mut String) -> bool{
                     }
                 }
             }
-
-
-
-        }else{
-            log::error!("未找到对应的id，请不要使用b23开头的短连接，正确连接以show.bilibili或mall.bilibili开头");
+        } else {
+            log::error!(
+                "未找到对应的id，请不要使用b23开头的短连接，正确连接以show.bilibili或mall.bilibili开头"
+            );
             return false;
         }
     }
