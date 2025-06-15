@@ -46,23 +46,17 @@ impl TaskManager for TaskManagerImpl {
                         TaskMessage::SubmitTask(request) => {
                             let task_id = uuid::Uuid::new_v4().to_string();
                             let result_tx = result_tx.clone();
-                            
                             // 根据任务类型处理
                             match request {
-                                
                                 TaskRequest::QrCodeLoginRequest(qrcode_req) => {
                                     tokio::spawn(async move {
                                         // 二维码登录逻辑
                                         let status = poll_qrcode_login(&qrcode_req.qrcode_key,qrcode_req.user_agent.as_deref()).await;
-                                        
                                         let (cookie, error) = match &status {
-                                            common::login::QrCodeLoginStatus::Success(cookie) => 
-                                                (Some(cookie.clone()), None),
-                                            common::login::QrCodeLoginStatus::Failed(err) => 
-                                                (None, Some(err.clone())),
+                                            common::login::QrCodeLoginStatus::Success(cookie) => (Some(cookie.clone()), None),
+                                            common::login::QrCodeLoginStatus::Failed(err) => (None, Some(err.clone())),
                                             _ => (None, None)
                                         };
-                                        
                                         // 创建正确的结果类型
                                         let task_result = TaskResult::QrCodeLoginResult(TaskQrCodeLoginResult {
                                             task_id,
@@ -70,7 +64,6 @@ impl TaskManager for TaskManagerImpl {
                                             cookie,
                                             error,
                                         });
-                                        
                                         let _ = result_tx.send(task_result).await;
                                     });
                                 }
@@ -81,7 +74,6 @@ impl TaskManager for TaskManagerImpl {
                                     let custom_config = login_sms_req.custom_config.clone();
                                     let result_tx = result_tx.clone();
                                     let local_captcha = login_sms_req.local_captcha.clone();
-                                    
 
                                     /* let client = match reqwest::Client::builder()
                                         .user_agent(user_agent.clone())
@@ -103,16 +95,12 @@ impl TaskManager for TaskManagerImpl {
                                                return; 
                                                }
                                                }; */
-                                    
-
                                     tokio::spawn(async move{
                                         log::info!("开始发送短信验证码 ID: {}", task_id);
-
-                                       
                                             log::info!("开始发送短信验证码 ID: {}", task_id);
                                             let response = send_loginsms(
-                                                &phone, 
-                                                &client, 
+                                                &phone,
+                                                &client,
                                                 custom_config,
                                                 local_captcha,
                                             ).await;
@@ -126,25 +114,17 @@ impl TaskManager for TaskManagerImpl {
                                                     },
                                                 };
                                             log::info!("发送短信任务完成 ID: {}, 结果: {}", 
-                                                task_id, 
+                                                task_id,
                                                 if success { "成功" } else { "失败" }
                                             );
-
                                             let task_result = TaskResult::LoginSmsResult(LoginSmsRequestResult {
                                                 task_id,
                                                 phone,
                                                 success,
                                                 message,
                                             });
-
                                             let _ = result_tx.send(task_result).await;
-
-                                        
-                                        
-
-
                                     });
-                                
                                 }
                                 TaskRequest::PushRequest(push_req) => {
                                     let task_id = uuid::Uuid::new_v4().to_string();
@@ -154,20 +134,16 @@ impl TaskManager for TaskManagerImpl {
                                     let jump_url = push_req.jump_url.clone();
                                     let push_type = push_req.push_type.clone();
                                     let result_tx = result_tx.clone();
-                                    
                                     // 启动异步任务处理推送
                                     tokio::spawn(async move {
                                         log::info!("开始处理推送任务 ID: {}, 类型: {:?}", task_id, push_type);
-                                        
                                         let (success, result_message) = match push_type {
                                             PushType::All => {
                                                 push_config.push_all_async( &title, &message,&jump_url).await
                                             },
-                                            
                                             // 其他推送类型的处理...
                                             _ => (false, "未实现的推送类型".to_string())
                                         };
-                                        
                                         // 创建任务结果
                                         let task_result = TaskResult::PushResult(PushRequestResult {
                                             task_id: task_id.clone(),
@@ -175,17 +151,13 @@ impl TaskManager for TaskManagerImpl {
                                             message: result_message,
                                             push_type: push_type.clone(),
                                         });
-                                        
                                         // 发送结果
                                         if let Err(e) = result_tx.send(task_result).await {
                                             log::error!("发送推送任务结果失败: {}", e);
                                         }
-                                        
                                         log::info!("推送任务 ID: {} 完成, 结果: {}", task_id, 
                                                   if success { "成功" } else { "失败" });
                                     });
-                                    
-                                 
                                 }
                                 TaskRequest::SubmitLoginSmsRequest(login_sms_req) => {
                                     let task_id = uuid::Uuid::new_v4().to_string();
@@ -194,10 +166,8 @@ impl TaskManager for TaskManagerImpl {
                                     let captcha_key = login_sms_req.captcha_key.clone();
                                     let code = login_sms_req.code.clone();
                                     let result_tx = result_tx.clone();
-
                                     tokio::spawn(async move{
                                         log::info!("短信验证码登录进行中 ID: {}", task_id);
-                                        
                                         let result = async{
                                             let response = sms_login(&phone,  &code,&captcha_key, &client).await;
                                             let success = response.is_ok();
@@ -213,10 +183,9 @@ impl TaskManager for TaskManagerImpl {
                                                 Err(_) => None,
                                             };
                                             log::info!("提交短信任务完成 ID: {}, 结果: {}", 
-                                                task_id, 
+                                                task_id,
                                                 if success { "成功" } else { "失败" }
                                             );
-
                                             let task_result = TaskResult::SubmitSmsLoginResult(SubmitSmsLoginResult {
                                                 task_id,
                                                 phone,
@@ -224,9 +193,7 @@ impl TaskManager for TaskManagerImpl {
                                                 message,
                                                 cookie,
                                             });
-
                                             let _ = result_tx.send(task_result).await;
-
                                         }.await;
                                     });
                                 }
@@ -344,7 +311,6 @@ impl TaskManager for TaskManagerImpl {
 
                                         });
                                         let _ = result_tx.send(task_result).await;
-                                        
                                     });
                                 }
                                 TaskRequest::GrabTicketRequest(grab_ticket_req)=>{
@@ -359,13 +325,12 @@ impl TaskManager for TaskManagerImpl {
                                     let mode = grab_ticket_req.grab_mode.clone();
                                     let custon_config = grab_ticket_req.biliticket.config.clone();
                                     let csrf = grab_ticket_req.biliticket.account.csrf.clone();
-                                    let local_captcha = grab_ticket_req.local_captcha.clone();     
-                                    let count = grab_ticket_req.count.clone();                                                               
-                                    let project_info = grab_ticket_req.biliticket.project_info.clone();                                                                    
+                                    let local_captcha = grab_ticket_req.local_captcha.clone();
+                                    let count = grab_ticket_req.count.clone();
+                                    let project_info = grab_ticket_req.biliticket.project_info.clone();
                                     let skip_words= grab_ticket_req.skip_words.clone();
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
-                                       
                                         match mode {
                                             0 => {
                                                 log::debug!("定时抢票模式");
@@ -387,7 +352,6 @@ impl TaskManager for TaskManagerImpl {
                                                         countdown = countdown - 15.0;
                                                         tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
                                                         log::info!("距离抢票时间还有{}秒",countdown);
-                                                        
                                                     }
                                                     loop{
                                                         if countdown <= 1.3 {  //按道理来说countdown是1秒，为了保险多设置几秒
@@ -406,10 +370,8 @@ impl TaskManager for TaskManagerImpl {
                                                 const MAX_CONFIRM_ORDER_RETRY: i8 = 4;
                                                 let mut order_retry_count = 0;
                                                 let mut need_retry = false;
-
                                                 //抢票主循环
                                                 loop{
-
                                                     let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
                                                     match token_result {
                                                         Ok(token) => {
@@ -417,15 +379,14 @@ impl TaskManager for TaskManagerImpl {
                                                             log::info!("获取抢票token成功！:{}",token);
                                                             let mut confirm_retry_count = 0;
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
-        
                                                             //尝试下单
                                                             loop {
                                                                let (success, retry_limit) = handle_grab_ticket(
-                                                                cookie_manager.clone(), 
-                                                                  &project_id, 
-                                                                  &token, 
-                                                                  &task_id, 
-                                                                  uid, 
+                                                                cookie_manager.clone(),
+                                                                  &project_id,
+                                                                  &token,
+                                                                  &task_id,
+                                                                  uid,
                                                                   &result_tx,
                                                                   &grab_ticket_req,
                                                                   &buyer_info
@@ -434,8 +395,6 @@ impl TaskManager for TaskManagerImpl {
                                                                     log::info!("抢票流程结束，退出定时抢票模式");
                                                                     break; //成功或致命错误，跳出循环
                                                                 }
-            
-                                                            
                                                             confirm_retry_count += 1;
                                                             if confirm_retry_count >= MAX_CONFIRM_RETRY {
                                                                   log::error!("确认订单失败，已达最大重试次数");
@@ -453,7 +412,6 @@ impl TaskManager for TaskManagerImpl {
                                                                     break;
                                                                 }
                                                            }
-        
                                                         break; // 跳出token获取循环
                                                         },
                                                         Err(risk_param) => {
@@ -462,7 +420,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 //需要处理验证码
                                                                 log::warn!("需要验证码，开始处理验证码...");
                                                                 match handle_risk_verification(
-                                                                    cookie_manager.clone(), 
+                                                                    cookie_manager.clone(),
                                                                     risk_param,
                                                                     &custon_config,
                                                                     &csrf,
@@ -522,27 +480,20 @@ impl TaskManager for TaskManagerImpl {
                                                              }
                                                     }
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
                                                         }
                                                 }
-
                                                 }
-
-                                                
-                                            } 
+                                            }
                                             1 => {
                                                 log::debug!("直接抢票模式");
                                                 let mut token_retry_count = 0;
-                                                const MAX_TOKEN_RETRY: i8 = 5; 
+                                                const MAX_TOKEN_RETRY: i8 = 5;
                                                 let mut confirm_order_retry_count = 0;
                                                 const MAX_CONFIRM_ORDER_RETRY: i8 = 4;
                                                 let mut order_retry_count = 0;
                                                 let mut need_retry = false;
-                                                
-                                                
                                                 //抢票主循环
                                                 loop{
-
                                                     let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
                                                     match token_result {
                                                         Ok(token) => {
@@ -550,26 +501,22 @@ impl TaskManager for TaskManagerImpl {
                                                             log::info!("获取抢票token成功！:{}",token);
                                                             let mut confirm_retry_count = 0;
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
-        
                                                             //尝试下单
                                                             loop {
                                                                let (success, retry_limit) = handle_grab_ticket(
-                                                                cookie_manager.clone(), 
-                                                                  &project_id, 
-                                                                  &token, 
-                                                                  &task_id, 
-                                                                  uid, 
+                                                                cookie_manager.clone(),
+                                                                  &project_id,
+                                                                  &token,
+                                                                  &task_id,
+                                                                  uid,
                                                                   &result_tx,
                                                                   &grab_ticket_req,
                                                                   &buyer_info
-                                                                ).await; 
+                                                                ).await;
                                                                 if success {
                                                                     log::info!("抢票流程结束，退出捡漏模式");
-                                                                    
                                                                     break; //成功或致命错误，跳出循环
                                                                 }
-            
-                                                            
                                                             confirm_retry_count += 1;
                                                             if confirm_retry_count >= MAX_CONFIRM_RETRY {
                                                                   log::error!("确认订单失败，已达最大重试次数");
@@ -587,7 +534,6 @@ impl TaskManager for TaskManagerImpl {
                                                                     break;
                                                                 }
                                                            }
-        
                                                         break; // 跳出token获取循环
                                                         },
                                                         Err(risk_param) => {
@@ -596,7 +542,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 //需要处理验证码
                                                                 log::warn!("需要验证码，开始处理验证码...");
                                                                 match handle_risk_verification(
-                                                                    cookie_manager.clone(), 
+                                                                    cookie_manager.clone(),
                                                                     risk_param,
                                                                     &custon_config,
                                                                     &csrf,
@@ -659,7 +605,6 @@ impl TaskManager for TaskManagerImpl {
 
                                                         }
                                                 }
-
                                                 }
                                             }
                                             2=> {
@@ -670,7 +615,6 @@ impl TaskManager for TaskManagerImpl {
                                                 // 外层循环，一旦抢票成功或遇到致命错误就退出
                                                 'main_loop: loop {
                                                     log::debug!("project_id: {}, screen_id: {}, ticket_id: {}", project_id, screen_id, ticket_id);
-                                                    
                                                     // 获取项目数据
                                                     let project_data = match get_project(cookie_manager.clone(), project_id.clone().as_str()).await {
                                                         Ok(data) => data,
@@ -680,27 +624,23 @@ impl TaskManager for TaskManagerImpl {
                                                             continue;
                                                         }
                                                     };
-                                                    
                                                     // 检查项目是否可售
                                                     if ![8,2].contains(&project_data.data.sale_flag_number){
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
                                                         break 'main_loop; // 直接退出整个捡漏模式
                                                     }
-                                                    
                                                     if ![1, 2].contains(&project_data.data.id_bind) {
                                                         log::error!("暂不支持抢非实名票捡漏模式");
-                                                        break 'main_loop; 
-                                                    } 
+                                                        break 'main_loop;
+                                                    }
                                                     local_grab_request.biliticket.id_bind = project_data.data.id_bind.clone() as usize;
                                                     'screen_loop: for screen_data in project_data.data.screen_list {
                                                         if !screen_data.clickable {
-                                                            continue; 
+                                                            continue;
                                                         }
-                                                        
                                                         local_grab_request.screen_id = screen_data.id.clone().to_string();
                                                         local_grab_request.biliticket.screen_id = screen_data.id.clone().to_string();
                                                         log::info!("当前项目有可抢票场次，开始抢票！");
-                                                        
                                                         // 遍历票种
                                                         'ticket_loop: for ticket_data in screen_data.ticket_list {
                                                             if !ticket_data.clickable {
@@ -719,28 +659,23 @@ impl TaskManager for TaskManagerImpl {
                                                                     continue; // 跳过这个票种
                                                                 }
                                                             }
-                                                            
                                                             log::info!("当前{} {}票种可售，开始抢票！", ticket_data.screen_name, ticket_data.desc);
                                                             local_grab_request.ticket_id = ticket_data.id.clone().to_string();
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
-                                                            
                                                             // 获取token
                                                             let token_result = get_ticket_token(
-                                                                cookie_manager.clone(), 
-                                                                &project_id, 
-                                                                &local_grab_request.screen_id, 
-                                                                &local_grab_request.ticket_id, 
+                                                                cookie_manager.clone(),
+                                                                &project_id,
+                                                                &local_grab_request.screen_id,
+                                                                &local_grab_request.ticket_id,
                                                                 count
                                                             ).await;
                                                             match token_result {
-                                                                Ok(token) => {  
-                                                            
+                                                                Ok(token) => {
                                                             log::debug!("获取token成功！:{}", token);
-                                                            
                                                             // 尝试抢票
                                                             let mut confirm_retry_count = 0;
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
-                                                            
                                                             loop {
                                                                 let (success, retry_limit) = handle_grab_ticket(
                                                                     cookie_manager.clone(),
@@ -754,20 +689,17 @@ impl TaskManager for TaskManagerImpl {
                                                                 ).await;
                                                                 if success {
                                                                     log::info!("抢票流程结束，退出捡漏模式");
-                                                                    
                                                                     break 'main_loop;
                                                                 }
                                                                 if retry_limit {
                                                                     log::info!("该票种已达到最大重试次数，恢复捡漏模式，尝试其他票种");
                                                                     break 'screen_loop;
                                                                 }
-                                                                
                                                                 confirm_retry_count += 1;
                                                                 if confirm_retry_count >= MAX_CONFIRM_RETRY {
                                                                     log::error!("确认订单失败，已达最大重试次数，尝试其他票种");
                                                                     break; // 只跳出当前票种的重试循环
                                                                 }
-                                                                
                                                                 tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.3)).await;
                                                             }
                                                         },
@@ -777,7 +709,7 @@ impl TaskManager for TaskManagerImpl {
                                                                 //需要处理验证码
                                                                 log::warn!("需要验证码，开始处理验证码...");
                                                                 match handle_risk_verification(
-                                                                    cookie_manager.clone(), 
+                                                                    cookie_manager.clone(),
                                                                     risk_param,
                                                                     &custon_config,
                                                                     &csrf,
@@ -839,16 +771,13 @@ impl TaskManager for TaskManagerImpl {
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
                                                         }
-                                                
                                                     }
                                                         }
                                                     }
-                                                    
                                                     // 本轮所有场次和票种都检查完毕，休息一秒后继续下一轮
                                                     log::info!("所有场次和票种检查完毕，等待2秒后重新检查");
                                                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                                 }
-                                                
                                                 log::info!("捡漏模式任务已退出");
                                             }
                                             _=> {
