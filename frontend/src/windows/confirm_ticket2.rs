@@ -1,10 +1,9 @@
 use crate::app::Myapp;
-use std::sync::Arc;
 use common::cookie_manager::CookieManager;
-use common::ticket::{BuyerInfo};
-use common::taskmanager::{GrabTicketRequest, TaskStatus, TaskRequest};
+use common::taskmanager::{GrabTicketRequest, TaskRequest, TaskStatus};
 use eframe::egui;
-use egui::{Color32, RichText, Vec2, Stroke};
+use egui::{Color32, RichText, Stroke, Vec2};
+use std::sync::Arc;
 
 /// 显示捡漏模式的确认窗口
 /// 只需要选择购票人，其他信息都使用默认值
@@ -13,7 +12,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
     if !open {
         return;
     }
-    
     let biliticket_index = match app.bilibiliticket_list.iter().position(|bt| bt.uid == *uid) {
         Some(index) => index,
         None => {
@@ -22,14 +20,11 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
             return;
         }
     };
-    
     let biliticket_uid;
     let cookie_manager: Arc<CookieManager>;
     let buyers;
-    
     {
         let biliticket = &app.bilibiliticket_list[biliticket_index];
-        
         biliticket_uid = biliticket.uid;
         cookie_manager = match &biliticket.account.cookie_manager {
             Some(cm) => cm.clone(),
@@ -39,7 +34,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                 return;
             }
         };
-        
         // 获取购票人列表
         let buyers_in = match &biliticket.all_buyer_info {
             Some(data) => &data.list,
@@ -50,7 +44,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
         };
         buyers = buyers_in.clone();
     }
-    
     // 创建窗口
     egui::Window::new("捡漏模式 - 选择购票人")
         .open(&mut open)
@@ -59,7 +52,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
         .default_width(500.0)
         .show(ctx, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(10.0, 15.0);
-            
             // 标题区域
             ui.vertical_centered(|ui| {
                 ui.add_space(5.0);
@@ -68,7 +60,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                 ui.label(RichText::new("系统会自动监控可用票种并尝试抢票").color(Color32::DARK_GRAY));
             });
             ui.separator();
-            
             // 显示一个简单的模式说明
             ui.add_space(10.0);
             egui::Frame::none()
@@ -83,10 +74,8 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                     ui.label("3. 暂时只支持实名制票捡漏，请务必选择购票人，否则无法进行购票");
                 });
             ui.add_space(10.0);
-            
             // 计算已选择的购票人数量
             let selected_count = app.selected_buyer_list.as_ref().map_or(0, |list| list.len());
-            
             // 购票人选择标题
             ui.horizontal(|ui| {
                 ui.heading("选择购票人");
@@ -99,7 +88,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                     }));
             });
             ui.add_space(5.0);
-            
             // 购票人列表
             if buyers.is_empty() {
                 ui.label(RichText::new("暂无购票人信息，请先添加购票人").color(Color32::DARK_RED));
@@ -112,7 +100,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                         let available_width = ui.available_width();
                         let card_width = 230.0; // 每个卡片的宽度
                         let columns = (available_width / card_width).max(1.0).floor() as usize;
-                        
                         // 创建网格布局
                         egui::Grid::new("buyers_grid")
                             .num_columns(columns)
@@ -122,7 +109,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     // 检查该购票人是否被选中
                                     let is_selected = app.selected_buyer_list.as_ref()
                                         .map_or(false, |list| list.iter().any(|b| b.id == buyer.id));
-
                                     let card_color=if !ctx.style().visuals.dark_mode {
                                         if is_selected {
                                             Color32::from_rgb(236, 252, 243) // 选中状态的浅绿色
@@ -137,15 +123,13 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                             Color32::from_rgb(6, 6, 6) // 默认深黑色
                                         }
                                     };
-                                    
                                     // 创建固定宽度的卡片
                                     ui.scope(|ui| {
                                         ui.set_width(card_width - 10.0); // 减去间距
-                                        
                                         egui::Frame::none()
                                             .fill(card_color)
                                             .stroke(Stroke::new(
-                                                1.0, 
+                                                1.0,
                                                 if is_selected { Color32::from_rgb(74, 222, 128) } else { Color32::from_gray(220) }
                                             ))
                                             .rounding(8.0)
@@ -158,7 +142,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                                     3 => "台湾通行证",
                                                     _ => "其他证件"
                                                 };
-                                                
                                                 ui.horizontal(|ui| {
                                                     // 多选复选框
                                                     let select_button = if is_selected {
@@ -166,16 +149,13 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                                     } else {
                                                         ui.add(egui::Button::new("☐").fill(Color32::TRANSPARENT))
                                                     };
-                                                    
                                                     // 处理选择按钮点击
                                                     if select_button.clicked() {
                                                         // 多选模式：切换选中状态
                                                         if app.selected_buyer_list.is_none() {
                                                             app.selected_buyer_list = Some(Vec::new());
                                                         }
-                                                        
                                                         let buyer_list = app.selected_buyer_list.as_mut().unwrap();
-                                                        
                                                         // 如果已经选中，则移除；否则添加
                                                         if let Some(pos) = buyer_list.iter().position(|b| b.id == buyer.id) {
                                                             buyer_list.remove(pos);
@@ -185,17 +165,14 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                                             log::debug!("添加购票人: {}", buyer.name);
                                                         }
                                                     }
-                                                    
                                                     ui.vertical(|ui| {
                                                         ui.horizontal(|ui| {
                                                             ui.label(RichText::new(&buyer.name).strong().size(16.0));
                                                             ui.label(RichText::new(id_type_text).weak().size(13.0));
                                                         });
-                                                        
                                                         ui.horizontal(|ui| {
                                                             ui.label(format!("证件号: {}", mask_id(&buyer.personal_id)));
                                                         });
-                                                        
                                                         ui.horizontal(|ui| {
                                                             ui.label(format!("手机号: {}", buyer.tel));
                                                         });
@@ -203,14 +180,12 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                                 });
                                             });
                                     });
-                                    
                                     // 控制换行
                                     if (index + 1) % columns == 0 && index < buyers.len() - 1 {
                                         ui.end_row();
                                     }
                                 }
                             });
-                        
                         // 添加购票人按钮
                         ui.add_space(10.0);
                         if ui.button("添加新购票人").clicked() {
@@ -219,28 +194,23 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                         }
                     });
             }
-            
             // 底部按钮区域
             ui.add_space(15.0);
             ui.separator();
             ui.add_space(10.0);
-            
             ui.heading("关键词过滤");
             ui.label(RichText::new("输入需要过滤的关键词，多个关键词用空格分隔。当捡漏到包含这些关键词的标题时将自动跳过。").color(Color32::DARK_GRAY));
             ui.add_space(5.0);
-            
             // 文本输入框
             ui.horizontal(|ui| {
                 ui.label("过滤关键词：");
                 let text_edit = ui.text_edit_singleline(&mut app.skip_words_input);
-                
                 if text_edit.changed() {
                     // 当文本输入改变时，更新关键词列表
                     let words: Vec<String> = app.skip_words_input
                         .split_whitespace()
                         .map(|s| s.to_string())
                         .collect();
-                    
                     if words.is_empty() {
                         app.skip_words = None;
                     } else {
@@ -248,13 +218,11 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                     }
                 }
             });
-            
             // 显示当前过滤词列表
             if let Some(words) = &app.skip_words {
                 if !words.is_empty() {
                     // 用于记录需要删除的词
                     let mut word_to_delete: Option<String> = None;
-                    
                     ui.horizontal_wrapped(|ui| {
                         ui.label("当前过滤词：");
                         for word in words.iter() {
@@ -264,7 +232,6 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     .color(Color32::WHITE)
                             )
                             .sense(egui::Sense::click());
-                            
                             if ui.add(chip).clicked() {
                                 // 只记录要删除的词，不立即修改
                                 word_to_delete = Some(word.clone());
@@ -272,16 +239,13 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                             ui.add_space(5.0);
                         }
                     });
-                    
                     // 在闭包外处理删除逻辑
                     if let Some(word) = word_to_delete {
                         if let Some(words_mut) = &mut app.skip_words {
                             if let Some(pos) = words_mut.iter().position(|w| w == &word) {
                                 words_mut.remove(pos);
-                                
                                 // 更新输入框内容
                                 app.skip_words_input = words_mut.join(" ");
-                                
                                 // 如果关键词列表为空，设置为None
                                 if words_mut.is_empty() {
                                     app.skip_words = None;
@@ -291,14 +255,10 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                     }
                 }
             }
-            
-            
-
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // 只有选择了购票人，按钮才可用
                     let has_buyers = app.selected_buyer_list.as_ref().map_or(false, |list| !list.is_empty());
-                    
                     if ui.add_enabled(
                         has_buyers,
                         egui::Button::new("开始捡漏")
@@ -309,13 +269,11 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                             if !buyer_list.is_empty() {
                                 let ids: Vec<i64> = buyer_list.iter().map(|b| b.id).collect();
                                 log::info!("开始捡漏模式，选择的购票人IDs: {:?}", ids);
-                                
                                 // 获取必要的数据
-                                let mut biliticket = &mut app.bilibiliticket_list[biliticket_index];
+                                let biliticket = &mut app.bilibiliticket_list[biliticket_index];
                                 let project_id = biliticket.project_id.clone();
                                 let local_captcha = app.local_captcha.clone();
                                 biliticket.id_bind = 1;
-                                
                                 // 创建捡漏模式的抢票请求
                                 let grab_ticket_request = GrabTicketRequest {
                                     task_id: "".to_string(),
@@ -334,9 +292,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     local_captcha,
                                     skip_words: app.skip_words.clone(),
                                 };
-                                
                                 log::debug!("提交捡漏模式任务: {:?}", grab_ticket_request);
-                                
                                 // 提交到任务管理器
                                 match app.task_manager.submit_task(TaskRequest::GrabTicketRequest(grab_ticket_request)) {
                                     Ok(task_id) => {
@@ -350,14 +306,13 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                             }
                         }
                     }
-                    
                     if ui.button("取消").clicked() {
                         app.confirm_ticket_info = None;
                     }
                 });
             });
         });
-    
+
     // 更新窗口打开状态
     if !open {
         app.confirm_ticket_info = None;
@@ -373,6 +328,6 @@ fn mask_id(id: &str) -> String {
     let visible_suffix = &id[id.len() - 3..];
     let mask_len = id.len() - 6;
     let mask = "*".repeat(mask_len.min(6));
-    
+
     format!("{}{}{}", visible_prefix, mask, visible_suffix)
 }
