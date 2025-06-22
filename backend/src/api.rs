@@ -3,6 +3,7 @@ use common::http_utils::request_get;
 use common::login::QrCodeLoginStatus;
 use common::ticket::*;
 use common::token_manager;
+use common::utility::CustomConfig;
 use rand::{Rng, thread_rng};
 use reqwest::Client;
 use serde_json;
@@ -259,7 +260,8 @@ pub async fn get_ticket_token(
     count: i16,
 ) -> Result<String, TokenRiskParam> {
     // 获取ctoken和ptoken
-    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id).await {
+    let config = CustomConfig::new();
+    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id, &config).await {
         Ok(tokens) => tokens,
         Err(e) => {
             log::error!("获取token失败：{}", e);
@@ -492,7 +494,8 @@ pub async fn create_order(
     screen_size: Option<(u32, u32)>, // 可选参数：(宽度,高度)
 ) -> Result<Value, i32> {
     // 获取ctoken和ptoken
-    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id).await {
+    let config = CustomConfig::new();
+    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id, &config).await {
         Ok(tokens) => tokens,
         Err(e) => {
             log::error!("获取token失败：{}", e);

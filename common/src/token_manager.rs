@@ -4,6 +4,7 @@ use serde_json::Value;
 use anyhow::{Result, anyhow};
 
 use crate::cookie_manager::CookieManager;
+use crate::utility::CustomConfig;
 
 /// 获取ctoken和ptoken
 /// 
@@ -11,11 +12,18 @@ use crate::cookie_manager::CookieManager;
 /// 
 /// * `cookie_manager` - Cookie管理器
 /// * `project_id` - 项目ID
+/// * `config` - 自定义配置
 /// 
 /// # 返回值
 /// 
 /// 返回一个包含ctoken和ptoken的元组
-pub async fn get_tokens(cookie_manager: Arc<CookieManager>, project_id: &str) -> Result<(String, String)> {
+pub async fn get_tokens(cookie_manager: Arc<CookieManager>, project_id: &str, config: &CustomConfig) -> Result<(String, String)> {
+    // 如果禁用了token验证，返回空字符串
+    if !config.enable_token_verify {
+        log::info!("Token验证已禁用，跳过获取ctoken和ptoken");
+        return Ok(("".to_string(), "".to_string()));
+    }
+    
     log::info!("开始获取ctoken和ptoken");
     
     let client = reqwest::Client::new();
@@ -77,13 +85,14 @@ pub async fn get_tokens(cookie_manager: Arc<CookieManager>, project_id: &str) ->
 /// 
 /// * `cookie_manager` - Cookie管理器
 /// * `project_id` - 项目ID
+/// * `config` - 自定义配置
 /// 
 /// # 返回值
 /// 
 /// 返回一个包含新的ctoken和ptoken的元组
-pub async fn refresh_tokens(cookie_manager: Arc<CookieManager>, project_id: &str) -> Result<(String, String)> {
+pub async fn refresh_tokens(cookie_manager: Arc<CookieManager>, project_id: &str, config: &CustomConfig) -> Result<(String, String)> {
     log::info!("开始刷新ctoken和ptoken");
     
     // 实现刷新token的逻辑，这里简单地调用get_tokens
-    get_tokens(cookie_manager, project_id).await
+    get_tokens(cookie_manager, project_id, config).await
 }

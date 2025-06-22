@@ -925,6 +925,16 @@ async fn try_create_order(
                 match e {
                     //需要继续重试的临时错误
                     100001 | 429 | 900001 => log::info!("b站限速，正常现象"),
+                    90005 => {
+                        log::error!("账号行为异常或系统判定风险操作触发，停止点击操作");
+                        send_grab_error(
+                            result_tx,
+                            task_id,
+                            uid.try_into().unwrap(),
+                            "账号行为异常或系统判定风险操作触发(90005)，已停止抢票"
+                        ).await;
+                        return Some((true, false)); // 停止抢票
+                    },
                     100009 => {
                         log::info!("当前票种库存不足");
                         //再次降速，不给b站服务器带来压力
@@ -1000,7 +1010,16 @@ async fn try_create_order(
             );
             return Some((false, true)); // 捡漏模式下单失败，放弃该票种抢票
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs_f32(0.4)).await;
+        // 根据配置决定是否使用随机等待时间
+        let wait_time = if grab_ticket_req.biliticket.config.enable_random_interval {
+            let random_wait = 0.3 + rand::random::<f32>() * 0.7; // 随机等待0.3-1秒
+            log::debug!("使用随机等待时间：{}秒后重试", random_wait);
+            random_wait
+        } else {
+            log::debug!("使用固定等待时间：0.3秒后重试");
+            0.3
+        };
+        tokio::time::sleep(tokio::time::Duration::from_secs_f32(wait_time)).await;
         //降低速度，不带来b站服务器压力
     }
 }

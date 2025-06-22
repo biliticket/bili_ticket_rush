@@ -3,6 +3,12 @@ use rand::thread_rng;
 use reqwest::{Client, Error, Response, header};
 use serde_json;
 use std::collections::HashMap;
+use crate::utility::CustomConfig;
+
+// 检查是否需要进行token验证
+pub fn should_verify_token(config: &CustomConfig) -> bool {
+    config.enable_token_verify
+}
 
 // 随机UA生成
 
