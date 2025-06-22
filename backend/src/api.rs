@@ -2,6 +2,8 @@ use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::login::QrCodeLoginStatus;
 use common::ticket::*;
+use common::token_manager;
+use common::utility::CustomConfig;
 use rand::{Rng, thread_rng};
 use reqwest::Client;
 use serde_json;
@@ -257,6 +259,27 @@ pub async fn get_ticket_token(
     ticket_id: &str,
     count: i16,
 ) -> Result<String, TokenRiskParam> {
+    // 获取ctoken和ptoken
+    let config = CustomConfig::new();
+    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id, &config).await {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            log::error!("获取token失败：{}", e);
+            return Err(TokenRiskParam {
+                code: 999,
+                message: format!("获取token失败：{}", e),
+                mid: None,
+                decision_type: None,
+                buvid: None,
+                ip: None,
+                scene: None,
+                ua: None,
+                v_voucher: None,
+                risk_param: None,
+            });
+        }
+    };
+
     let params = serde_json::json!({
         "project_id": project_id,
         "screen_id": screen_id,
@@ -266,6 +289,8 @@ pub async fn get_ticket_token(
         "token": "",
         "requestSource": "neul-next",
         "newRisk": "true",
+        "ctoken": ctoken,
+        "ptoken": ptoken,
     });
 
     let url = format!(
@@ -468,6 +493,15 @@ pub async fn create_order(
     fast_mode: bool,
     screen_size: Option<(u32, u32)>, // 可选参数：(宽度,高度)
 ) -> Result<Value, i32> {
+    // 获取ctoken和ptoken
+    let config = CustomConfig::new();
+    let (ctoken, ptoken) = match token_manager::get_tokens(cookie_manager.clone(), project_id, &config).await {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            log::error!("获取token失败：{}", e);
+            return Err(999);
+        }
+    };
     let url = format!(
         "https://show.bilibili.com/api/ticket/order/createV2?project_id={}",
         project_id
@@ -537,6 +571,8 @@ pub async fn create_order(
                 "count": count,
                 "timestamp": timestamp,
                 "order_type": 1,
+                "ctoken": ctoken,
+                "ptoken": ptoken,
             });
             data
         }
@@ -555,6 +591,8 @@ pub async fn create_order(
                 "count": count,
                 "timestamp": timestamp,
                 "order_type": 1,
+                "ctoken": ctoken,
+                "ptoken": ptoken,
             });
             data
         }

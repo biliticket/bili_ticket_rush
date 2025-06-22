@@ -204,6 +204,20 @@ pub fn globle_setting(app: &mut Myapp, ui: &mut egui::Ui) {
             false,
         );
     });
+    ui.separator();
+    ui.horizontal(|ui| {
+        on_switch(ui, "启用Token验证", &mut app.custom_config.enable_token_verify);
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        on_switch(ui, "启用购票间隔时间随机性", &mut app.custom_config.enable_random_interval);
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label("遇到错误码90002时：");
+        let options = ["等待3秒后继续", "直接结束"];
+        custom_selection_control(ui, &mut app.custom_config.error_90002_action, &options);
+    });
 }
 
 fn custom_selection_control(ui: &mut egui::Ui, selected: &mut usize, options: &[&str]) -> bool {
