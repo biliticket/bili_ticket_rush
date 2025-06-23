@@ -12,12 +12,12 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::ops::{Index, IndexMut};
+use std::path::Path;
 use std::sync::Arc;
-use std::{fs, process};
+use std::fs;
 
 use rand::Rng;
 use reqwest::Client;
-use std::path::Path;
 
 #[derive(Clone, Debug)]
 pub struct Config {
