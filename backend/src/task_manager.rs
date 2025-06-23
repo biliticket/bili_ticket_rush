@@ -732,8 +732,7 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
 }
 
 async fn await_countdown(mut countdown: f32) {
-    if countdown > 20.0 {
-        loop {
+    loop {
             if countdown <= 20.0 {
                 break;
             }
@@ -741,7 +740,6 @@ async fn await_countdown(mut countdown: f32) {
             tokio::time::sleep(Duration::from_secs(15)).await;
             log::info!("距离抢票时间还有{}秒", countdown);
         }
-    }
     
     loop {
         if countdown <= 1.3 {
