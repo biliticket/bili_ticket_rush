@@ -1,7 +1,7 @@
 use chrono::{Local as _l1, Utc as _u1};
 use hmac::{Hmac as _h1, Mac as _m1};
 use md5;
-use rand::{Rng as _r1, seq::SliceRandom as _sr};
+use rand::Rng as _r1;
 use reqwest::Client as _c1;
 use serde_json::Value as _v1;
 use sha2::Sha256 as _s256;
