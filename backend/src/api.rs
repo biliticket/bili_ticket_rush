@@ -1,3 +1,4 @@
+use chrono::{Local, TimeZone};
 use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::login::QrCodeLoginStatus;
@@ -6,62 +7,31 @@ use rand::{Rng, thread_rng};
 use reqwest::Client;
 use serde_json;
 use serde_json::{Value, json};
+use sntp_request::SntpRequest;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn get_countdown(
-    cookie_manager: Arc<CookieManager>,
-    info: Option<TicketInfo>,
-) -> Result<f64, String> {
-    // 获取开始时间 (秒级)
+pub async fn get_countdown(info: Option<TicketInfo>) -> Result<f64, String> {
     let sale_begin_sec = match info {
         Some(info) => info.sale_begin,
         None => return Err("获取开始时间失败".to_string()),
     };
-    log::debug!("获取开始时间(秒级)：{}", sale_begin_sec);
+    log::debug!("获取开始时间(秒级): {}", sale_begin_sec);
 
-    // 获取网络时间 (秒级)
-    let url = "https://api.bilibili.com/x/click-interface/click/now";
-    let response = cookie_manager.get(url).await;
-    let now_sec = match response.send().await {
-        Ok(data) => {
-            let text = data.text().await.unwrap_or_default();
-            log::debug!("API原始响应：{}", text);
-
-            let json_data: serde_json::Value = serde_json::from_str(&text).unwrap_or(json!({
-                "code": 0,
-                "data": {
-                    "now": 0
-                }
-            }));
-
-            let now_sec = json_data["data"]["now"].as_i64().unwrap_or(0);
-            log::debug!("解析出的网络时间(秒级)：{}", now_sec);
-            now_sec
-        }
-        Err(e) => {
-            log::debug!("获取网络时间失败，原因：{}", e);
-            0
-        }
+    let sntp = SntpRequest::new();
+    let timestamp_result = Local.timestamp_opt(sntp.get_unix_time_by_addr("ntp.aliyun.com:123").unwrap(), 0);
+    let timestamp = match timestamp_result.single() {
+        Some(dt) => dt.timestamp(),
+        None => return Err("无法获取当前时间".to_string()),
     };
+    log::debug!("通过NTP获取的当前时间(秒级): {:?}", timestamp);
 
-    // 如果网络时间获取失败，使用本地时间 (转换为秒)
-    let now_sec = if now_sec == 0 {
-        log::debug!("使用本地时间");
-        let local_sec = chrono::Utc::now().timestamp();
-        log::debug!("本地时间(秒级)：{}", local_sec);
-        local_sec
-    } else {
-        now_sec
-    };
-
-    // 计算倒计时(秒级)
-    let countdown_sec = sale_begin_sec - now_sec;
+    let countdown_sec = sale_begin_sec - timestamp;
     log::debug!(
-        "计算倒计时(秒)：开始时间[{}] - 当前时间[{}] = 倒计时[{}]秒",
+        "计算倒计时(秒): 开始时间[{}] - 当前时间[{}] = 倒计时[{}]秒",
         sale_begin_sec,
-        now_sec,
+        timestamp,
         countdown_sec
     );
 

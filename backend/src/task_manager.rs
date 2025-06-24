@@ -389,7 +389,7 @@ async fn timing_mode_grab(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
     let task_id = req.task_id.clone();
     let project_info = req.biliticket.project_info.clone();
 
-    match get_countdown(req.cookie_manager.clone(), project_info).await {
+    match get_countdown(project_info).await {
         Ok(countdown) => {
             if countdown > 0.0 {
                 log::info!("距离抢票时间还有{}秒", countdown);
