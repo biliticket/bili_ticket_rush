@@ -584,7 +584,11 @@ pub async fn create_order(
         log::error!("获取响应文本失败: {}", e);
         412
     })?;
-    log::info!("{}", text);
+    /* log::info!("{}", text); */
+    //传入 | 429 | 900001 | 900002检测
+    if !text.contains("100001")|| text.contains("429") || text.contains("900001") || text.contains("900002") {
+        log::info!("{}", text);
+    }
     let value: Value = serde_json::from_str(&text).map_err(|e| {
         log::error!("解析响应文本失败: {}", e);
         412
