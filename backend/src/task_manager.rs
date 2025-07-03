@@ -2,8 +2,8 @@ use common::cookie_manager::CookieManager;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::thread;
 use std::time::{Duration, Instant};
+use std::thread;
 
 use crate::api::*;
 use crate::show_orderlist::get_orderlist;
@@ -94,7 +94,7 @@ impl TaskManager for TaskManagerImpl {
     fn submit_task(&mut self, request: TaskRequest) -> Result<String, String> {
         let task_id = uuid::Uuid::new_v4().to_string();
         let task = create_task_from_request(&request, task_id.clone());
-
+        
         self.running_tasks.insert(task_id.clone(), task);
 
         if let Err(e) = self
@@ -110,12 +110,12 @@ impl TaskManager for TaskManagerImpl {
 
     fn get_results(&mut self) -> Vec<TaskResult> {
         let mut results = Vec::new();
-
+        
         // 非阻塞方式获取所有可用结果
         while let Ok(result) = self.result_receiver.try_recv() {
             results.push(result);
         }
-
+        
         results
     }
 
@@ -123,14 +123,11 @@ impl TaskManager for TaskManagerImpl {
         if !self.running_tasks.contains_key(task_id) {
             return Err("任务不存在".to_string());
         }
-
-        if let Err(e) = self
-            .task_sender
-            .blocking_send(TaskMessage::CancelTask(task_id.to_owned()))
-        {
+        
+        if let Err(e) = self.task_sender.blocking_send(TaskMessage::CancelTask(task_id.to_owned())) {
             return Err(format!("无法取消任务: {}", e));
         }
-
+        
         Ok(())
     }
 
@@ -165,21 +162,21 @@ async fn handle_qrcode_login(req: QrCodeLoginRequest, result_tx: mpsc::Sender<Ta
     let task_id = uuid::Uuid::new_v4().to_string();
     tokio::spawn(async move {
         log::info!("处理二维码登录任务 ID: {}", task_id);
-
+        
         let status = poll_qrcode_login(&req.qrcode_key, req.user_agent.as_deref()).await;
         let (cookie, error) = match &status {
             common::login::QrCodeLoginStatus::Success(cookie) => (Some(cookie.clone()), None),
             common::login::QrCodeLoginStatus::Failed(err) => (None, Some(err.clone())),
-            _ => (None, None),
+            _ => (None, None)
         };
-
+        
         let task_result = TaskResult::QrCodeLoginResult(TaskQrCodeLoginResult {
             task_id,
             status,
             cookie,
             error,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -188,31 +185,30 @@ async fn handle_sms_send(req: LoginSmsRequest, result_tx: mpsc::Sender<TaskResul
     let task_id = uuid::Uuid::new_v4().to_string();
     tokio::spawn(async move {
         log::info!("处理短信发送任务 ID: {}", task_id);
-
+        
         let response = send_loginsms(
             &req.phone,
             &req.client,
             req.custom_config,
             req.local_captcha,
-        )
-        .await;
-
+        ).await;
+        
         let success = response.is_ok();
         let message = match &response {
             Ok(msg) => msg.clone(),
             Err(err) => {
                 log::error!("发送短信验证码失败: {}", err);
                 err.to_string()
-            }
+            },
         };
-
+        
         let task_result = TaskResult::LoginSmsResult(LoginSmsRequestResult {
             task_id,
             phone: req.phone,
             success,
             message,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -221,23 +217,21 @@ async fn handle_push(req: PushRequest, result_tx: mpsc::Sender<TaskResult>) {
     let task_id = uuid::Uuid::new_v4().to_string();
     tokio::spawn(async move {
         log::info!("处理推送任务 ID: {}, 类型: {:?}", task_id, req.push_type);
-
+        
         let (success, result_message) = match req.push_type {
             PushType::All => {
-                req.push_config
-                    .push_all_async(&req.title, &req.message, &req.jump_url)
-                    .await
-            }
-            _ => (false, "未实现的推送类型".to_string()),
+                req.push_config.push_all_async(&req.title, &req.message, &req.jump_url).await
+            },
+            _ => (false, "未实现的推送类型".to_string())
         };
-
+        
         let task_result = TaskResult::PushResult(PushRequestResult {
             task_id,
             success,
             message: result_message,
             push_type: req.push_type,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -246,7 +240,7 @@ async fn handle_sms_submit(req: SubmitLoginSmsRequest, result_tx: mpsc::Sender<T
     let task_id = uuid::Uuid::new_v4().to_string();
     tokio::spawn(async move {
         log::info!("处理短信提交任务 ID: {}", task_id);
-
+        
         let response = sms_login(&req.phone, &req.code, &req.captcha_key, &req.client).await;
         let success = response.is_ok();
         let message = match &response {
@@ -254,13 +248,13 @@ async fn handle_sms_submit(req: SubmitLoginSmsRequest, result_tx: mpsc::Sender<T
             Err(err) => {
                 log::error!("提交短信验证码失败: {}", err);
                 err.to_string()
-            }
+            },
         };
         let cookie = match &response {
             Ok(msg) => Some(msg.clone()),
             Err(_) => None,
         };
-
+        
         let task_result = TaskResult::SubmitSmsLoginResult(SubmitSmsLoginResult {
             task_id,
             phone: req.phone,
@@ -268,7 +262,7 @@ async fn handle_sms_submit(req: SubmitLoginSmsRequest, result_tx: mpsc::Sender<T
             message,
             cookie,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -277,7 +271,7 @@ async fn handle_get_all_orders(req: GetAllorderRequest, result_tx: mpsc::Sender<
     let task_id = req.task_id.clone();
     tokio::spawn(async move {
         log::info!("处理获取订单任务 ID: {}", task_id);
-
+        
         let response = get_orderlist(req.cookie_manager).await;
         let success = response.is_ok();
         let data = response.as_ref().ok();
@@ -303,7 +297,7 @@ async fn handle_get_ticket_info(req: GetTicketInfoRequest, result_tx: mpsc::Send
     let task_id = req.task_id.clone();
     tokio::spawn(async move {
         log::debug!("处理获取票务信息任务 ID: {}", task_id);
-
+        
         let response = get_project(req.cookie_manager, &req.project_id).await;
         let success = response.is_ok();
         let ticket_info = response.as_ref().ok().cloned();
@@ -319,7 +313,7 @@ async fn handle_get_ticket_info(req: GetTicketInfoRequest, result_tx: mpsc::Send
             success,
             message,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -328,7 +322,7 @@ async fn handle_get_buyer_info(req: GetBuyerInfoRequest, result_tx: mpsc::Sender
     let task_id = req.task_id.clone();
     tokio::spawn(async move {
         log::debug!("处理获取购票人信息任务 ID: {}", task_id);
-
+        
         let response = get_buyer_info(req.cookie_manager).await;
         let success = response.is_ok();
         let message = match &response {
@@ -344,7 +338,7 @@ async fn handle_get_buyer_info(req: GetBuyerInfoRequest, result_tx: mpsc::Sender
             success,
             message,
         });
-
+        
         send_result(result_tx, task_result).await;
     });
 }
@@ -353,7 +347,7 @@ async fn handle_grab_ticket(req: GrabTicketRequest, result_tx: mpsc::Sender<Task
     let task_id = req.task_id.clone();
     tokio::spawn(async move {
         log::info!("处理抢票任务 ID: {}, 模式: {}", task_id, req.grab_mode);
-
+        
         match req.grab_mode {
             0 => timing_mode_grab(req, result_tx).await,
             1 => direct_mode_grab(req, result_tx).await,
@@ -370,9 +364,8 @@ async fn handle_grab_ticket(req: GrabTicketRequest, result_tx: mpsc::Sender<Task
                     None,
                     None,
                     None,
-                    None,
-                )
-                .await;
+                    None
+                ).await;
             }
         }
     });
@@ -388,7 +381,7 @@ async fn handle_cancel_task(task_id: String) {
 async fn timing_mode_grab(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskResult>) {
     let task_id = req.task_id.clone();
     let project_info = req.biliticket.project_info.clone();
-
+    
     match get_countdown(req.cookie_manager.clone(), project_info).await {
         Ok(countdown) => {
             if countdown > 0.0 {
@@ -397,17 +390,11 @@ async fn timing_mode_grab(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
             }
         }
         Err(e) => {
-            send_grab_error(
-                &result_tx,
-                &task_id,
-                req.uid.try_into().unwrap(),
-                &format!("获取倒计时失败: {}", e),
-            )
-            .await;
+            send_grab_error(&result_tx, &task_id, req.uid.try_into().unwrap(), &format!("获取倒计时失败: {}", e)).await;
             return;
         }
     }
-
+    
     log::info!("开始抢票！");
     grab_ticket_core(req, result_tx).await;
 }
@@ -419,73 +406,58 @@ async fn direct_mode_grab(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
 
 async fn pickup_mode_grab(mut req: GrabTicketRequest, result_tx: mpsc::Sender<TaskResult>) {
     let task_id = req.task_id.clone();
-
+    
     'main_loop: loop {
         // 获取项目数据
-        let project_data =
-            match get_project(req.cookie_manager.clone(), req.project_id.clone().as_str()).await {
-                Ok(data) => data,
-                Err(e) => {
-                    log::error!("获取项目数据失败: {}", e);
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
-            };
-
+        let project_data = match get_project(req.cookie_manager.clone(), req.project_id.clone().as_str()).await {
+            Ok(data) => data,
+            Err(e) => {
+                log::error!("获取项目数据失败: {}", e);
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
+        };
+        
         // 检查项目是否可售
         if ![8, 2].contains(&project_data.data.sale_flag_number) {
-            send_grab_error(
-                &result_tx,
-                &task_id,
-                req.uid.try_into().unwrap(),
-                "当前项目已停售",
-            )
-            .await;
+            send_grab_error(&result_tx, &task_id, req.uid.try_into().unwrap(), "当前项目已停售").await;
             break 'main_loop;
         }
-
+        
         if ![1, 2].contains(&project_data.data.id_bind) {
-            send_grab_error(
-                &result_tx,
-                &task_id,
-                req.uid.try_into().unwrap(),
-                "暂不支持抢非实名票捡漏模式",
-            )
-            .await;
+            send_grab_error(&result_tx, &task_id, req.uid.try_into().unwrap(), "暂不支持抢非实名票捡漏模式").await;
             break 'main_loop;
         }
-
+        
         req.biliticket.id_bind = project_data.data.id_bind.clone() as usize;
-
+        
         'screen_loop: for screen_data in project_data.data.screen_list {
             if !screen_data.clickable {
                 continue;
             }
-
+            
             req.screen_id = screen_data.id.clone().to_string();
             req.biliticket.screen_id = screen_data.id.clone().to_string();
-
+            
             for ticket_data in screen_data.ticket_list {
                 if !ticket_data.clickable {
                     continue;
                 }
-
+                
                 if should_skip_ticket(&ticket_data, &req.skip_words) {
                     continue;
                 }
-
+                
                 req.ticket_id = ticket_data.id.clone().to_string();
                 req.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
-
+                
                 match get_ticket_token(
                     req.cookie_manager.clone(),
                     &req.project_id,
                     &req.screen_id,
                     &req.ticket_id,
-                    req.count,
-                )
-                .await
-                {
+                    req.count
+                ).await {
                     Ok(token) => {
                         if handle_ticket_grab(&req, &token, &result_tx).await {
                             break 'main_loop; // 抢票成功，退出捡漏模式
@@ -499,7 +471,7 @@ async fn pickup_mode_grab(mut req: GrabTicketRequest, result_tx: mpsc::Sender<Ta
                 }
             }
         }
-
+        
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
 }
@@ -510,17 +482,15 @@ async fn grab_ticket_core(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
     let task_id = req.task_id.clone();
     let mut token_retry_count = 0;
     const MAX_TOKEN_RETRY: i8 = 5;
-
+    
     loop {
         match get_ticket_token(
             req.cookie_manager.clone(),
             &req.project_id,
             &req.screen_id,
             &req.ticket_id,
-            req.count,
-        )
-        .await
-        {
+            req.count
+        ).await {
             Ok(token) => {
                 if handle_ticket_grab(&req, &token, &result_tx).await {
                     break; // 抢票流程结束
@@ -534,9 +504,8 @@ async fn grab_ticket_core(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
                             &result_tx,
                             &task_id,
                             req.uid.try_into().unwrap(),
-                            "获取token失败，达到最大重试次数",
-                        )
-                        .await;
+                            "获取token失败，达到最大重试次数"
+                        ).await;
                         break;
                     }
                 }
@@ -549,12 +518,12 @@ async fn grab_ticket_core(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
 async fn handle_ticket_grab(
     req: &GrabTicketRequest,
     token: &str,
-    result_tx: &mpsc::Sender<TaskResult>,
+    result_tx: &mpsc::Sender<TaskResult>
 ) -> bool {
     let task_id = req.task_id.clone();
     let mut confirm_retry_count = 0;
     const MAX_CONFIRM_RETRY: i8 = 4;
-
+    
     loop {
         let (success, should_break) = process_grab_ticket(
             req.cookie_manager.clone(),
@@ -564,26 +533,24 @@ async fn handle_ticket_grab(
             req.uid,
             result_tx,
             req,
-            &req.buyer_info,
-        )
-        .await;
-
+            &req.buyer_info
+        ).await;
+        
         if success || should_break {
             return true;
         }
-
+        
         confirm_retry_count += 1;
         if confirm_retry_count >= MAX_CONFIRM_RETRY {
             send_grab_error(
                 result_tx,
                 &task_id,
                 req.uid.try_into().unwrap(),
-                "确认订单失败，达到最大重试次数",
-            )
-            .await;
+                "确认订单失败，达到最大重试次数"
+            ).await;
             return true;
         }
-
+        
         tokio::time::sleep(Duration::from_secs_f32(0.3)).await;
     }
 }
@@ -591,10 +558,10 @@ async fn handle_ticket_grab(
 async fn handle_risk(
     req: &GrabTicketRequest,
     risk_param: &TokenRiskParam,
-    result_tx: &mpsc::Sender<TaskResult>,
+    result_tx: &mpsc::Sender<TaskResult>
 ) -> bool {
     let task_id = req.task_id.clone();
-
+    
     if risk_param.code == -401 || risk_param.code == 401 {
         log::warn!("需要验证码，开始处理...");
         match handle_risk_verification(
@@ -603,9 +570,7 @@ async fn handle_risk(
             &req.biliticket.config,
             &req.biliticket.account.csrf,
             req.local_captcha.clone(),
-        )
-        .await
-        {
+        ).await {
             Ok(()) => {
                 log::info!("验证码处理成功！");
                 return true;
@@ -616,13 +581,7 @@ async fn handle_risk(
             }
         }
     } else {
-        handle_critical_error(
-            &risk_param,
-            result_tx,
-            &task_id,
-            req.uid.try_into().unwrap(),
-        )
-        .await;
+        handle_critical_error(&risk_param, result_tx, &task_id, req.uid.try_into().unwrap()).await;
         return false;
     }
 }
@@ -656,11 +615,16 @@ async fn send_grab_result(
         pay_result,
         confirm_result,
     });
-
+    
     send_result(tx.clone(), result).await;
 }
 
-async fn send_grab_error(tx: &mpsc::Sender<TaskResult>, task_id: &str, uid: u64, message: &str) {
+async fn send_grab_error(
+    tx: &mpsc::Sender<TaskResult>,
+    task_id: &str,
+    uid: u64,
+    message: &str
+) {
     send_grab_result(tx, task_id, uid, false, message, None, None, None, None).await;
 }
 
@@ -668,14 +632,14 @@ async fn handle_critical_error(
     risk_param: &TokenRiskParam,
     tx: &mpsc::Sender<TaskResult>,
     task_id: &str,
-    uid: u64,
+    uid: u64
 ) {
     let message = match risk_param.code {
         100080 | 100082 => "场次/项目/日期选择有误",
         100039 => "该场次已停售",
-        _ => "未知错误",
+        _ => "未知错误"
     };
-
+    
     let full_message = format!("错误代码: {} - {}", risk_param.code, message);
     send_grab_error(tx, task_id, uid, &full_message).await;
 }
@@ -693,11 +657,7 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
             })
         }
         TaskRequest::LoginSmsRequest(login_sms_req) => {
-            log::info!(
-                "创建短信验证码任务 ID: {}, 手机号: {}",
-                task_id,
-                login_sms_req.phone
-            );
+            log::info!("创建短信验证码任务 ID: {}, 手机号: {}", task_id, login_sms_req.phone);
             Task::LoginSmsRequestTask(LoginSmsRequestTask {
                 task_id: task_id.clone(),
                 phone: login_sms_req.phone.clone(),
@@ -709,7 +669,7 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
             log::info!("创建推送任务 ID: {}", task_id);
             Task::PushTask(PushTask {
                 task_id: task_id.clone(),
-                push_type: push_req.push_type.clone(), // 使用push_type
+                push_type: push_req.push_type.clone(),  // 使用push_type
                 title: push_req.title.clone(),
                 message: push_req.message.clone(),
                 status: TaskStatus::Pending,
@@ -717,11 +677,7 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
             })
         }
         TaskRequest::SubmitLoginSmsRequest(submit_sms_req) => {
-            log::info!(
-                "创建提交短信验证码任务 ID: {}, 手机号: {}",
-                task_id,
-                submit_sms_req.phone
-            );
+            log::info!("创建提交短信验证码任务 ID: {}, 手机号: {}", task_id, submit_sms_req.phone);
             Task::SubmitLoginSmsRequestTask(SubmitLoginSmsRequestTask {
                 task_id: task_id.clone(),
                 phone: submit_sms_req.phone.clone(),
@@ -763,11 +719,7 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
             })
         }
         TaskRequest::GrabTicketRequest(grab_ticket_req) => {
-            log::info!(
-                "创建抢票任务 ID: {}, 模式: {}",
-                task_id,
-                grab_ticket_req.grab_mode
-            );
+            log::info!("创建抢票任务 ID: {}, 模式: {}", task_id, grab_ticket_req.grab_mode);
             Task::GrabTicketTask(GrabTicketTask {
                 task_id: task_id.clone(),
                 biliticket: grab_ticket_req.biliticket.clone(),
@@ -780,15 +732,17 @@ fn create_task_from_request(request: &TaskRequest, task_id: String) -> Task {
 }
 
 async fn await_countdown(mut countdown: f32) {
-    loop {
-        if countdown <= 20.0 {
-            break;
+    if countdown > 20.0 {
+        loop {
+            if countdown <= 20.0 {
+                break;
+            }
+            countdown -= 15.0;
+            tokio::time::sleep(Duration::from_secs(15)).await;
+            log::info!("距离抢票时间还有{}秒", countdown);
         }
-        countdown -= 15.0;
-        tokio::time::sleep(Duration::from_secs(15)).await;
-        log::info!("距离抢票时间还有{}秒", countdown);
     }
-
+    
     loop {
         if countdown <= 1.3 {
             tokio::time::sleep(Duration::from_secs_f32(0.8)).await;
@@ -804,19 +758,13 @@ fn should_skip_ticket(ticket_data: &ScreenTicketInfo, skip_words: &Option<Vec<St
     if let Some(skip_words) = skip_words {
         let title = ticket_data.screen_name.to_lowercase();
         let ticket_title = ticket_data.desc.to_lowercase();
-
-        if skip_words
-            .iter()
-            .any(|word| title.contains(&word.to_lowercase()))
-        {
+        
+        if skip_words.iter().any(|word| title.contains(&word.to_lowercase())) {
             log::info!("跳过包含过滤关键词的场次: {}", ticket_data.screen_name);
             return true;
         }
-
-        if skip_words
-            .iter()
-            .any(|word| ticket_title.contains(&word.to_lowercase()))
-        {
+        
+        if skip_words.iter().any(|word| ticket_title.contains(&word.to_lowercase())) {
             log::info!("跳过包含过滤关键词的票种: {}", ticket_data.screen_name);
             return true;
         }
