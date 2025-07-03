@@ -1,30 +1,27 @@
-use crate::cookie_manager::CookieManager;
-use crate::{
-    cookie_manager,
-    http_utils::{request_get_sync, request_post_sync},
-};
+use serde::{Serialize, Deserialize};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use crate::{cookie_manager, http_utils::{request_get_sync,request_post_sync}};
 use serde_json;
 use std::sync::Arc;
+use crate::cookie_manager::CookieManager;
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Account {
-    pub uid: i64,     //UID
-    pub name: String, //昵称
+pub struct Account{
+    pub uid: i64,  //UID
+    pub name: String,   //昵称
     pub level: String,
-    pub cookie: String,             //cookie
-    pub csrf: String,               //csrf
-    pub is_login: bool,             //是否登录
-    pub account_status: String,     //账号状态
-    pub vip_label: String,          //大会员，对应/nav请求中data['vip_label']['text']
-    pub is_active: bool,            //该账号是否启动抢票
+    pub cookie: String, //cookie
+    pub csrf : String,  //csrf
+    pub is_login: bool,    //是否登录
+    pub account_status: String,  //账号状态
+    pub vip_label: String, //大会员，对应/nav请求中data['vip_label']['text']
+    pub is_active: bool, //该账号是否启动抢票
     pub avatar_url: Option<String>, //头像地址
     #[serde(skip)]
     pub avatar_texture: Option<eframe::egui::TextureHandle>, //头像地址
-    #[serde(skip)]
+    #[serde(skip)] 
     pub cookie_manager: Option<Arc<CookieManager>>, //cookie管理器
 }
-impl std::fmt::Debug for Account {
+impl std::fmt::Debug for Account{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Account")
             .field("uid", &self.uid)
@@ -43,24 +40,23 @@ impl std::fmt::Debug for Account {
     }
 }
 
-pub fn add_account(cookie: &str, client: &Client, ua: &str) -> Result<Account, String> {
+pub fn add_account(cookie: &str ,client: &Client, ua: &str) -> Result<Account, String>{
     log::info!("添加账号: {}", cookie);
     let response = request_get_sync(
         client,
         "https://api.bilibili.com/x/web-interface/nav",
         Some(ua.to_string()),
         Some(cookie),
-    )
-    .map_err(|e| e.to_string())?;
-
+    ).map_err(|e| e.to_string())?;
+    
     // 创建一个临时的运行时来执行异步代码
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let json = rt
-        .block_on(async { response.json::<serde_json::Value>().await })
-        .map_err(|e| e.to_string())?;
-    let cookie_manager = Arc::new(
-        rt.block_on(async { cookie_manager::CookieManager::new(cookie, Some(ua), 0).await }),
-    );
+    let json = rt.block_on(async {
+        response.json::<serde_json::Value>().await
+    }).map_err(|e| e.to_string())?;
+    let cookie_manager = Arc::new(rt.block_on(async{
+        cookie_manager::CookieManager::new(cookie, Some(ua), 0).await
+    }));
     log::debug!("获取账号信息: {:?}", json);
     match json.get("code") {
         Some(code) if code.as_i64() == Some(0) => {} // 成功
@@ -69,14 +65,8 @@ pub fn add_account(cookie: &str, client: &Client, ua: &str) -> Result<Account, S
     if let Some(data) = json.get("data") {
         let mut account = Account {
             uid: data["mid"].as_i64().unwrap_or(0),
-            name: data["uname"]
-                .as_str()
-                .unwrap_or("账号信息获取失败，请删除重新登录")
-                .to_string(),
-            level: data["level_info"]["current_level"]
-                .as_i64()
-                .unwrap_or(0)
-                .to_string(),
+            name: data["uname"].as_str().unwrap_or("账号信息获取失败，请删除重新登录").to_string(),
+            level: data["level_info"]["current_level"].as_i64().unwrap_or(0).to_string(),
             cookie: cookie_manager.get_all_cookies(),
             csrf: extract_csrf(cookie),
             is_login: true,
@@ -100,31 +90,29 @@ pub fn signout_account(account: &Account) -> Result<bool, String> {
 
     });
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let response = rt.block_on(async {
-        account
-            .cookie_manager
-            .clone()
-            .unwrap()
-            .post("https://passport.bilibili.com/login/exit/v2")
-            .await
-            .json(&data)
-            .send()
-            .await
+    let response = rt.block_on(async{
+        account.cookie_manager.clone().unwrap().post("https://passport.bilibili.com/login/exit/v2")
+        .await
+        .json(&data)
+        .send()
+        .await
     });
-
+    
     let resp = match response {
         Ok(res) => res,
         Err(e) => return Err(format!("请求失败: {}", e)),
     };
-    log::debug!("退出登录响应： {:?}", resp);
+    log::debug!("退出登录响应： {:?}",resp);
     Ok(resp.status().is_success())
+    
 }
+
 
 //提取 csrf
 fn extract_csrf(cookie: &str) -> String {
     // 打印原始cookie用于调试
     log::debug!("提取CSRF的原始cookie: {}", cookie);
-
+    
     for part in cookie.split(';') {
         let part = part.trim();
         // 检查是否以bili_jct开头（不区分大小写）
@@ -139,7 +127,7 @@ fn extract_csrf(cookie: &str) -> String {
             }
         }
     }
-
+    
     // 没找到，记录并返回空字符串
     log::warn!("无法从cookie中提取CSRF值");
     String::new()
@@ -149,40 +137,41 @@ impl Account {
     pub fn ensure_client(&mut self) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         if self.cookie_manager.is_none() {
-            rt.block_on(async {
-                self.cookie_manager =
-                    Some(Arc::new(CookieManager::new(&self.cookie, None, 0).await))
-            });
+            rt.block_on(async{
+            self.cookie_manager = Some(Arc::new(CookieManager::new(
+                &self.cookie,
+                None,
+                0,
+            ).await))
+        });
         }
     }
+
+    
 }
 
 // 创建client
 fn create_client_for_account(cookie: &str) -> reqwest::Client {
     use reqwest::header;
-
-    let random_id = format!(
-        "{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos()
-    );
-
+    
+    
+    let random_id = format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos());
+    
+    
     let user_agent = format!(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {}",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 {}", 
         random_id
     );
-
+    
     let mut headers = header::HeaderMap::new();
     headers.insert(
         header::USER_AGENT,
         header::HeaderValue::from_str(&user_agent).unwrap_or_else(|_| {
             // 提供一个替代值，而不是使用 unwrap_or_default()
             header::HeaderValue::from_static("Mozilla/5.0")
-        }),
+        })
     );
-
+    
     // 创建 client
     reqwest::Client::builder()
         .default_headers(headers)

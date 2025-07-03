@@ -1,5 +1,5 @@
-pub mod error_banner;
 pub mod fonts;
-pub mod loading;
 pub mod sidebar;
 pub mod tabs;
+pub mod loading;
+pub mod error_banner;

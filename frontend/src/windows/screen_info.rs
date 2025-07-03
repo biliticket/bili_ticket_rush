@@ -148,6 +148,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: i64) {
                                             // 将选中的票种ID保存到项目ID中，准备抢票
                                             app.ticket_id = ticket.project_id.to_string();
                                             bilibili_ticket.select_ticket_id = Some(ticket.id.to_string());
+                                            
                                             app.confirm_ticket_info= Some(bilibili_ticket.uid.to_string().clone());
                                             log::info!("已选择: {} [{}]", &ticket.desc, ticket.id);
                                         }

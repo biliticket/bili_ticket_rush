@@ -1,9 +1,10 @@
-use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
+use std::sync::{Arc, Mutex};
+use log::{Record, Level, Metadata, LevelFilter, SetLoggerError};
 use once_cell::sync::Lazy;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+
 
 // 日志文件处理相关内容
 lazy_static::lazy_static! {
@@ -18,17 +19,17 @@ fn create_log_file() -> Option<(String, File)> {
         eprintln!("无法创建日志目录: {}", e);
         return None;
     }
-
+    
     // 创建带有时间戳的文件名
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let filename = format!("Log/log_{}.log", timestamp);
-
+    
     // 打开文件
     match OpenOptions::new()
         .write(true)
         .create(true)
         .append(true)
-        .open(&filename)
+        .open(&filename) 
     {
         Ok(file) => Some((filename.clone(), file)),
         Err(e) => {
@@ -40,22 +41,22 @@ fn create_log_file() -> Option<(String, File)> {
 
 fn write_to_log_file(message: &str) -> bool {
     let mut file_guard = LOG_FILE.lock().unwrap();
-
+    
     // 检查是否需要创建新的日志文件
     let create_new_file = match &*file_guard {
         Some((filename, _)) => {
             let current_date = chrono::Local::now().format("%Y%m%d").to_string();
             !filename.contains(&current_date)
-        }
-        None => true,
+        },
+        None => true
     };
-
+    
     if create_new_file {
         if let Some(new_file) = create_log_file() {
             *file_guard = Some(new_file);
         }
     }
-
+    
     // 写入日志
     if let Some((_, file)) = file_guard.as_mut() {
         if let Err(_) = writeln!(file, "{}", message) {
@@ -66,61 +67,63 @@ fn write_to_log_file(message: &str) -> bool {
         }
         return true;
     }
-
+    
     false
 }
 
 //日志记录器
-pub struct LogCollector {
+pub struct LogCollector{
     pub logs: Vec<String>,
 }
 
-impl LogCollector {
-    pub fn new() -> Self {
+impl LogCollector{
+    pub fn new() -> Self{
         Self { logs: Vec::new() }
     }
     //添加日志
-    pub fn add(&mut self, message: String) {
+    pub fn add(&mut self, message: String){
         self.logs.push(message);
     }
 
     //获取日志
-    pub fn get_logs(&mut self) -> Option<Vec<String>> {
-        if self.logs.is_empty() {
+    pub fn get_logs(&mut self) -> Option<Vec<String>>{
+        if self.logs.is_empty(){
             return None;
         }
         let logs = self.logs.clone();
-
+        
         self.clear_logs();
         Some(logs)
     }
 
     //清空日志
-    pub fn clear_logs(&mut self) {
+    pub fn clear_logs(&mut self){
         self.logs.clear();
     }
 }
 
-pub static LOG_COLLECTOR: Lazy<Arc<Mutex<LogCollector>>> = //?
+pub static LOG_COLLECTOR: Lazy<Arc<Mutex<LogCollector>>> =   //?
     Lazy::new(|| Arc::new(Mutex::new(LogCollector::new())));
 
+
 struct CollectorLogger;
-impl log::Log for CollectorLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+impl log::Log for CollectorLogger{
+    fn enabled(&self, metadata: &Metadata) -> bool{
         metadata.level() <= Level::Debug
     }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
+    
+    fn log(&self,record: &Record){
+        if self.enabled(record.metadata()){
             let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S:%3f");
-            let log_message = format!("[{}] {}: {}", timestamp, record.level(), record.args());
+            let log_message = format!("[{}] {}: {}", 
+                timestamp, record.level(), record.args());
 
-            {
-                if let Ok(mut collector) = LOG_COLLECTOR.try_lock() {
-                    // 使用 try_lock 避免长时间等待
-                    collector.add(log_message.clone());
+                {
+                    if let Ok(mut collector) = LOG_COLLECTOR.try_lock() { // 使用 try_lock 避免长时间等待
+                        collector.add(log_message.clone());
+                    }
                 }
-            }
+            
 
             println!("{}", log_message);
 
@@ -136,6 +139,7 @@ impl log::Log for CollectorLogger {
             let _ = file.flush();
         }
     }
+
 }
 
 // 静态日志记录器
@@ -143,12 +147,13 @@ static LOGGER: CollectorLogger = CollectorLogger;
 
 // 初始化日志系统
 pub fn init() -> Result<(), SetLoggerError> {
+    
     if cfg!(debug_assertions) {
         println!("调试模式启动");
     } else {
         println!("正式版");
     }
-
+    
     // 根据构建模式设置不同的日志级别
     log::set_logger(&LOGGER).map(|()| {
         if cfg!(debug_assertions) {

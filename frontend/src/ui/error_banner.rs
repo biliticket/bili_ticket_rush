@@ -1,5 +1,5 @@
-use crate::app::Myapp;
 use eframe::egui;
+use crate::app::Myapp;
 
 // 定义横幅类型枚举
 #[derive(PartialEq)]
@@ -12,13 +12,13 @@ pub enum BannerType {
 pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
     let screen_rect = ctx.available_rect();
     let banner_height = 40.0;
-
+    
     // 创建一个位于屏幕顶部的区域
     let banner_rect = egui::Rect::from_min_size(
-        egui::pos2(screen_rect.min.x, screen_rect.min.y),
-        egui::vec2(screen_rect.width(), banner_height),
+        egui::pos2(screen_rect.min.x, screen_rect.min.y), 
+        egui::vec2(screen_rect.width(), banner_height)
     );
-
+    
     // 使用Area绝对定位横幅
     egui::Area::new("notification_banner")
         .fixed_pos(banner_rect.min)
@@ -28,44 +28,32 @@ pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
                 // 成功横幅 - 浅绿色
                 (
                     egui::Color32::from_rgba_premultiplied(
-                        130,
-                        220,
-                        130,
-                        (app.success_banner_opacity * 255.0) as u8,
+                        130, 220, 130, (app.success_banner_opacity * 255.0) as u8
                     ),
                     egui::Color32::from_rgba_premultiplied(
-                        100,
-                        200,
-                        100,
-                        (app.success_banner_opacity * 255.0) as u8,
-                    ),
+                        100, 200, 100, (app.success_banner_opacity * 255.0) as u8
+                    )
                 )
             } else {
                 // 错误横幅 - 橙红色
                 (
                     egui::Color32::from_rgba_premultiplied(
-                        245,
-                        130,
-                        90,
-                        (app.error_banner_opacity * 255.0) as u8,
+                        245, 130, 90, (app.error_banner_opacity * 255.0) as u8
                     ),
                     egui::Color32::from_rgba_premultiplied(
-                        225,
-                        110,
-                        70,
-                        (app.error_banner_opacity * 255.0) as u8,
-                    ),
+                        225, 110, 70, (app.error_banner_opacity * 255.0) as u8
+                    )
                 )
             };
-
+            
             // 设置框架样式
             let frame = egui::Frame::none()
                 .fill(fill_color)
                 .stroke(egui::Stroke::new(1.0, stroke_color));
-
+            
             frame.show(ui, |ui| {
                 ui.set_max_width(screen_rect.width());
-
+                
                 // 居中白色文本
                 ui.vertical_centered(|ui| {
                     ui.add_space(5.0);

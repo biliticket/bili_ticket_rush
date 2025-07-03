@@ -1,15 +1,18 @@
-use crate::captcha::LocalCaptcha;
-use crate::cookie_manager::CookieManager;
-use crate::push::PushConfig;
-use crate::show_orderlist::OrderResponse;
-use crate::ticket::*;
-use crate::utility::CustomConfig;
+use std::time::Instant;
 use reqwest::Client;
 use std::sync::Arc;
-use std::time::Instant;
+use crate::cookie_manager::CookieManager;
+use crate::ticket::{*};
+use crate::captcha::LocalCaptcha;
+use crate::push::PushConfig;
+use crate::utility::CustomConfig;
+use crate::show_orderlist::OrderResponse;
+
+
+
 
 // 任务状态枚举
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub enum TaskStatus {
     Pending,
     Running,
@@ -29,6 +32,7 @@ pub struct TicketResult {
 
 // 任务信息
 pub enum Task {
+    
     QrCodeLoginTask(QrCodeLoginTask),
     LoginSmsRequestTask(LoginSmsRequestTask),
     PushTask(PushTask),
@@ -36,11 +40,12 @@ pub enum Task {
     GetAllorderRequestTask(GetAllorderRequest),
     GetTicketInfoTask(GetTicketInfoTask),
     GetBuyerInfoTask(GetBuyerInfoTask),
-    GrabTicketTask(GrabTicketTask),
+    GrabTicketTask(GrabTicketTask),    
 }
 
 // 任务请求枚举
 pub enum TaskRequest {
+    
     QrCodeLoginRequest(QrCodeLoginRequest),
     LoginSmsRequest(LoginSmsRequest),
     PushRequest(PushRequest),
@@ -54,6 +59,7 @@ pub enum TaskRequest {
 // 任务结果枚举
 #[derive(Clone)]
 pub enum TaskResult {
+    
     QrCodeLoginResult(TaskQrCodeLoginResult),
     LoginSmsResult(LoginSmsRequestResult),
     PushResult(PushRequestResult),
@@ -64,12 +70,12 @@ pub enum TaskResult {
     GrabTicketResult(GrabTicketResult),
 }
 //抢票请求
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GrabTicketRequest {
     pub task_id: String,
     pub uid: i64,
-    pub project_id: String,
-    pub screen_id: String,
+    pub project_id : String,
+    pub screen_id : String,
     pub ticket_id: String,
     pub count: i16,
     pub buyer_info: Vec<BuyerInfo>,
@@ -78,92 +84,96 @@ pub struct GrabTicketRequest {
     pub grab_mode: u8,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
-
+    
     pub local_captcha: LocalCaptcha,
     pub skip_words: Option<Vec<String>>,
+    
 }
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GrabTicketTask {
     pub task_id: String,
     pub biliticket: BilibiliTicket,
     pub status: TaskStatus,
     pub client: Arc<Client>,
     pub start_time: Option<Instant>,
+    
+
 }
-#[derive(Clone, Debug)]
-pub struct GrabTicketResult {
+#[derive(Clone,Debug)]
+pub struct  GrabTicketResult {
     pub task_id: String,
-    pub uid: i64,
+    pub uid : i64,
     pub success: bool,
-    pub message: String,
+    pub message:String,
     pub order_id: Option<String>,
     pub pay_token: Option<String>,
     pub confirm_result: Option<ConfirmTicketResult>,
     pub pay_result: Option<CheckFakeResultData>,
 }
 //获取购票人信息
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GetBuyerInfoRequest {
-    pub uid: i64,
-    pub task_id: String,
+    pub uid : i64,
+    pub task_id : String,
     pub cookie_manager: Arc<CookieManager>,
 }
 
-#[derive(Clone, Debug)]
-pub struct GetBuyerInfoResult {
-    pub task_id: String,
-    pub uid: i64,
+#[derive(Clone,Debug)]
+pub struct GetBuyerInfoResult{
+    pub task_id : String,
+    pub uid : i64,
     pub buyer_info: Option<BuyerInfoResponse>,
     pub success: bool,
-    pub message: String,
+    pub message : String,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GetBuyerInfoTask {
-    pub uid: i64,
-    pub task_id: String,
+    pub uid : i64,
+    pub task_id : String,
     pub status: TaskStatus,
-    pub start_time: Option<Instant>,
+    pub start_time : Option<Instant>,
     pub cookie_manager: Arc<CookieManager>,
 }
 //请求project_id票详情
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GetTicketInfoRequest {
-    pub uid: i64,
-    pub task_id: String,
-    pub project_id: String,
+    pub uid : i64,
+    pub task_id : String,
+    pub project_id : String,
     pub cookie_manager: Arc<CookieManager>,
+
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GetTicketInfoResult {
-    pub task_id: String,
-    pub uid: i64,
+    pub task_id : String,
+    pub uid : i64,
     pub ticket_info: Option<InfoResponse>,
     pub success: bool,
-    pub message: String,
+    pub message : String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub struct GetTicketInfoTask {
-    pub task_id: String,
-    pub project_id: String,
+    pub task_id : String,
+    pub project_id : String,
     pub status: TaskStatus,
-    pub start_time: Option<Instant>,
+    pub start_time : Option<Instant>,
     pub cookie_manager: Arc<CookieManager>,
 }
 
+
 #[derive(Clone)]
-pub struct PushRequest {
+pub struct PushRequest{
     pub title: String,
     pub message: String,
     pub jump_url: Option<String>,
     pub push_config: PushConfig,
-    pub push_type: PushType,
-    pub status: TaskStatus,
+    pub push_type : PushType,
 }
 
 //推送类型
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub enum PushType {
     All,
     Bark,
@@ -183,14 +193,15 @@ pub struct PushRequestResult {
     pub push_type: PushType,
 }
 
+
 #[derive(Clone)]
 pub struct PushTask {
     pub task_id: String,
     pub title: String,
-    pub message: String,
+    pub message:String,
     pub push_type: PushType,
     pub status: TaskStatus,
-    pub start_time: Option<Instant>,
+    pub start_time: Option<Instant>,    
 }
 
 pub struct TicketTask {
@@ -208,18 +219,20 @@ pub struct QrCodeLoginTask {
     pub qrcode_url: String,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
+    
 }
 
 pub struct LoginSmsRequestTask {
     pub task_id: String,
-    pub phone: String,
+    pub phone : String,
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
+    
 }
 
 pub struct SubmitLoginSmsRequestTask {
     pub task_id: String,
-    pub phone: String,
+    pub phone : String,
     pub code: String,
     pub captcha_key: String,
     pub status: TaskStatus,
@@ -234,6 +247,7 @@ pub struct GetAllorderRequest {
     pub cookies: String,
     pub account_id: String,
     pub start_time: Option<Instant>,
+   
 }
 
 #[derive(Clone)]
@@ -252,6 +266,7 @@ pub struct GetAllorderTask {
     pub status: TaskStatus,
     pub start_time: Option<Instant>,
 }
+
 
 pub struct TicketRequest {
     pub ticket_id: String,
@@ -273,11 +288,14 @@ pub struct LoginSmsRequest {
 }
 
 pub struct SubmitLoginSmsRequest {
-    pub phone: String,
+    pub phone : String,
     pub code: String,
     pub captcha_key: String,
     pub client: Client,
+
 }
+
+
 
 #[derive(Clone)]
 pub struct TaskTicketResult {
@@ -313,23 +331,21 @@ pub struct SubmitSmsLoginResult {
 // 更新 TaskManager trait
 pub trait TaskManager: Send + 'static {
     // 创建新的任务管理器
-    fn new() -> Self
-    where
-        Self: Sized;
-
+    fn new() -> Self where Self: Sized;
+    
     // 提交任务
     fn submit_task(&mut self, request: TaskRequest) -> Result<String, String>;
-
+    
     // 获取可用结果，返回 TaskResult 枚举
     fn get_results(&mut self) -> Vec<TaskResult>;
-
+    
     // 取消任务
     fn cancel_task(&mut self, task_id: &str) -> Result<(), String>;
 
     // 获取任务状态
     fn get_task_status(&self, task_id: &str) -> Option<TaskStatus>;
-
-    // 关闭任务管理器
+     
+     // 关闭任务管理器
     fn shutdown(&mut self);
 }
 

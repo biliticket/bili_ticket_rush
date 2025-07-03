@@ -1,3 +1,4 @@
+
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderResponse {
@@ -8,13 +9,13 @@ pub struct OrderResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OrderData {
+pub struct OrderData{
     pub total: i32,
     pub list: Vec<Order>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Order {
+pub struct Order{
     pub order_id: String,
     pub order_type: i32,
     pub item_id: i64,
@@ -31,7 +32,7 @@ pub struct Order {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ItemInfo {
+pub struct ItemInfo{
     pub name: String,
     pub image: Option<String>,
     pub screen_id: String,
@@ -41,6 +42,7 @@ pub struct ItemInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ImageInfo {
+pub struct ImageInfo{
     pub url: String,
+
 }

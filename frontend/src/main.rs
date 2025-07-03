@@ -5,9 +5,9 @@ mod app;
 mod ui;
 mod windows;
 fn main() -> Result<(), eframe::Error> {
-    unsafe { std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1") }; // 强制软件渲染
-    unsafe { std::env::set_var("MESA_GL_VERSION_OVERRIDE", "3.3") }; // 尝试覆盖 GL 版本
-    unsafe { std::env::set_var("GALLIUM_DRIVER", "llvmpipe") }; // 使用 llvmpipe 软件渲染器
+    std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");      // 强制软件渲染
+    std::env::set_var("MESA_GL_VERSION_OVERRIDE", "3.3"); // 尝试覆盖 GL 版本
+    std::env::set_var("GALLIUM_DRIVER", "llvmpipe");      // 使用 llvmpipe 软件渲染器
     if let Err(e) = common::init_logger() {
         eprintln!("初始化日志失败，原因: {}", e);
     }
@@ -41,7 +41,7 @@ fn main() -> Result<(), eframe::Error> {
         initial_window_size: Some(Vec2::new(1200.0, 600.0)),
         min_window_size: Some(Vec2::new(800.0, 600.0)),
         vsync: false,
-
+        
         ..Default::default()
     };
 
