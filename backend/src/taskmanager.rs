@@ -5,7 +5,7 @@ use std::{result, thread};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use common::cookie_manager::CookieManager;
-use rand::{Rng,thread_rng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use serde_json::json;
 
@@ -374,7 +374,7 @@ impl TaskManager for TaskManagerImpl {
                                     let count = grab_ticket_req.count.clone();                                                               
                                     let project_info = grab_ticket_req.biliticket.project_info.clone();                                                                    
                                     let skip_words= grab_ticket_req.skip_words.clone();
-                                    let mut rng = thread_rng();
+                                    let mut rng = StdRng::from_entropy();
                                     let mut is_hot = grab_ticket_req.is_hot.clone();
                                     let mut cpdd = if project_info.is_some(){
                                         Arc::new(Mutex::new(CTokenGenerator::new(
@@ -761,7 +761,11 @@ impl TaskManager for TaskManagerImpl {
                                                             log::info!("当前{} {}票种可售，开始抢票！", ticket_data.screen_name, ticket_data.desc);
                                                             local_grab_request.ticket_id = ticket_data.id.clone().to_string();
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
-                                                            
+                                                            cpdd = Arc::new(Mutex::new(CTokenGenerator::new(
+                                                                project_data.data.sale_begin as i64, 
+                                                                0, 
+                                                                rng.gen_range(2000..10000)
+                                                            )));
                                                             // 获取token
                                                             let token_result = get_ticket_token(
                                                                 cookie_manager.clone(), 
