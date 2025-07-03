@@ -223,6 +223,8 @@ pub struct TicketInfo {
     pub is_free: bool,
     pub performance_desc: Option<DescribeList>, //基础信息
     pub id_bind: usize, //是否绑定
+    #[serde(rename = "hotProject")]
+    pub hot_project: bool, //是否热门项目
 
     
 

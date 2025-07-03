@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::{result, thread};
 use common::cookie_manager::CookieManager;
+use rand::{Rng,thread_rng};
+
 use serde_json::json;
+
 
 
 use tokio::runtime::Runtime;
@@ -11,6 +15,7 @@ use common::taskmanager::{*};
 use common::captcha::handle_risk_verification;
 use common::login::{send_loginsms,sms_login};
 use common::ticket::ConfirmTicketResult;
+use common::gen_cp::CTokenGenerator;
 use common::ticket::{*};
 use crate::show_orderlist::get_orderlist;
 use crate::api::{*};
@@ -365,6 +370,14 @@ impl TaskManager for TaskManagerImpl {
                                     let count = grab_ticket_req.count.clone();                                                               
                                     let project_info = grab_ticket_req.biliticket.project_info.clone();                                                                    
                                     let skip_words= grab_ticket_req.skip_words.clone();
+                                    let mut rng = thread_rng();
+                                    let mut is_hot = grab_ticket_req.is_hot.clone();
+                                    let mut cpdd = Arc::new(Mutex::new(CTokenGenerator::new(
+                                        project_info.clone().unwrap().sale_begin as i64,
+                                        0,
+                                        rng.gen_range(2000..10000)
+                                        
+                                    )));
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
                                        
@@ -379,6 +392,7 @@ impl TaskManager for TaskManagerImpl {
                                                         return;
                                                     }
                                                 };
+                                                
                                                 //log::debug!("获取倒计时成功：{}",countdown);
                                                 if countdown > 0.0{
                                                     log::info!("距离抢票时间还有{}秒",countdown);
@@ -412,11 +426,11 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), cpdd.clone(),&project_id, &screen_id, &ticket_id, count, is_hot).await;
                                                     match token_result {
-                                                        Ok(token) => {
+                                                        Ok((token,ptoken)) => {
                                                             //获取token成功！
-                                                            log::info!("获取抢票token成功！:{}",token);
+                                                            log::info!("获取抢票token成功！:{} ptoken:{}",token,ptoken);
                                                             let mut confirm_retry_count = 0;
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
         
@@ -424,15 +438,18 @@ impl TaskManager for TaskManagerImpl {
                                                             loop {
                                                                let (success, retry_limit) = handle_grab_ticket(
                                                                 cookie_manager.clone(), 
+                                                                cpdd.clone(),
                                                                   &project_id, 
                                                                   &token, 
+                                                                  &ptoken,
+                                                                  is_hot.clone(),
                                                                   &task_id, 
                                                                   uid, 
                                                                   &result_tx,
                                                                   &grab_ticket_req,
                                                                   &buyer_info
                                                                 ).await ;
-                                                                if success {
+                                                                if success && !retry_limit {
                                                                     log::info!("抢票流程结束，退出定时抢票模式");
                                                                     break; //成功或致命错误，跳出循环
                                                                 }
@@ -545,26 +562,29 @@ impl TaskManager for TaskManagerImpl {
                                                 //抢票主循环
                                                 loop{
 
-                                                    let token_result = get_ticket_token(cookie_manager.clone(), &project_id, &screen_id, &ticket_id, count).await;
+                                                    let token_result = get_ticket_token(cookie_manager.clone(), cpdd.clone(),&project_id, &screen_id, &ticket_id, count, is_hot).await;
                                                     match token_result {
-                                                        Ok(token) => {
+                                                        Ok((token,ptoken)) => {
                                                             //获取token成功！
-                                                            log::info!("获取抢票token成功！:{}",token);
+                                                            log::info!("获取抢票token成功！:{} ptoken:{}",token,ptoken);
                                                             let mut confirm_retry_count = 0;
                                                             const MAX_CONFIRM_RETRY: i8 = 4;
         
                                                             //尝试下单
                                                             loop {
-                                                               let (success, retry_limit) = handle_grab_ticket(
-                                                                cookie_manager.clone(), 
-                                                                  &project_id, 
-                                                                  &token, 
-                                                                  &task_id, 
-                                                                  uid, 
-                                                                  &result_tx,
-                                                                  &grab_ticket_req,
-                                                                  &buyer_info
-                                                                ).await; 
+                                                                let (success, retry_limit) = handle_grab_ticket(
+                                                                 cookie_manager.clone(), 
+                                                                 cpdd.clone(),
+                                                                   &project_id, 
+                                                                   &token, 
+                                                                   &ptoken,
+                                                                   is_hot.clone(),
+                                                                   &task_id, 
+                                                                   uid, 
+                                                                   &result_tx,
+                                                                   &grab_ticket_req,
+                                                                   &buyer_info
+                                                                 ).await ;
                                                                 if success {
                                                                     log::info!("抢票流程结束，退出捡漏模式");
                                                                     
@@ -682,12 +702,12 @@ impl TaskManager for TaskManagerImpl {
                                                             continue;
                                                         }
                                                     };
-                                                    
+                                                    is_hot = project_data.data.hot_project;
                                                     // 检查项目是否可售
-                                                    if ![8,2].contains(&project_data.data.sale_flag_number){
+                                                    /* if ![8,2].contains(&project_data.data.sale_flag_number){
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
                                                         break 'main_loop; // 直接退出整个捡漏模式
-                                                    }
+                                                    } */
                                                     
                                                     if ![1, 2].contains(&project_data.data.id_bind) {
                                                         log::error!("暂不支持抢非实名票捡漏模式");
@@ -727,33 +747,28 @@ impl TaskManager for TaskManagerImpl {
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
                                                             
                                                             // 获取token
-                                                            let token_result = get_ticket_token(
-                                                                cookie_manager.clone(), 
-                                                                &project_id, 
-                                                                &local_grab_request.screen_id, 
-                                                                &local_grab_request.ticket_id, 
-                                                                count
-                                                            ).await;
+                                                            let token_result = get_ticket_token(cookie_manager.clone(), cpdd.clone(),&project_id, &screen_id, &ticket_id, count, is_hot).await;
                                                             match token_result {
-                                                                Ok(token) => {  
+                                                                Ok((token,ptoken)) => {
+                                                                    //获取token成功！
+                                                                    log::info!("获取抢票token成功！:{} ptoken:{}",token,ptoken);
+                                                                    let mut confirm_retry_count = 0;
+                                                                    const MAX_CONFIRM_RETRY: i8 = 4;
                                                             
-                                                            log::debug!("获取token成功！:{}", token);
-                                                            
-                                                            // 尝试抢票
-                                                            let mut confirm_retry_count = 0;
-                                                            const MAX_CONFIRM_RETRY: i8 = 4;
-                                                            
-                                                            loop {
-                                                                let (success, retry_limit) = handle_grab_ticket(
-                                                                    cookie_manager.clone(),
-                                                                    &project_id,
-                                                                    &token,
-                                                                    &task_id,
-                                                                    uid,
-                                                                    &result_tx,
-                                                                    &local_grab_request,
-                                                                    &buyer_info
-                                                                ).await;
+                                                                    loop {
+                                                                        let (success, retry_limit) = handle_grab_ticket(
+                                                                         cookie_manager.clone(), 
+                                                                         cpdd.clone(),
+                                                                           &project_id, 
+                                                                           &token, 
+                                                                           &ptoken,
+                                                                           is_hot.clone(),
+                                                                           &task_id, 
+                                                                           uid, 
+                                                                           &result_tx,
+                                                                           &grab_ticket_req,
+                                                                           &buyer_info
+                                                                         ).await ;
                                                                 if success {
                                                                     log::info!("抢票流程结束，退出捡漏模式");
                                                                     
@@ -1073,8 +1088,11 @@ impl TaskManager for TaskManagerImpl {
 
 async fn handle_grab_ticket(
     cookie_manager: Arc<CookieManager>,
+    cpdd: Arc<Mutex<CTokenGenerator>>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
+    is_hot: bool,
     task_id: &str,
     uid: i64,
     result_tx: &mpsc::Sender<TaskResult>,
@@ -1089,9 +1107,12 @@ async fn handle_grab_ticket(
             
             if let Some((success,retry_limit)) = try_create_order(
                 cookie_manager.clone(),
+                cpdd.clone(),
                 project_id,
                 token,
+                ptoken,
                 &confirm_result,
+                is_hot.clone(),
                 grab_ticket_req,
                 buyer_info,
                 task_id,
@@ -1114,9 +1135,12 @@ async fn handle_grab_ticket(
 // 处理创建订单逻辑
 async fn try_create_order(
     cookie_manager: Arc<CookieManager>,
+    cpdd: Arc<Mutex<CTokenGenerator>>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
     confirm_result: &ConfirmTicketResult,
+    is_hot: bool,
     grab_ticket_req: &GrabTicketRequest,
     buyer_info: &Vec<BuyerInfo>,
     task_id: &str,
@@ -1137,9 +1161,12 @@ async fn try_create_order(
         
         match create_order(
             cookie_manager.clone(), 
+            cpdd.clone(),
             project_id, 
             token,
+            ptoken,
             confirm_result,
+            is_hot.clone(),
             &grab_ticket_req.biliticket,
             buyer_info,
             true,
@@ -1222,9 +1249,9 @@ async fn try_create_order(
                     },
                     
                     //需要重新获取token的情况
-                    100041 | 100050 => {
+                    100041 | 100050 | 900002=> {
                         log::info!("token失效，即将重新获取token");
-                        return Some((true,false)); // 需要重新获取token
+                        return Some((true,true)); // 需要重新获取token
                     },
                     
                     //需要终止抢票的致命错误

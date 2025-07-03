@@ -386,6 +386,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                     // 根据模式决定按钮启用条件
                     let biliticket = &app.bilibiliticket_list[biliticket_index];
                     let local_captcha = app.local_captcha.clone();
+                    let is_hot = biliticket.project_info.clone().as_ref().map_or(false, |p| p.hot_project);
                     let button_enabled = match id_bind {
                         0 => {
                             // 检查非实名购票人信息是否完整
@@ -426,6 +427,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                         project_id: biliticket_project_id.clone().unwrap_or_default(),
                                         screen_id: screen.id.to_string(),
                                         ticket_id: ticket.id.to_string(),
+                                        is_hot: is_hot, 
                                         count: app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1) as i16,
                                         buyer_info: Vec::new(), // 实名购票人信息,这里传空列表
                                         grab_mode: app.grab_mode,
@@ -470,6 +472,7 @@ pub fn show(app: &mut Myapp,ctx:&egui::Context,uid:&i64){
                                                     project_id: biliticket_project_id.clone().unwrap_or_default(),
                                                     screen_id: screen.id.to_string(),
                                                     ticket_id: ticket.id.to_string(),
+                                                    is_hot: is_hot,
                                                     count: app.bilibiliticket_list[biliticket_index].clone().count.unwrap_or(1) as i16,
                                                     buyer_info: buyer_list.clone(),
                                                     grab_mode: app.grab_mode,

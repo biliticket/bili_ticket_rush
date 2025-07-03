@@ -1,11 +1,13 @@
 use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::ticket::{*};
+use common::gen_cp::CTokenGenerator;
 use serde_json;
 use common::login::QrCodeLoginStatus;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use serde_json::{json, Value};
 use rand::{thread_rng, Rng};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -237,21 +239,37 @@ QrCodeLoginStatus::Expired
 }
 
 
-pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &str , screen_id: &str, ticket_id: &str, count: i16) -> Result<String,TokenRiskParam>{
+pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, 
+    cpdd: Arc<Mutex<CTokenGenerator>>,
+    project_id : &str , screen_id: &str, ticket_id: &str, count: i16,is_hot: bool) 
+    -> Result<(String,String),TokenRiskParam>{
     
     
 
-    let params = serde_json::json!({
-        "project_id": project_id,
-        "screen_id": screen_id,
-        "sku_id": ticket_id,
-        "count": count,
-        "order_type": 1,
-        "token": "",
-        "requestSource": "neul-next",
-        "newRisk": "true",
-    });
-    
+    let params = if is_hot {
+        json!({
+            "project_id": project_id,
+            "screen_id": screen_id,
+            "sku_id": ticket_id,
+            "count": count,
+            "order_type": 1,
+            "token": cpdd.lock().unwrap().generate_ctoken(false),
+            "requestSource": "neul-next",
+            "newRisk": "true",
+        })
+    } else {
+        json!({
+            "project_id": project_id,
+            "screen_id": screen_id,
+            "sku_id": ticket_id,
+            "count": count,
+            "order_type": 1,
+            "token": "",
+            "requestSource": "neul-next",
+            "newRisk": "true",
+        })
+    };
+    log::debug!("获取票token参数：{:?}", params);
     let url = format!("https://show.bilibili.com/api/ticket/order/prepare?project_id={}",project_id);
     let response = cookie_manager
         .post(&url).await
@@ -275,7 +293,11 @@ pub async fn get_ticket_token(cookie_manager:Arc<CookieManager>, project_id : &s
                         match code {
                             0 => {
                                 let token = json["data"]["token"].as_str().unwrap_or("");
-                                return Ok(token.to_string());
+                                if is_hot {
+                                    let ptoken = json["data"]["ptoken"].as_str().unwrap_or("");
+                                    return Ok((token.to_string(), ptoken.to_string()));
+                                }
+                                return Ok((token.to_string(), String::new()));
                             }
                             -401 | 401 => {
                                 log::info!("需要进行人机验证");
@@ -407,9 +429,12 @@ pub async fn confirm_ticket_order(cookie_manager:Arc<CookieManager>,project_id :
 
 pub async fn create_order(
     cookie_manager: Arc<CookieManager>,
+    cpdd: Arc<Mutex<CTokenGenerator>>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
     confirm_result: &ConfirmTicketResult,
+    is_hot: bool,
     biliticket: &BilibiliTicket,
     buyer_info: &Vec<BuyerInfo>,
     is_mobile: bool,
@@ -417,7 +442,11 @@ pub async fn create_order(
     fast_mode: bool,
     screen_size: Option<(u32, u32)> // 可选参数：(宽度,高度)
 ) -> Result<Value, i32> {
-    let url = format!("https://show.bilibili.com/api/ticket/order/createV2?project_id={}", project_id);
+    let url = if !is_hot {
+        format!("https://show.bilibili.com/api/ticket/order/createV2?project_id={}", project_id)
+    }else{
+        format!("https://show.bilibili.com/api/ticket/order/createV2?project_id={}&ptoken={}", project_id,ptoken.clone())
+    };
     
     // 选择适当的位置类型
     let position_type = if need_retry && is_mobile {
@@ -461,6 +490,7 @@ pub async fn create_order(
     };
     let ticket_id_int = ticket_id.parse::<i64>().map_err(|_| 999)?;
 
+    
     let data = match biliticket.id_bind {
         0 => {
             // 不实名制购票人信息
@@ -485,21 +515,41 @@ pub async fn create_order(
             data
         }
         1 | 2 => {
-            let data = json!({
-                "project_id": project_id.parse::<i64>().unwrap_or(0),
-                "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
-                "sku_id": ticket_id_int, 
-                "token": token,
-                "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
-                "clickPosition": click_position,
-                "newRisk": true,
-                "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
-                "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
-                "pay_money": pay_money,
-                "count": count,
-                "timestamp": timestamp,
-                "order_type": 1, 
-            });
+            let data = if is_hot {
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int, 
+                    "token": token,
+                    "ctoken": cpdd.lock().unwrap().generate_ctoken(true),
+                    "ptoken":ptoken,
+                    "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1, 
+                })
+            }else{
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int, 
+                    "token": token,
+                    "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" }, 
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1, 
+                })
+            };
             data
         }
         _ => {

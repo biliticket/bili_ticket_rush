@@ -326,6 +326,7 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context, uid: &i64) {
                                     ticket_id: "".to_string(),
                                     count: buyer_list.len() as i16,
                                     buyer_info: buyer_list.clone(),
+                                    is_hot: true,
                                     grab_mode: 2, // 使用捡漏模式
                                     status: TaskStatus::Pending,
                                     start_time: None,
