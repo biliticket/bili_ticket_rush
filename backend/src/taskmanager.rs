@@ -567,7 +567,7 @@ impl TaskManager for TaskManagerImpl {
                                             1 => {
                                                 log::debug!("直接抢票模式");
                                                 let mut token_retry_count = 0;
-                                                const MAX_TOKEN_RETRY: i8 = 5; 
+                                                const MAX_TOKEN_RETRY: i8 = 10; 
                                                 let mut confirm_order_retry_count = 0;
                                                 const MAX_CONFIRM_ORDER_RETRY: i8 = 4;
                                                 let mut order_retry_count = 0;
