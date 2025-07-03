@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use eframe::WindowBuilder;
-use egui_chinese_font::setup_chinese_fonts;
 use egui::Vec2;
+use egui_chinese_font::setup_chinese_fonts;
 mod app;
 mod ui;
 mod windows;
