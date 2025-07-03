@@ -279,6 +279,7 @@ pub async fn get_ticket_token(
             "sku_id": ticket_id,
             "count": count,
             "order_type": 1,
+            "token": ctoken_generator.generate_ctoken(false),
             "requestSource": "neul-next",
             "newRisk": "true",
         })
@@ -289,7 +290,6 @@ pub async fn get_ticket_token(
             "sku_id": ticket_id,
             "count": count,
             "order_type": 1,
-            "token": ctoken_generator.generate_ctoken(false),
             "requestSource": "neul-next",
             "newRisk": "true",
         })
