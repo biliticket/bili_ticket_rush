@@ -2,10 +2,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::{result, thread};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use common::cookie_manager::CookieManager;
 use rand::{Rng,thread_rng};
 
 use serde_json::json;
+
 
 
 
@@ -17,6 +20,7 @@ use common::login::{send_loginsms,sms_login};
 use common::ticket::ConfirmTicketResult;
 use common::gen_cp::CTokenGenerator;
 use common::ticket::{*};
+use uuid::timestamp;
 use crate::show_orderlist::get_orderlist;
 use crate::api::{*};
 
@@ -372,12 +376,23 @@ impl TaskManager for TaskManagerImpl {
                                     let skip_words= grab_ticket_req.skip_words.clone();
                                     let mut rng = thread_rng();
                                     let mut is_hot = grab_ticket_req.is_hot.clone();
-                                    let mut cpdd = Arc::new(Mutex::new(CTokenGenerator::new(
-                                        project_info.clone().unwrap().sale_begin as i64,
-                                        0,
-                                        rng.gen_range(2000..10000)
-                                        
-                                    )));
+                                    let mut cpdd = if project_info.is_some(){
+                                        Arc::new(Mutex::new(CTokenGenerator::new(
+                                            project_info.clone().unwrap().sale_begin as i64,
+                                            0,
+                                            rng.gen_range(2000..10000)
+                                            
+                                        )))
+                                    }else{
+                                        Arc::new(Mutex::new(CTokenGenerator::new(
+                                            SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_secs() as i64, 
+                                            0,
+                                            rng.gen_range(2000..10000)
+                                        )))
+                                    };
                                     tokio::spawn(async move{
                                         log::debug!("开始分析抢票任务：{}",task_id);
                                        
@@ -703,6 +718,7 @@ impl TaskManager for TaskManagerImpl {
                                                         }
                                                     };
                                                     is_hot = project_data.data.hot_project;
+                                                    
                                                     // 检查项目是否可售
                                                     /* if ![8,2].contains(&project_data.data.sale_flag_number){
                                                         log::error!("当前项目已停售，暂时不会放出回流票，请等等重新提交任务");
@@ -747,7 +763,16 @@ impl TaskManager for TaskManagerImpl {
                                                             local_grab_request.biliticket.select_ticket_id = Some(ticket_data.id.clone().to_string());
                                                             
                                                             // 获取token
-                                                            let token_result = get_ticket_token(cookie_manager.clone(), cpdd.clone(),&project_id, &screen_id, &ticket_id, count, is_hot).await;
+                                                            let token_result = get_ticket_token(
+                                                                cookie_manager.clone(), 
+                                                                cpdd.clone(),
+                                                                &project_id, 
+
+                                                                &local_grab_request.screen_id, 
+                                                                &local_grab_request.ticket_id, 
+                                                                count,
+                                                                is_hot.clone()
+                                                            ).await;
                                                             match token_result {
                                                                 Ok((token,ptoken)) => {
                                                                     //获取token成功！
@@ -766,7 +791,7 @@ impl TaskManager for TaskManagerImpl {
                                                                            &task_id, 
                                                                            uid, 
                                                                            &result_tx,
-                                                                           &grab_ticket_req,
+                                                                           &local_grab_request,
                                                                            &buyer_info
                                                                          ).await ;
                                                                 if success {
@@ -1275,10 +1300,7 @@ async fn try_create_order(
                         log::error!("活动收摊啦,下次要快点哦");
                         return Some((true,false));
                     }
-                    919 => {
-                        log::error!("该项目区分绑定非绑定项目错误，传入意外值，请尝试重新下单以及提出issue");
-                        return Some((true,false));
-                    }
+                    
                     209001 => {
                         log::error!("当前项目只能选择一个购票人！不支持多选，请重新提交任务");
                         return Some((true,false));
@@ -1287,7 +1309,13 @@ async fn try_create_order(
                         log::error!("B站传了一个NUll回来，请看一下上一行的message提示信息，自行决定是否继续，如果取消请关闭重新打开该应用");
                     }
                     
-                    
+                    999 => {
+                        log::error!("程序内部错误！传参错误")
+                    }
+                    919 => {
+                        log::error!("程序内部错误！该项目区分绑定非绑定项目错误，传入意外值，请尝试重新下单以及提出issue");
+                        return Some((true,false));
+                    }
 
                     //未知错误
                     _ => log::error!("下单失败，未知错误码：{} 可以提出issue修复该问题", e),
