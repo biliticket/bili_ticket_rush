@@ -1,9 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use eframe::epaint::Vec2;
+use eframe::WindowBuilder;
+use egui_chinese_font::setup_chinese_fonts;
+use egui::Vec2;
 mod app;
 mod ui;
 mod windows;
+
 fn main() -> Result<(), eframe::Error> {
     unsafe { std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1") }; // 强制软件渲染
     unsafe { std::env::set_var("MESA_GL_VERSION_OVERRIDE", "3.3") }; // 尝试覆盖 GL 版本
@@ -35,11 +38,10 @@ fn main() -> Result<(), eframe::Error> {
     }
 
     // 创建资源目录（如果不存在）
-    create_resources_directory();
-
     let options = eframe::NativeOptions {
-        initial_window_size: Some(Vec2::new(1200.0, 600.0)),
-        min_window_size: Some(Vec2::new(800.0, 600.0)),
+        viewport: eframe::egui::ViewportBuilder::default()
+            .with_inner_size(Vec2::new(1200.0, 600.0))
+            .with_min_inner_size(Vec2::new(800.0, 600.0)),
         vsync: false,
 
         ..Default::default()
@@ -48,16 +50,9 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "原神",
         options,
-        Box::new(|cc| Box::new(app::Myapp::new(cc))),
+        Box::new(|cc| {
+            setup_chinese_fonts(&cc.egui_ctx).expect("Failed to load Chinese fonts");
+            Box::new(app::Myapp::new(cc))
+        }),
     )
-}
-
-// 确保资源目录存在
-fn create_resources_directory() {
-    let resources_dir = std::path::Path::new("resources/fonts");
-    if !resources_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(resources_dir) {
-            log::warn!("无法创建资源目录: {}", e);
-        }
-    }
 }

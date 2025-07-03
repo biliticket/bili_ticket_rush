@@ -1,4 +1,5 @@
 use eframe::egui;
+use egui_chinese_font::setup_chinese_fonts;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
@@ -187,8 +188,6 @@ pub struct OrderData {
 
 impl Myapp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        //中文字体
-        ui::fonts::configure_fonts(&cc.egui_ctx);
         let config = match Config::load_config() {
             Ok(load_config) => {
                 log::info!("配置文件加载成功");

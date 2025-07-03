@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-eframe = { version = "0.23.0", features = ["default"] }
-egui = "0.31.0"
-winapi = { version = "0.3.9", features = ["winuser", "windef"] }
-egui_extras = { version = "0.23.0", features = ["all_loaders"] }
+eframe = { version = "0.27", features = ["default"] }
+egui = "0.27"
+egui-chinese-font = "0.1"
+winapi = { version = "0.3", features = ["winuser", "windef"] }
+egui_extras = { version = "0.27", features = ["all_loaders"] }
 image = "0.25"
 chrono = "0.4"
 log = "0.4"
@@ -22,4 +23,3 @@ serde_json = "1.0"
 jsonwebtoken = "9"
 common = {path = "../common"}
 backend = {path = "../backend"}
-

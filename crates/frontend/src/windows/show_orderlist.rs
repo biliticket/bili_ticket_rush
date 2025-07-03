@@ -50,7 +50,9 @@ pub fn show(app: &mut Myapp, ctx: &egui::Context) {
                                 egui::Color32::from_rgb(220, 220, 220),
                             ))
                             .shadow(egui::epaint::Shadow {
-                                extrusion: 2.0,
+                                offset: egui::vec2(0.0, 2.0),
+                                blur: 4.0,
+                                spread: 0.0,
                                 color: egui::Color32::from_black_alpha(20),
                             })
                             .inner_margin(egui::vec2(12.0, 12.0))

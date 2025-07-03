@@ -20,7 +20,7 @@ pub fn render_notification_banner(app: &Myapp, ctx: &egui::Context) {
     );
 
     // 使用Area绝对定位横幅
-    egui::Area::new("notification_banner")
+    egui::Area::new("notification_banner".into())
         .fixed_pos(banner_rect.min)
         .show(ctx, |ui| {
             // 根据当前激活的横幅类型选择颜色

@@ -125,7 +125,7 @@ fn styled_ticket_input(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
                 1.0,
                 egui::Color32::from_rgb(200, 200, 220),
             ))
-            .shadow(egui::epaint::Shadow::small_light())
+            .shadow(egui::epaint::Shadow::default())
             .inner_margin(egui::vec2(12.0, 10.0))
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(8.0, 0.0);
@@ -166,7 +166,7 @@ fn styled_selection_area(ui: &mut egui::Ui, app: &mut Myapp) {
                 0.5,
                 egui::Color32::from_rgb(200, 200, 220),
             ))
-            .shadow(egui::epaint::Shadow::small_light())
+            .shadow(egui::epaint::Shadow::default())
             .inner_margin(egui::vec2(16.0, 12.0))
             .show(ui, |ui| {
                 ui.set_width(panel_width - 32.0); // 减去内边距
