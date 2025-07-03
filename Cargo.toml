@@ -9,3 +9,10 @@ resolver = "3"
 [patch.crates-io]
 ort = { git="https://github.com/biliticket/ort" }
 ort-sys = { git = "https://github.com/biliticket/ort" }
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
