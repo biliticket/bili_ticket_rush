@@ -2,13 +2,17 @@ use common::cookie_manager::CookieManager;
 use common::http_utils::request_get;
 use common::login::QrCodeLoginStatus;
 use common::ticket::*;
-use rand::{Rng, thread_rng};
+use rand::Rng;
 use reqwest::Client;
 use serde_json;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::CTokenGenerator;
+
+static mut START_TIME: u64 = 0;
 
 pub async fn get_countdown(
     cookie_manager: Arc<CookieManager>,
@@ -19,7 +23,10 @@ pub async fn get_countdown(
         Some(info) => info.sale_begin,
         None => return Err("获取开始时间失败".to_string()),
     };
-    log::debug!("获取开始时间(秒级)：{}", sale_begin_sec);
+
+    unsafe { START_TIME = sale_begin_sec as u64 };
+
+    log::debug!("获取开始时间(秒级): {}", sale_begin_sec);
 
     // 获取网络时间 (秒级)
     let url = "https://api.bilibili.com/x/click-interface/click/now";
@@ -27,7 +34,7 @@ pub async fn get_countdown(
     let now_sec = match response.send().await {
         Ok(data) => {
             let text = data.text().await.unwrap_or_default();
-            log::debug!("API原始响应：{}", text);
+            log::debug!("API原始响应: {}", text);
 
             let json_data: serde_json::Value = serde_json::from_str(&text).unwrap_or(json!({
                 "code": 0,
@@ -37,7 +44,7 @@ pub async fn get_countdown(
             }));
 
             let now_sec = json_data["data"]["now"].as_i64().unwrap_or(0);
-            log::debug!("解析出的网络时间(秒级)：{}", now_sec);
+            log::debug!("解析出的网络时间(秒级): {}", now_sec);
             now_sec
         }
         Err(e) => {
@@ -50,7 +57,7 @@ pub async fn get_countdown(
     let now_sec = if now_sec == 0 {
         log::debug!("使用本地时间");
         let local_sec = chrono::Utc::now().timestamp();
-        log::debug!("本地时间(秒级)：{}", local_sec);
+        log::debug!("本地时间(秒级): {}", local_sec);
         local_sec
     } else {
         now_sec
@@ -257,17 +264,36 @@ pub async fn get_ticket_token(
     screen_id: &str,
     ticket_id: &str,
     count: i16,
-) -> Result<String, TokenRiskParam> {
-    let params = serde_json::json!({
-        "project_id": project_id,
-        "screen_id": screen_id,
-        "sku_id": ticket_id,
-        "count": count,
-        "order_type": 1,
-        "token": "",
-        "requestSource": "neul-next",
-        "newRisk": "true",
-    });
+    is_hot_project: bool,
+) -> Result<(String, String), TokenRiskParam> {
+    let mut ctoken_generator = CTokenGenerator::new(
+        unsafe { START_TIME.try_into().unwrap() },
+        0,
+        rand::rng().random_range(2000..10000),
+    );
+
+    let params = if is_hot_project {
+        json!({
+            "project_id": project_id,
+            "screen_id": screen_id,
+            "sku_id": ticket_id,
+            "count": count,
+            "order_type": 1,
+            "requestSource": "neul-next",
+            "newRisk": "true",
+        })
+    } else {
+        json!({
+            "project_id": project_id,
+            "screen_id": screen_id,
+            "sku_id": ticket_id,
+            "count": count,
+            "order_type": 1,
+            "token": ctoken_generator.generate_ctoken(false),
+            "requestSource": "neul-next",
+            "newRisk": "true",
+        })
+    };
 
     let url = format!(
         "https://show.bilibili.com/api/ticket/order/prepare?project_id={}",
@@ -295,7 +321,13 @@ pub async fn get_ticket_token(
                         match code {
                             0 => {
                                 let token = json["data"]["token"].as_str().unwrap_or("");
-                                return Ok(token.to_string());
+
+                                if is_hot_project {
+                                    let ptoken = json["data"]["ptoken"].as_str().unwrap_or("");
+                                    return Ok((token.to_string(), ptoken.to_string()));
+                                }
+
+                                return Ok((token.to_string(), String::new()));
                             }
                             -401 | 401 => {
                                 log::info!("需要进行人机验证");
@@ -426,7 +458,7 @@ pub async fn confirm_ticket_order(
     token: &str,
 ) -> Result<ConfirmTicketResult, String> {
     let url = format!(
-        "https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&voucher=&project_id={}&requestSource=neul-next",
+        "https://show.bilibili.com/api/ticket/order/confirmInfo?token={}&project_id={}&requestSource=neul-next",
         token, project_id
     );
     let response = cookie_manager
@@ -461,6 +493,7 @@ pub async fn create_order(
     cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
     confirm_result: &ConfirmTicketResult,
     biliticket: &BilibiliTicket,
     buyer_info: &Vec<BuyerInfo>,
@@ -468,10 +501,11 @@ pub async fn create_order(
     need_retry: bool,
     fast_mode: bool,
     screen_size: Option<(u32, u32)>, // 可选参数：(宽度,高度)
+    is_hot_project: bool,
 ) -> Result<Value, i32> {
     let url = format!(
-        "https://show.bilibili.com/api/ticket/order/createV2?project_id={}",
-        project_id
+        "https://show.bilibili.com/api/ticket/order/createV2?project_id={}&ptoken={}",
+        project_id, ptoken
     );
 
     // 选择适当的位置类型
@@ -512,6 +546,14 @@ pub async fn create_order(
     let count = confirm_result.count.clone();
     let pay_money = confirm_result.pay_money.clone();
 
+    let mut ctoken_generator = CTokenGenerator::new(
+        unsafe { START_TIME.try_into().unwrap() },
+        0,
+        rand::rng().random_range(2000..10000),
+    );
+
+    let ctoken = ctoken_generator.generate_ctoken(true);
+
     let ticket_id = match biliticket.select_ticket_id.clone() {
         Some(id) => id,
         None => return Err(999),
@@ -523,40 +565,81 @@ pub async fn create_order(
             // 不实名制购票人信息
             let no_bind_buyer_info = biliticket.no_bind_buyer_info.clone().unwrap();
 
-            let data = json!({
-                "project_id": project_id.parse::<i64>().unwrap_or(0),
-                "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
-                "sku_id": ticket_id_int,
-                "token": token,
-                "buyer": no_bind_buyer_info.name,
-                "tel": no_bind_buyer_info.tel,
-                "clickPosition": click_position,
-                "newRisk": true,
-                "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
-                "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
-                "pay_money": pay_money,
-                "count": count,
-                "timestamp": timestamp,
-                "order_type": 1,
-            });
+            let data = if is_hot_project {
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int,
+                    "token": token,
+                    "ptoken": ptoken,
+                    "ctoken": ctoken,
+                    "buyer": no_bind_buyer_info.name,
+                    "tel": no_bind_buyer_info.tel,
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1,
+                })
+            } else {
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int,
+                    "token": token,
+                    "buyer": no_bind_buyer_info.name,
+                    "tel": no_bind_buyer_info.tel,
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1,
+                })
+            };
             data
         }
         1 | 2 => {
-            let data = json!({
-                "project_id": project_id.parse::<i64>().unwrap_or(0),
-                "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
-                "sku_id": ticket_id_int,
-                "token": token,
-                "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
-                "clickPosition": click_position,
-                "newRisk": true,
-                "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
-                "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
-                "pay_money": pay_money,
-                "count": count,
-                "timestamp": timestamp,
-                "order_type": 1,
-            });
+            let data = if is_hot_project {
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int,
+                    "token": token,
+                    "ptoken": ptoken,
+                    "ctoken": ctoken,
+                    "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1,
+                })
+            } else {
+                json!({
+                    "project_id": project_id.parse::<i64>().unwrap_or(0),
+                    "screen_id": biliticket.screen_id.parse::<i64>().unwrap_or(0),
+                    "sku_id": ticket_id_int,
+                    "token": token,
+                    "buyer_info": serde_json::to_string(buyer_info).unwrap_or_default(),
+                    "clickPosition": click_position,
+                    "newRisk": true,
+                    "requestSource": if is_mobile { "neul-next" } else { "pc-new" },
+                    "deviceId": cookie_manager.get_cookie("deviceFingerprint"),
+                    "pay_money": pay_money,
+                    "count": count,
+                    "timestamp": timestamp,
+                    "order_type": 1,
+                })
+            };
             data
         }
         _ => {
@@ -586,7 +669,11 @@ pub async fn create_order(
     })?;
     /* log::info!("{}", text); */
     //传入 | 429 | 900001 | 900002检测
-    if !text.contains("100001")|| text.contains("429") || text.contains("900001") || text.contains("900002") {
+    if !text.contains("100001")
+        || text.contains("429")
+        || text.contains("900001")
+        || text.contains("900002")
+    {
         log::info!("{}", text);
     }
     let value: Value = serde_json::from_str(&text).map_err(|e| {
@@ -664,7 +751,7 @@ pub async fn random_click_position(
     screen_width: Option<u32>,
     screen_height: Option<u32>,
 ) -> Value {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // 获取手机屏幕尺寸（默认使用常见尺寸1080x2400）
     let mobile_width = screen_width.unwrap_or(1080);
@@ -679,8 +766,8 @@ pub async fn random_click_position(
         ClickPositionType::MobileConfirm => {
             // 手机端确认下单按钮位置(右下角)
             // 使用比例计算：x在屏幕宽度的0.55-0.9之间，y在屏幕底部附近
-            let x_ratio = rng.gen_range(0.55..0.9);
-            let y_ratio = rng.gen_range(0.9..0.95);
+            let x_ratio = rng.random_range(0.55..0.9);
+            let y_ratio = rng.random_range(0.9..0.95);
 
             let x = (mobile_width as f32 * x_ratio) as i32;
             let y = (mobile_height as f32 * y_ratio) as i32;
@@ -690,8 +777,8 @@ pub async fn random_click_position(
         ClickPositionType::RetryButton => {
             // 手机版"再试一次"按钮位置(屏幕中间靠下)
             // x坐标在屏幕宽度的1/3到2/3之间，y坐标在屏幕高度的2/3左右
-            let x_ratio = rng.gen_range(0.33..0.67); // 屏幕宽度的2/6到4/6之间
-            let y_ratio = rng.gen_range(0.6..0.7); // 屏幕高度的2/3左右
+            let x_ratio = rng.random_range(0.33..0.67); // 屏幕宽度的2/6到4/6之间
+            let y_ratio = rng.random_range(0.6..0.7); // 屏幕高度的2/3左右
 
             let x = (mobile_width as f32 * x_ratio) as i32;
             let y = (mobile_height as f32 * y_ratio) as i32;
@@ -701,8 +788,8 @@ pub async fn random_click_position(
     };
 
     // 生成随机偏移
-    let offset_x = rng.gen_range(-offset_range..=offset_range);
-    let offset_y = rng.gen_range(-offset_range..=offset_range);
+    let offset_x = rng.random_range(-offset_range..=offset_range);
+    let offset_y = rng.random_range(-offset_range..=offset_range);
 
     // 计算最终坐标
     let final_x = base_x + offset_x;
@@ -717,10 +804,10 @@ pub async fn random_click_position(
     // 根据模式生成不同的延迟时间
     let random_delay = if fast_mode {
         // 快模式：0.8-4.6秒
-        rng.gen_range(800..4600)
+        rng.random_range(800..4600)
     } else {
         // 慢模式：4-12秒
-        rng.gen_range(4000..12000)
+        rng.random_range(4000..12000)
     };
 
     // 计算起始时间

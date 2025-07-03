@@ -1,8 +1,5 @@
 use crate::cookie_manager::CookieManager;
-use crate::{
-    cookie_manager,
-    http_utils::request_get_sync,
-};
+use crate::{cookie_manager, http_utils::request_get_sync};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;

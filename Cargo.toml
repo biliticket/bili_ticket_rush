@@ -1,9 +1,10 @@
 [workspace]
 members = [
-    "frontend",
-    "backend",
-    "common"
+    "crates/frontend",
+    "crates/backend",
+    "crates/common"
 ]
+resolver = "3"
 
 [patch.crates-io]
 ort = { git="https://github.com/biliticket/ort" }

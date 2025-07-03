@@ -464,6 +464,7 @@ async fn pickup_mode_grab(mut req: GrabTicketRequest, result_tx: mpsc::Sender<Ta
 
             req.screen_id = screen_data.id.clone().to_string();
             req.biliticket.screen_id = screen_data.id.clone().to_string();
+            log::info!("当前项目有可抢票场次，开始抢票！");
 
             for ticket_data in screen_data.ticket_list {
                 if !ticket_data.clickable {
@@ -483,11 +484,20 @@ async fn pickup_mode_grab(mut req: GrabTicketRequest, result_tx: mpsc::Sender<Ta
                     &req.screen_id,
                     &req.ticket_id,
                     req.count,
+                    req.biliticket.project_info.clone().unwrap().is_hot_project,
                 )
                 .await
                 {
                     Ok(token) => {
-                        if handle_ticket_grab(&req, &token, &result_tx).await {
+                        if handle_ticket_grab(
+                            &req,
+                            &token.0,
+                            &token.1,
+                            &result_tx,
+                            req.biliticket.project_info.clone().unwrap().is_hot_project,
+                        )
+                        .await
+                        {
                             break 'main_loop; // 抢票成功，退出捡漏模式
                         }
                     }
@@ -518,11 +528,20 @@ async fn grab_ticket_core(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
             &req.screen_id,
             &req.ticket_id,
             req.count,
+            req.biliticket.project_info.clone().unwrap().is_hot_project,
         )
         .await
         {
             Ok(token) => {
-                if handle_ticket_grab(&req, &token, &result_tx).await {
+                if handle_ticket_grab(
+                    &req,
+                    &token.0,
+                    &token.1,
+                    &result_tx,
+                    req.biliticket.project_info.clone().unwrap().is_hot_project,
+                )
+                .await
+                {
                     break; // 抢票流程结束
                 }
             }
@@ -549,7 +568,9 @@ async fn grab_ticket_core(req: GrabTicketRequest, result_tx: mpsc::Sender<TaskRe
 async fn handle_ticket_grab(
     req: &GrabTicketRequest,
     token: &str,
+    ptoken: &str,
     result_tx: &mpsc::Sender<TaskResult>,
+    is_hot_project: bool,
 ) -> bool {
     let task_id = req.task_id.clone();
     let mut confirm_retry_count = 0;
@@ -560,11 +581,13 @@ async fn handle_ticket_grab(
             req.cookie_manager.clone(),
             &req.project_id,
             token,
+            ptoken,
             &task_id,
             req.uid,
             result_tx,
             req,
             &req.buyer_info,
+            is_hot_project,
         )
         .await;
 
@@ -828,11 +851,13 @@ async fn process_grab_ticket(
     cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
     task_id: &str,
     uid: i64,
     result_tx: &mpsc::Sender<TaskResult>,
     grab_ticket_req: &GrabTicketRequest,
     buyer_info: &Vec<BuyerInfo>,
+    is_hot_project: bool,
 ) -> (bool, bool) {
     // 确认订单
     match confirm_ticket_order(cookie_manager.clone(), project_id, token).await {
@@ -843,12 +868,14 @@ async fn process_grab_ticket(
                 cookie_manager.clone(),
                 project_id,
                 token,
+                ptoken,
                 &confirm_result,
                 grab_ticket_req,
                 buyer_info,
                 task_id,
                 uid,
                 result_tx,
+                is_hot_project,
             )
             .await
             {
@@ -869,12 +896,14 @@ async fn try_create_order(
     cookie_manager: Arc<CookieManager>,
     project_id: &str,
     token: &str,
+    ptoken: &str,
     confirm_result: &ConfirmTicketResult,
     grab_ticket_req: &GrabTicketRequest,
     buyer_info: &Vec<BuyerInfo>,
     task_id: &str,
     uid: i64,
     result_tx: &mpsc::Sender<TaskResult>,
+    is_hot_project: bool,
 ) -> Option<(
     bool,
     bool, // 第二个参数标记是因为达到重试上限
@@ -892,6 +921,7 @@ async fn try_create_order(
             cookie_manager.clone(),
             project_id,
             token,
+            ptoken,
             confirm_result,
             &grab_ticket_req.biliticket,
             buyer_info,
@@ -899,6 +929,7 @@ async fn try_create_order(
             need_retry,
             false,
             None,
+            is_hot_project,
         )
         .await
         {

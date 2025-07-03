@@ -3,10 +3,10 @@ use std::{fs, io, path::Path};
 
 pub fn configure_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
-    
+
     let font_data = load_system_font().unwrap_or_else(|_| {
         log::warn!("使用内置中文字体");
-        include_bytes!("../../../resources/fonts/NotoSansSC-Regular.otf").to_vec()
+        include_bytes!("../../../../resources/fonts/NotoSansSC-Regular.otf").to_vec()
     });
 
     fonts.font_data.insert(
@@ -23,14 +23,18 @@ pub fn configure_fonts(ctx: &egui::Context) {
 
 fn load_system_font() -> io::Result<Vec<u8>> {
     let paths = get_system_font_paths();
-    
-    paths.into_iter()
+
+    paths
+        .into_iter()
         .find(|path| Path::new(path).exists())
         .and_then(|path| {
             log::info!("加载字体: {}", path);
             fs::read(path).ok()
         })
-        .ok_or(io::Error::new(io::ErrorKind::NotFound, "No suitable font found"))
+        .ok_or(io::Error::new(
+            io::ErrorKind::NotFound,
+            "No suitable font found",
+        ))
 }
 
 fn get_system_font_paths() -> Vec<&'static str> {
