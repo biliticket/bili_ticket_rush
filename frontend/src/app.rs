@@ -838,7 +838,7 @@ impl eframe::App for Myapp{
         if should_monitor {
             log::info!("资源监控 - 日志条数: {}, 任务数: {}", 
                 self.logs.len(),
-                self.account_manager.active_tasks.len());
+                self.task_manager.get_results().len());
             LAST_MONITOR_TIME = Some(std::time::Instant::now());
         }
         }
