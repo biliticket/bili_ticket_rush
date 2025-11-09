@@ -661,23 +661,7 @@ impl Myapp{
                         log::info!("{}",title);
                         log::info!("{}",message);
                         //这里注释是因为推送任务已经在grab_ticket任务里提交了，由于挂后台不刷新不推送
-                        /* if self.push_config.enabled{
-                            let push_request = TaskRequest::PushRequest(PushRequest { 
-                                title: title.clone(),
-                                message: message.clone(),
-                                push_type: PushType::All,
-                                jump_url: jump_url.clone(),
-                                push_config: self.push_config.clone(),
-
-                            });
-                            match self.task_manager.submit_task(push_request){
-                                Ok(task_id) => {
-                                    log::debug!("提交全渠道推送任务成功，任务ID: {}", task_id);
-                                },
-                                Err(e) => {
-                                    log::error!("提交推送任务失败: {}", e);
-                                }
-                            }
+                        if self.push_config.enabled{
                             let push_request = TaskRequest::PushRequest(PushRequest { 
                                 title: title.clone(),
                                 message: message.clone(),
@@ -695,7 +679,8 @@ impl Myapp{
                                 }
                             }
                             
-                        } */
+                            
+                        }
                         //self.push_config.push_all(title.as_str(), message.as_str(), &jump_url,&mut *self.task_manager);
                     
                     }

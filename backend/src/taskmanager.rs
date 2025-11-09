@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::{result, thread};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use common::cookie_manager::CookieManager;
@@ -20,7 +20,6 @@ use common::login::{send_loginsms,sms_login};
 use common::ticket::ConfirmTicketResult;
 use common::gen_cp::CTokenGenerator;
 use common::ticket::{*};
-use uuid::timestamp;
 use crate::show_orderlist::get_orderlist;
 use crate::api::{*};
 
@@ -1244,7 +1243,7 @@ async fn try_create_order(
                     uid,
                     success: true,
                     message: "抢票成功".to_string(),
-                    order_id: Some(order_id.to_string()), 
+                    order_id: Some(order_id.clone().to_string()), 
                     pay_token: Some(pay_token.to_string()),
                     confirm_result: Some(confirm_result.clone()),
                     pay_result : Some(pay_result.clone()),
@@ -1253,12 +1252,14 @@ async fn try_create_order(
                 let _ = result_tx.send(task_result.clone()).await;
                 
                 //修复由于挂在后台egui不运行导致任务管理器不加载导致不推送
+                let jump_url = Some(format!("bilibili://mall/web?url=https://mall.bilibili.com/neul-next/ticket/orderDetail.html?order_id={}", order_id.to_string()));
                 let pay_url = pay_result.code_url.clone();
                 let title = format!("恭喜{}抢票成功！", confirm_result.project_name);
                 let message = format!("抢票成功！\n项目：{}\n场次：{}\n票类型：{}\n支付链接：{}\n请尽快支付{}元，以免支付超时导致票丢失\n如果觉得本项目好用，可前往https://github.com/biliticket/bili_ticket_rush 帮我们点个小星星star收藏本项目以防走丢\n本项目完全免费开源，仅供学习使用，开发组不承担使用本软件造成的一切后果",confirm_result.project_name, confirm_result.screen_name, confirm_result.ticket_info.name, pay_url ,confirm_result.ticket_info.price * confirm_result.count as i64/ 100);
-
-                let _ = &grab_ticket_req.biliticket.push_self.push_all_async(  &title, &message,&None).await;
+                
+                let _ = &grab_ticket_req.biliticket.push_self.push_all_async(  &title, &message,&jump_url).await;
                 return Some((true,false)); // 成功，不需要继续重试
+                //有个问题：取的是缓存里的pushconfig，动态修改的新的推不了
             }
             
             Err(e) => {

@@ -355,7 +355,7 @@ fn check_input_ticket(ticket_id: &mut String) -> bool{
 
 
         }else{
-            log::error!("未找到对应的id，请不要使用b23开头的短连接，正确连接以show.bilibili或mall.bilibili开头");
+            log::error!("未找到对应的id，请不要使用b23开头的短连接，正确链接以show.bilibili或mall.bilibili开头");
             return false;
         }
     }
