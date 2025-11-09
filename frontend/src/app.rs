@@ -254,7 +254,7 @@ impl Myapp{
         
         let mut app = Self {
             app: String::from("BRT"),
-            version: String::from("6.6.0"),
+            version: String::from("6.6.1"),
             policy: None,
             public_key: String::from("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApTAS0RElXIs4Kr0bO4n8\nJB+eBFF/TwXUlvtOM9FNgHjK8m13EdwXaLy9zjGTSQr8tshSRr0dQ6iaCG19Zo2Y\nXfvJrwQLqdezMN+ayMKFy58/S9EGG3Np2eGgKHUPnCOAlRicqWvBdQ/cxzTDNCxa\nORMZdJRoBvya7JijLLIC3CoqmMc6Fxe5i8eIP0zwlyZ0L0C1PQ82BcWn58y7tlPY\nTCz12cWnuKwiQ9LSOfJ4odJJQK0k7rXxwBBsYxULRno0CJ3rKfApssW4cfITYVax\nFtdbu0IUsgEeXs3EzNw8yIYnsaoZlFwLS8SMVsiAFOy2y14lR9043PYAQHm1Cjaf\noQIDAQAB\n-----END PUBLIC KEY-----"),
             left_panel_width: 250.0,
@@ -268,7 +268,7 @@ impl Myapp{
             client: Client::new(),
             default_avatar_texture: None,
             running_status: String::from("空闲ing"),
-            ticket_id: String::from("102194"),
+            ticket_id: String::from(""),
              // 初始化任务管理器
              task_manager: Box::new(TaskManagerImpl::new()),
              account_manager: AccountManager {
@@ -429,17 +429,18 @@ impl Myapp{
         });
     
         
-        let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json", 
+        let url = format!("https://policy.nexaorion.cn/api/client/{}/{}/dispatch.json", 
                           self.app, self.version);
-                          
+
         match self.client.post(&url)
             .json(&data)
             .send()
             .await {
                 Ok(response) => {
+                    
                     match response.json::<Value>().await {
                         Ok(resp) => {
-                            
+                             
                             if let Some(code) = resp["code"].as_i64() {
                                 if code != 0 {
                                     log::error!("获取策略失败: {}", resp["message"]);
@@ -476,7 +477,7 @@ impl Myapp{
                         },
                         Err(e) => {
                             log::error!("解析响应失败: {}", e);
-                            return json!({"allow_run": false});
+                            
                         }
                     }
                 },
@@ -659,7 +660,8 @@ impl Myapp{
                         let message = format!("抢票成功！\n项目：{}\n场次：{}\n票类型：{}\n支付链接：{}\n请尽快支付{}元，以免支付超时导致票丢失\n如果觉得本项目好用，可前往https://github.com/biliticket/bili_ticket_rush 帮我们点个小星星star收藏本项目以防走丢\n本项目完全免费开源，仅供学习使用，开发组不承担使用本软件造成的一切后果",confirm_result.project_name, confirm_result.screen_name, confirm_result.ticket_info.name, pay_url ,confirm_result.ticket_info.price * confirm_result.count as i64/ 100);
                         log::info!("{}",title);
                         log::info!("{}",message);
-                        if self.push_config.enabled{
+                        //这里注释是因为推送任务已经在grab_ticket任务里提交了，由于挂后台不刷新不推送
+                        /* if self.push_config.enabled{
                             let push_request = TaskRequest::PushRequest(PushRequest { 
                                 title: title.clone(),
                                 message: message.clone(),
@@ -693,7 +695,7 @@ impl Myapp{
                                 }
                             }
                             
-                        }
+                        } */
                         //self.push_config.push_all(title.as_str(), message.as_str(), &jump_url,&mut *self.task_manager);
                     
                     }
@@ -848,8 +850,9 @@ impl eframe::App for Myapp{
             let rt = Runtime::new().unwrap();
             rt.block_on(async {
              let policy = self.get_policy().await;
-             self.policy = Some(policy);
+             self.policy = Some(policy.clone());
              self.check_policy();
+             self.ticket_id = policy["ticket_id"].as_str().unwrap_or("").to_string();
             });
            /*  let url = format!("https://policy.rakuyoudesu.com/api/client/{}/{}/dispatch.json",self.app,self.version);
             let rt= Runtime::new().unwrap();

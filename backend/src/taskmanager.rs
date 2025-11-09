@@ -1247,11 +1247,17 @@ async fn try_create_order(
                     order_id: Some(order_id.to_string()), 
                     pay_token: Some(pay_token.to_string()),
                     confirm_result: Some(confirm_result.clone()),
-                    pay_result : Some(pay_result),
+                    pay_result : Some(pay_result.clone()),
 
                 });
-                let _ = result_tx.send(task_result).await;
+                let _ = result_tx.send(task_result.clone()).await;
                 
+                //修复由于挂在后台egui不运行导致任务管理器不加载导致不推送
+                let pay_url = pay_result.code_url.clone();
+                let title = format!("恭喜{}抢票成功！", confirm_result.project_name);
+                let message = format!("抢票成功！\n项目：{}\n场次：{}\n票类型：{}\n支付链接：{}\n请尽快支付{}元，以免支付超时导致票丢失\n如果觉得本项目好用，可前往https://github.com/biliticket/bili_ticket_rush 帮我们点个小星星star收藏本项目以防走丢\n本项目完全免费开源，仅供学习使用，开发组不承担使用本软件造成的一切后果",confirm_result.project_name, confirm_result.screen_name, confirm_result.ticket_info.name, pay_url ,confirm_result.ticket_info.price * confirm_result.count as i64/ 100);
+
+                let _ = &grab_ticket_req.biliticket.push_self.push_all_async(  &title, &message,&None).await;
                 return Some((true,false)); // 成功，不需要继续重试
             }
             

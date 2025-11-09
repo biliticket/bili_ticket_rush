@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use serde_json::{json, Value};
 use rand::{thread_rng, Rng};
 use std::time::{SystemTime, UNIX_EPOCH};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+
 
 pub async fn get_countdown(cookie_manager: Arc<CookieManager>, info: Option<TicketInfo>) -> Result<f64, String> {
     // 获取开始时间 (秒级)
